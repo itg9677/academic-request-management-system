@@ -1,0 +1,91 @@
+/* الأساس */
+* {
+    box-sizing: border-box;
+    font-family: Arial, sans-serif;
+}
+
+body {
+    margin: 0;
+    background: #f2f4f8;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+}
+
+/* الصندوق */
+.container {
+    width: 100%;
+    max-width: 450px; /* مهم: يتغير حسب الشاشة */
+    background: white;
+    padding: 25px;
+    border-radius: 12px;
+    box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+}
+/* العنوان */
+.title {
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+/* الفورم */
+.form {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+/* كل حقل */
+.input-group {
+    display: flex;
+    flex-direction: column;
+}
+
+/* النص فوق الحقل */
+label {
+    margin-bottom: 6px;
+    font-weight: bold;
+    font-size: 14px;
+}
+
+/* المربعات */
+input, select {
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    font-size: 14px;
+    width: 100%;
+}
+
+/* الزر */
+.btn {
+    padding: 12px;
+    background: #007bff;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.btn:hover {
+    background: #0056b3;
+}
+
+/* 📱 الجوال */
+@media (max-width: 600px) {
+
+    .container {
+        max-width: 100%;
+        border-radius: 0;
+        box-shadow: none;
+    }
+
+    body {
+        align-items: flex-start;
+    }
+
+    input, select {
+        font-size: 16px; /* مهم للجوال */
+    }
+}
