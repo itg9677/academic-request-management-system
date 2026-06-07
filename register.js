@@ -1,8 +1,10 @@
-
-
 import { auth, db } from "./firebase.js";
-import { createUserWithEmailAndPassword } from "firebase/auth";
-import { doc, setDoc } from "firebase/firestore";
+import { 
+    createUserWithEmailAndPassword,
+    sendEmailVerification
+} from "firebase/auth";
+
+import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 
 const form = document.getElementById("registerForm");
 const msg = document.getElementById("msg");
@@ -20,28 +22,31 @@ form.addEventListener("submit", async (e) => {
         msg.style.color = "blue";
         msg.textContent = "جاري إنشاء الحساب...";
 
-        const userCredential = await createUserWithEmailAndPassword(
-            auth,
-            email,
-            password
-        );
-
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         const user = userCredential.user;
 
-        msg.style.color = "green";
-        msg.textContent = "تم إنشاء الحساب بنجاح";
+        await sendEmailVerification(user);
 
-        console.log("User ID:", user.uid);
-        console.log({
+        await setDoc(doc(db, "students", user.uid), {
             studentId,
             fullName,
             major,
-            email
+            email,
+            role: "student",
+            emailVerified: false,
+            createdAt: serverTimestamp()
         });
 
+        msg.style.color = "green";
+        msg.textContent = "تم إنشاء الحساب!";
+
+        setTimeout(() => {
+            window.location.href = "verifyEmail.html";
+        }, 1500);
+
     } catch (error) {
+        console.error(error);
         msg.style.color = "red";
         msg.textContent = error.message;
     }
 });
-

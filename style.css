@@ -17,16 +17,24 @@ body {
 /* الصندوق */
 .container {
     width: 100%;
-    max-width: 450px; /* مهم: يتغير حسب الشاشة */
+    max-width: 450px;
     background: white;
     padding: 25px;
     border-radius: 12px;
     box-shadow: 0 5px 20px rgba(0,0,0,0.1);
 }
+
+/* اللوجو */
+.logo {
+    width: 120px;
+    display: block;
+    margin: 0 auto 15px;
+}
+
 /* العنوان */
 .title {
     text-align: center;
-    margin-bottom: 20px;
+    margin-bottom: 10px;
 }
 
 /* الفورم */
@@ -36,20 +44,18 @@ body {
     gap: 15px;
 }
 
-/* كل حقل */
+/* الحقول */
 .input-group {
     display: flex;
     flex-direction: column;
 }
 
-/* النص فوق الحقل */
 label {
     margin-bottom: 6px;
     font-weight: bold;
     font-size: 14px;
 }
 
-/* المربعات */
 input, select {
     padding: 10px;
     border: 1px solid #ccc;
@@ -66,13 +72,14 @@ input, select {
     border: none;
     border-radius: 8px;
     cursor: pointer;
+    font-size: 15px;
 }
 
 .btn:hover {
     background: #0056b3;
 }
 
-/* 📱 الجوال */
+/* الموبايل */
 @media (max-width: 600px) {
 
     .container {
@@ -86,6 +93,6 @@ input, select {
     }
 
     input, select {
-        font-size: 16px; /* مهم للجوال */
+        font-size: 16px;
     }
 }
