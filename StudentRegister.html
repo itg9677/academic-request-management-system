@@ -1,60 +1,62 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
+ 
+
+</div>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>تسجيل الطلاب</title>
+    <title>تسجيل حساب جديد</title>
     <link rel="stylesheet" href="style.css">
 </head>
-
 <body>
 
 <div class="container">
 
-    <img src="images/Qassim_University_logo.svg.png" class="logo" alt="شعار الجامعة">
+    <!-- شعار الجامعة -->
+    <img src="C:\Users\stat\academic-request-management-system\images\Qassim_University_logo.svg.png" class="logo" alt="شعار الجامعة">
 
-    <h1 class="title">نظام الحذف والإضافة</h1>
-    <p style="text-align:center;">تسجيل حساب طالب جديد</p>
+    <h1>نظام الحذف والإضافة</h1>
+    <p>تسجيل حساب جديد</p>
+<form id="registerForm">
 
-    <form id="registerForm" class="form">
+    <div class="input-group">
+        <label>الرقم الجامعي</label>
+        <input type="text" id="studentId" required>
+    </div>
 
-        <div class="input-group">
-            <label>الرقم الجامعي</label>
-            <input type="text" id="studentId" required>
-        </div>
+    <div class="input-group">
+        <label>الاسم الثلاثي</label>
+        <input type="text" id="fullName" required>
+    </div>
 
-        <div class="input-group">
-            <label>الاسم الثلاثي</label>
-            <input type="text" id="fullName" required>
-        </div>
+    <div class="input-group">
+        <label>التخصص</label>
+        <select id="major" required>
+            <option value="">اختر التخصص</option>
+            <option value="فيزياء">فيزياء</option>
+            <option value="أحياء">أحياء</option>
+            <option value="كيمياء">كيمياء</option>
+            <option value="رياضيات">رياضيات</option>
+            <option value="إحصاء">إحصاء</option>
+        </select>
+    </div>
 
-        <div class="input-group">
-            <label>التخصص</label>
-            <select id="major" required>
-                <option value="">اختر التخصص</option>
-                <option value="فيزياء">فيزياء</option>
-                <option value="أحياء">أحياء</option>
-                <option value="كيمياء">كيمياء</option>
-                <option value="رياضيات">رياضيات</option>
-                <option value="إحصاء">إحصاء</option>
-            </select>
-        </div>
+    <div class="input-group">
+        <label>البريد الإلكتروني</label>
+        <input type="email" id="email" required>
+    </div>
 
-        <div class="input-group">
-            <label>البريد الإلكتروني</label>
-            <input type="email" id="email" required>
-        </div>
+    <div class="input-group">
+        <label>كلمة المرور</label>
+        <input type="password" id="password" required>
+    </div>
 
-        <div class="input-group">
-            <label>كلمة المرور</label>
-            <input type="password" id="password" required>
-        </div>
+    <button type="submit">تسجيل</button>
 
-        <button type="submit" class="btn">تسجيل</button>
+</form>
 
-    </form>
-
-    <p id="msg"></p>
+<p id="msg"></p>
 
 </div>
 
