@@ -29,35 +29,33 @@ form.addEventListener("submit", async (e) => {
         return;
     }
 
-    try {
-        msg.style.color = "blue";
-        msg.textContent = "جاري إنشاء الحساب...";
+   try {
+    msg.style.color = "blue";
+    msg.textContent = "جاري إنشاء الحساب...";
 
-        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-        const user = userCredential.user;
+    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+    const user = userCredential.user;
 
-        await sendEmailVerification(user);
+    await sendEmailVerification(user);
 
-        await setDoc(doc(db, "students", user.uid), {
-            studentId,
-            fullName,
-            major,
-            email,
-            role: "student",
-            emailVerified: false,
-            createdAt: serverTimestamp()
-        });
+    await setDoc(doc(db, "students", user.uid), {
+        studentId,
+        fullName,
+        major,
+        email,
+        role: "student",
+        createdAt: serverTimestamp()
+    });
 
-        msg.style.color = "green";
-        msg.textContent = "تم إنشاء الحساب!";
+    await auth.signOut();
 
-        setTimeout(() => {
-            window.location.href = "verifyEmail.html";
-        }, 1500);
+    msg.style.color = "green";
+    msg.textContent = "تم إنشاء الحساب! تحقق من بريدك الإلكتروني";
 
-    } catch (error) {
-        console.error(error);
-        msg.style.color = "red";
-        msg.textContent = error.message;
-    }
+window.location.href = "verifyEmail.html?type=student";
+} catch (error) {
+    console.error(error);
+    msg.style.color = "red";
+    msg.textContent = error.message;
+}
 });
