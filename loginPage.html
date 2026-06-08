@@ -14,18 +14,19 @@
              class="logo"
              alt="شعار الجامعة">
 
-        <h3 class="title">نظام الحذف والإضافة</h3>
+        <h3 class="title">نظام الخدمات الطلابية</h3>
 
-        <form>
+        <!-- 🔥 مهم جدًا: هذا الـ id لازم يطابق الجافا -->
+        <form id="loginForm">
 
             <div class="input-group">
                 <label for="studentId">الرقم الجامعي</label>
-                <input type="text" id="studentId" name="studentId">
+                <input type="text" id="studentId" name="studentId" required>
             </div>
 
             <div class="input-group">
                 <label for="password">كلمة المرور</label>
-                <input type="password" id="password" name="password">
+                <input type="password" id="password" name="password" required>
             </div>
 
             <button type="submit" class="btn">
@@ -35,9 +36,7 @@
         </form>
 
         <div class="links">
-            <a href="forgot-password.html">
-                نسيت كلمة المرور؟
-            </a>
+            <a href="forgotPassword.html?type=student">نسيت كلمة المرور</a>
 
             <a href="StudentRegister.html">
                 مستخدم جديد؟ سجل
@@ -45,6 +44,9 @@
         </div>
 
     </div>
+
+    <!-- 🔥 ربط ملف الجافاسكربت الصحيح -->
+    <script type="module" src="loginpage.js"></script>
 
 </body>
 </html>
