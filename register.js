@@ -21,6 +21,14 @@ form.addEventListener("submit", async (e) => {
     const email = document.getElementById("email").value;
     const password = document.getElementById("password").value;
 
+// التحقق من صيغة الإيميل
+    const emailPattern = /^\d{9}@qu\.edu\.sa$/;
+    if (!emailPattern.test(email)) {
+        msg.style.color = "red";
+        msg.textContent = "البريد الإلكتروني يجب أن يكون البريد الجامعي ";
+        return;
+    }
+
     try {
         msg.style.color = "blue";
         msg.textContent = "جاري إنشاء الحساب...";
