@@ -2,9 +2,12 @@ import { auth, db } from "./firebase.js";
 import { 
     createUserWithEmailAndPassword,
     sendEmailVerification
-} from "firebase/auth";
-
-import { doc, setDoc, serverTimestamp } from "firebase/firestore";
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { 
+    doc, 
+    setDoc, 
+    serverTimestamp 
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const form = document.getElementById("registerForm");
 const msg = document.getElementById("msg");
