@@ -81,7 +81,6 @@ input, select {
 
 /* الموبايل */
 @media (max-width: 600px) {
-
     .container {
         max-width: 100%;
         border-radius: 0;
@@ -95,4 +94,127 @@ input, select {
     input, select {
         font-size: 16px;
     }
+}
+
+
+/* =====================================================
+   صفحة الطالب الرئيسية — student-main-page
+   كل الستايلات هنا محصورة داخل .student-main-page
+   ===================================================== */
+
+:root {
+    --qu-blue:  #1a3a6b;
+    --qu-gold:  #c8972b;
+    --qu-bg:    #f4f6fa;
+    --qu-white: #ffffff;
+    --qu-gray:  #e8edf5;
+}
+
+.student-main-page {
+    display: block;
+    background-color: var(--qu-bg);
+    min-height: 100vh;
+    padding: 0;
+    align-items: unset;
+    justify-content: unset;
+}
+
+/* ترويسة */
+.student-main-page header {
+    background-color: var(--qu-blue);
+    border-bottom: 4px solid var(--qu-gold);
+    padding: 12px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.student-main-page header img {
+    height: 60px;
+    object-fit: contain;
+    max-width: 55%;
+}
+
+.student-main-page .welcome-text {
+    font-size: 15px;
+    font-weight: bold;
+    color: var(--qu-gold);
+    white-space: nowrap;
+}
+
+/* المحتوى الرئيسي */
+.student-main-page main {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: calc(100vh - 80px);
+    padding: 32px 16px;
+}
+
+/* البطاقة */
+.student-main-page .options-card {
+    background: var(--qu-white);
+    border-radius: 14px;
+    border-top: 5px solid var(--qu-blue);
+    box-shadow: 0 4px 24px rgba(26, 58, 107, 0.12);
+    padding: 36px 48px;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    max-width: 420px;
+    text-align: center;
+}
+
+.student-main-page .card-title {
+    font-size: 15px;
+    color: var(--qu-blue);
+    font-weight: 600;
+    margin-bottom: 24px;
+}
+
+/* الروابط */
+.student-main-page .option-link {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 17px;
+    color: var(--qu-blue);
+    text-decoration: underline;
+    text-decoration-color: var(--qu-gold);
+    text-underline-offset: 6px;
+    text-decoration-thickness: 2px;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 16px 0;
+    min-height: 48px;
+    transition: color 0.2s;
+}
+
+.student-main-page .option-link:hover,
+.student-main-page .option-link:active {
+    color: var(--qu-gold);
+    text-decoration-color: var(--qu-blue);
+}
+
+.student-main-page .divider {
+    border: none;
+    border-top: 1px solid var(--qu-gray);
+}
+
+/* رسالة التحميل */
+.student-main-page .loading {
+    color: var(--qu-blue);
+    font-size: 14px;
+    opacity: 0.6;
+}
+
+/* الجوال */
+@media (max-width: 480px) {
+    .student-main-page header img    { height: 48px; }
+    .student-main-page .welcome-text { font-size: 13px; }
+    .student-main-page .options-card { padding: 28px 24px; }
+    .student-main-page .option-link  { font-size: 15px; padding: 14px 0; }
 }
