@@ -128,10 +128,11 @@ select {
 }
 
 .login-page input {
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    font-size: 14px;
     width: 100%;
-    height: 55px;
-    background: #e8e8e8;
-    border: none;
 }
 
 .login-page .btn {
@@ -286,4 +287,64 @@ select {
         font-size: 15px;
         padding: 14px 0;
     }
+}
+
+/* ================================= */
+/* صفحة رفع عذر الغياب */
+/* ================================= */
+
+.absence-page {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    background: #f2f4f8;
+}
+
+.absence-page .container {
+    width: 100%;
+    max-width: 450px;
+    background: white;
+    padding: 25px;
+    border-radius: 12px;
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
+}
+
+.absence-page h2 {
+    text-align: center;
+    margin-bottom: 20px;
+    color: #1a3a6b;
+}
+
+.absence-page .form-group {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 15px;
+}
+
+.absence-page textarea {
+    resize: none;
+}
+
+.absence-page input,
+.absence-page textarea {
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    font-size: 14px;
+}
+
+.absence-page button {
+    width: 100%;
+    padding: 12px;
+    background: #1a3a6b;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 15px;
+}
+
+.absence-page button:hover {
+    background: #0f2a4d;
 }
