@@ -1,63 +1,135 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>بوابة الطالب</title>
-  <link rel="stylesheet" href="style.css" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>بوابة الطالب</title>
+
+    <link rel="stylesheet" href="style.css">
 </head>
 
 <body class="student-main-page">
-  <!-- ترويسة -->
-  <header>
-    <img src="images/Qassim_University_logo.svg.png" alt="شعار جامعة القصيم" />
-    <span class="welcome-text">
-      مرحباً، <span id="fullName">...</span>
-    </span>
-  </header>
 
-  <!-- خيارات الطالب -->
-  <main>
-    <div class="options-card">
-      <p class="card-title">الخدمات الطلابية</p>
+    <!-- الشعار والترحيب -->
+    <header>
 
-      <a class="option-link" href="request.html">طلبات الحذف والإضافة</a>
+<<<<<<< HEAD
+      <a class="option-link" href="add-drop.html">طلبات الحذف والإضافة</a>
       <hr class="divider" />
-      <a class="option-link" href="visit.html">طلبات الزيارة</a>
+      <a class="option-link" href="visitRequestPage.html">طلبات الزيارة</a>
       <hr class="divider" />
       <a class="option-link" href="absence.html">طلبات رفع الأعذار</a>
     </div>
   </main>
-
+ 
   <script type="module">
     import { auth, db } from "./js/firebase-config.js";
     import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
     import { doc, getDoc }        from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+=======
+        <img src="images/Qassim_University_logo.svg.png"
+             alt="شعار الجامعة">
+>>>>>>> c39fee4 (update)
 
-    onAuthStateChanged(auth, async (user) => {
-      // لو ما سجل دخول → رجّعه للوقن
-      if (!user) {
-        window.location.href = "login.html";
-        return;
-      }
+        <div class="welcome-text">
+            مرحباً، <span id="fullName">...</span>
+        </div>
 
-      // جلب بيانات الطالب من كولكشن students
-      const studentRef  = doc(db, "students", user.uid);
-      const studentSnap = await getDoc(studentRef);
+    </header>
 
-      if (studentSnap.exists()) {
-        const data = studentSnap.data();
+    <!-- المحتوى -->
+    <main>
 
-        // عرض الاسم من فيلد fullName
-        document.getElementById("fullName").textContent = data.fullName;
+        <!-- الزخرفة -->
+        <img src="images/pattern.png"
+             class="student-pattern"
+             alt="">
 
-        // التحقق إن الـ role طالب فعلاً
-        if (data.role !== "student") {
-          window.location.href = "login.html";
-        }
-      }
-    });
-  </script>
+        <!-- بطاقة الخدمات -->
+        <div class="options-card">
+
+            <div class="card-title">
+                الخدمات الطلابية
+            </div>
+
+            <a class="option-link"
+               href="request.html">
+                طلبات الحذف والإضافة
+            </a>
+
+            <a class="option-link"
+               href="visitRequestPage.html">
+                طلبات الزيارة
+            </a>
+
+            <a class="option-link"
+               href="absence.html">
+                طلبات رفع الأعذار
+            </a>
+
+        </div>
+
+    </main>
+
+    <script type="module">
+
+        import { auth, db } from "./js/firebase-config.js";
+
+        import {
+            onAuthStateChanged
+        } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+
+        import {
+            doc,
+            getDoc
+        } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+        onAuthStateChanged(auth, async (user) => {
+
+            if (!user) {
+                window.location.href = "login.html";
+                return;
+            }
+
+            try {
+
+                const studentRef = doc(
+                    db,
+                    "students",
+                    user.uid
+                );
+
+                const studentSnap =
+                    await getDoc(studentRef);
+
+                if (!studentSnap.exists()) {
+                    window.location.href = "login.html";
+                    return;
+                }
+
+                const data =
+                    studentSnap.data();
+
+                document.getElementById("fullName")
+                    .textContent =
+                    data.fullName || "الطالب";
+
+                if (data.role !== "student") {
+                    window.location.href =
+                        "login.html";
+                }
+
+            } catch (error) {
+
+                console.error(error);
+
+                window.location.href =
+                    "login.html";
+            }
+
+        });
+
+    </script>
 
 </body>
 </html>

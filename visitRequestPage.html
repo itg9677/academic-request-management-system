@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<title>طلب زيارة</title>
+
+<link rel="stylesheet" href="visitRequest.css">
+</head>
+
+<body>
+
+<div class="page">
+
+    <!-- الشعار -->
+<div class="logo-container">
+    <img src="images/Qassim_University_logo.svg.png" alt="logo">
+</div>
+
+<img src="images/pattern.png" class="science-pattern" alt="">
+
+    <!-- الفورم -->
+    <div class="request-form">
+
+        <h1>طلب زيارة</h1>
+
+        <!-- نوع الزيارة -->
+        <div class="form-group">
+            <label>نوع الزيارة</label>
+
+            <div class="radio-group">
+
+                <label class="radio-card">
+                    <input type="radio" name="visitType" value="internal">
+                    زيارة داخلية
+                </label>
+
+                <label class="radio-card">
+                    <input type="radio" name="visitType" value="external">
+                    زيارة خارجية
+                </label>
+
+            </div>
+        </div>
+
+        <!-- الصف الأول -->
+        <div class="form-grid">
+
+            <div class="form-group">
+                <label>رمز المقرر</label>
+                <input type="text">
+            </div>
+
+            <div class="form-group">
+                <label>اسم المقرر</label>
+                <input type="text">
+            </div>
+
+        </div>
+
+        <!-- الصف الثاني -->
+        <div class="form-grid">
+
+            <div class="form-group">
+                <label>القسم</label>
+                <input list="departments">
+                <datalist id="departments">
+                    <option value="رياضيات">
+                    <option value="أحياء">
+                    <option value="كيمياء">
+                    <option value="فيزياء">
+                    <option value="إحصاء">
+                </datalist>
+            </div>
+
+            <div class="form-group">
+                <label>المقر المراد زيارته</label>
+                <input type="text">
+            </div>
+
+        </div>
+
+        <!-- سبب الزيارة -->
+        <div class="form-group full-width">
+            <label>سبب الزيارة</label>
+            <textarea rows="4"></textarea>
+        </div>
+
+        <button>إرسال الطلب</button>
+
+    </div>
+
+</div>
+<script type="module" src="visitRequest.js"></script>
+
+</body>
+</html>
