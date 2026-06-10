@@ -1,9 +1,22 @@
-import { auth, db } from "./firebase.js";
-import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 import {
-  doc, getDoc, collection, query, where, getDocs,
+  getFirestore, doc, getDoc, collection, query, where, getDocs,
   updateDoc, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey:            "AIzaSyDg4iYMZEdc8pjJU67KtXbSvhBaqdoP0iA",
+  authDomain:        "studentsreq-d9ea1.firebaseapp.com",
+  projectId:         "studentsreq-d9ea1",
+  storageBucket:     "studentsreq-d9ea1.appspot.com",
+  messagingSenderId: "375395162945",
+  appId:             "1:375395162945:web:e3edb97c48a30ab6401fc0"
+};
+
+const app  = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db   = getFirestore(app);
 
 let currentEmployee = null;
 let isAffairs = false;
@@ -516,7 +529,7 @@ onAuthStateChanged(auth, async function(user) {
   if (empData.role !== "employee") { window.location.href = "EmployeeLogin.html"; return; }
 
   currentEmployee = Object.assign({ uid: user.uid }, empData);
-  isAffairs = empData.department === "شؤون طلاب";
+  isAffairs = empData.department === "شؤون الطالبات";
 
   document.getElementById("empName").textContent = empData.fullName || "-";
   document.getElementById("empDept").textContent = empData.department || "-";
