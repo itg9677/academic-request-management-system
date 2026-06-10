@@ -2,6 +2,7 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>تسجيل الدخول</title>
     <link rel="stylesheet" href="style.css">
 </head>
@@ -20,12 +21,12 @@
 
             <div class="input-group">
                 <label for="studentId">الرقم الوظيفي</label>
-                <input type="text" id="studentId" name="studentId">
+                <input type="text" id="studentId" name="studentId" required>
             </div>
 
             <div class="input-group">
                 <label for="password">كلمة المرور</label>
-                <input type="password" id="password" name="password">
+                <input type="password" id="password" name="password" required>
             </div>
 
             <button type="submit" class="btn">
@@ -33,6 +34,8 @@
             </button>
 
         </form>
+
+        <p id="msg" style="text-align:center; margin-top:12px; font-size:13px;"></p>
 
         <div class="links">
             <a href="forgot-password.html">
@@ -45,6 +48,8 @@
         </div>
 
     </div>
+
+    <script type="module" src="./employeeLogin.js"></script>
 
 </body>
 </html>

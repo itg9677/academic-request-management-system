@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>بوابة الموظف</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="empStyle.css" />
+</head>
+
+<body class="employee-dashboard-page">
+
+  <header class="emp-header">
+    <div class="emp-header-right">
+      <img src="images/Qassim_University_logo.svg.png" alt="شعار جامعة القصيم" class="emp-logo" />
+      <div>
+        <div class="emp-header-title">بوابة الموظف - نظام الخدمات الطلابية</div>
+        <div class="emp-header-sub">
+          مرحبا، <span id="empName">...</span>
+          - <span id="empDept">...</span>
+        </div>
+      </div>
+    </div>
+    <div class="emp-header-left">
+      <div class="emp-date" id="hijriDate">...</div>
+      <div class="emp-day" id="gregDate">...</div>
+      <button class="emp-logout-btn" id="logoutBtn">تسجيل خروج</button>
+    </div>
+  </header>
+
+  <main class="emp-main">
+    <div class="emp-tabs">
+      <button class="emp-tab active" data-tab="addDrop">
+        <span class="emp-tab-badge" id="badge-addDrop">0</span>حذف واضافة
+      </button>
+      <button class="emp-tab" data-tab="excuse">
+        <span class="emp-tab-badge" id="badge-excuse">0</span>رفع الاعذار
+      </button>
+      <button class="emp-tab" data-tab="visit">
+        <span class="emp-tab-badge" id="badge-visit">0</span>طلبات الزيارة
+      </button>
+    </div>
+
+    <div class="emp-tab-content active" id="tab-addDrop">
+      <div class="emp-table-card">
+        <div class="emp-table-top">
+          <div class="emp-table-title">طلبات الحذف والاضافة</div>
+          <div class="emp-filters">
+            <select class="emp-filter-select" id="filter-addDrop">
+              <option value="all">كل الحالات</option>
+              <option value="pending">معلقة</option>
+              <option value="under_review">قيد المراجعة</option>
+              <option value="approved">مقبولة</option>
+              <option value="rejected">مرفوضة</option>
+            </select>
+          </div>
+        </div>
+        <div class="emp-table-wrap">
+          <table class="emp-table">
+            <thead>
+              <tr>
+                <th>اسم الطالب</th>
+                <th>الرقم الجامعي</th>
+                <th id="th-dept" style="display:none">القسم</th>
+                <th>حالة الطلب</th>
+                <th>التفاصيل</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-addDrop">
+              <tr><td colspan="5" class="emp-loading">جاري التحميل...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="emp-tab-content" id="tab-excuse">
+      <div class="emp-table-card">
+        <div class="emp-table-top">
+          <div class="emp-table-title">طلبات رفع الاعذار</div>
+          <div class="emp-filters">
+            <select class="emp-filter-select" id="filter-excuse">
+              <option value="all">كل الحالات</option>
+              <option value="pending">معلقة</option>
+              <option value="under_review">قيد المراجعة</option>
+              <option value="approved">مقبولة</option>
+              <option value="rejected">مرفوضة</option>
+            </select>
+          </div>
+        </div>
+        <div class="emp-table-wrap">
+          <table class="emp-table">
+            <thead>
+              <tr>
+                <th>الرقم الجامعي</th>
+                <th>اسم الطالبة</th>
+                <th>رمز المقرر</th>
+                <th>حالة الطلب</th>
+                <th>التفاصيل</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-excuse">
+              <tr><td colspan="5" class="emp-loading">جاري التحميل...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="emp-tab-content" id="tab-visit">
+      <div class="emp-table-card">
+        <div class="emp-table-top">
+          <div class="emp-table-title">طلبات الزيارة</div>
+          <div class="emp-filters">
+            <select class="emp-filter-select" id="filter-visit-type">
+              <option value="all">كل أنواع الزيارات</option>
+              <option value="internal">داخلية</option>
+              <option value="external">خارجية</option>
+            </select>
+            <select class="emp-filter-select" id="filter-visit">
+              <option value="all">كل الحالات</option>
+              <option value="pending">معلقة</option>
+              <option value="under_review">قيد المراجعة</option>
+              <option value="approved">مقبولة</option>
+              <option value="rejected">مرفوضة</option>
+            </select>
+          </div>
+        </div>
+        <div class="emp-table-wrap">
+          <table class="emp-table">
+            <thead>
+              <tr>
+                <th>الرقم الجامعي</th>
+                <th>اسم الطالبة</th>
+                <th>رمز المقرر</th>
+                <th>اسم المقرر</th>
+                <th>حالة الطلب</th>
+                <th>التفاصيل</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-visit">
+              <tr><td colspan="6" class="emp-loading">جاري التحميل...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <div id="printArea" class="emp-print-area"></div>
+
+  <script type="module" src="emp-dashboard.js"></script>
+
+</body>
+</html>

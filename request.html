@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>رفع طلب - نظام الحذف والإضافة</title>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --blue: #1565c0;
+            --blue-light: #1976d2;
+            --blue-pale: #e3f2fd;
+            --blue-dark: #0d47a1;
+            --bg: #ffffff;
+            --white: #ffffff;
+            --gray: #1976d2;
+            --gray-light: #90caf9;
+            --text: #0d47a1;
+            --shadow: 0 2px 12px rgba(21,101,192,0.10);
+            --radius: 10px;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Tajawal', sans-serif;
+            background: #f0f4fa;
+            color: var(--text);
+            min-height: 100vh;
+            padding-bottom: 40px;
+        }
+
+        /* شعار الجامعة في الأعلى */
+        .university-banner {
+            background: #ffffff;
+            border-bottom: 3px solid var(--blue);
+            padding: 18px 30px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 2px 8px rgba(21,101,192,0.08);
+        }
+
+        .university-banner img {
+            height: 80px;
+        }
+
+        .university-banner .univ-name {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: var(--blue);
+        }
+
+        .university-banner .system-name {
+            font-size: 0.9rem;
+            color: var(--blue-light);
+            font-weight: 400;
+        }
+
+        /* Header */
+        .header {
+            background: var(--white);
+            border-bottom: 1px solid var(--blue-pale);
+            padding: 12px 30px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: var(--shadow);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .header-title {
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--blue);
+            line-height: 1.3;
+        }
+
+        .header-title span {
+            display: block;
+            font-size: 0.78rem;
+            font-weight: 400;
+            color: var(--gray);
+        }
+
+        .welcome-badge {
+            background: var(--blue-pale);
+            color: var(--blue);
+            border: 1px solid var(--gray-light);
+            border-radius: 20px;
+            padding: 6px 16px;
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+
+        /* Main */
+        .main {
+            max-width: 780px;
+            margin: 32px auto;
+            padding: 0 16px;
+            animation: fadeUp 0.5s ease both;
+        }
+
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(18px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Page title */
+        .page-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 24px;
+        }
+
+        .page-title h2 {
+            font-size: 1.35rem;
+            font-weight: 700;
+            color: var(--blue);
+        }
+
+        .page-title .line {
+            flex: 1;
+            height: 2px;
+            background: linear-gradient(to left, var(--blue-light), transparent);
+        }
+
+        /* Card - أبيض بإطار أزرق */
+        .card {
+            background: #ffffff;
+            border-radius: var(--radius);
+            border: 1.5px solid var(--gray-light);
+            box-shadow: 0 2px 10px rgba(21,101,192,0.07);
+            padding: 28px;
+            margin-bottom: 22px;
+        }
+
+        .card-title {
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--blue);
+            margin-bottom: 18px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid var(--blue-pale);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .card-title::before {
+            content: '';
+            display: inline-block;
+            width: 4px;
+            height: 18px;
+            background: var(--blue);
+            border-radius: 2px;
+        }
+
+        /* Form grid */
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        .form-grid.three { grid-template-columns: 1fr 1fr 1fr; }
+        .form-grid.four  { grid-template-columns: 1fr 1fr 1fr 1fr; }
+        .full { grid-column: 1 / -1; }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .input-group label {
+            font-size: 0.82rem;
+            font-weight: 600;
+            color: var(--blue-dark);
+        }
+
+        .input-group input,
+        .input-group textarea {
+            border: 1.5px solid var(--gray-light);
+            border-radius: 7px;
+            padding: 9px 12px;
+            font-family: 'Tajawal', sans-serif;
+            font-size: 0.93rem;
+            color: var(--text);
+            background: #f8fbff;
+            transition: border-color 0.2s, box-shadow 0.2s;
+            width: 100%;
+        }
+
+        .input-group input:focus,
+        .input-group textarea:focus {
+            outline: none;
+            border-color: var(--blue);
+            box-shadow: 0 0 0 3px rgba(21,101,192,0.12);
+            background: var(--white);
+        }
+
+        .input-group textarea {
+            resize: vertical;
+            min-height: 90px;
+        }
+
+        /* Section blocks */
+        .section-block {
+            border: 1.5px solid var(--gray-light);
+            border-radius: var(--radius);
+            padding: 18px;
+            margin-bottom: 14px;
+            background: #f8fbff;
+            animation: fadeUp 0.3s ease both;
+        }
+
+        .section-block-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 14px;
+        }
+
+        .section-label {
+            font-size: 0.88rem;
+            font-weight: 700;
+            color: var(--blue);
+        }
+
+        .btn-remove-row {
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: #dc2626;
+            font-size: 1.1rem;
+            line-height: 1;
+            padding: 2px 6px;
+            border-radius: 4px;
+            transition: background 0.15s;
+        }
+
+        .btn-remove-row:hover { background: #fee2e2; }
+
+        /* Add row button */
+        .btn-add-row {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            background: var(--blue-pale);
+            color: var(--blue);
+            border: 1.5px dashed #64b5f6;
+            border-radius: 8px;
+            padding: 9px 18px;
+            font-family: 'Tajawal', sans-serif;
+            font-size: 0.88rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s, border-color 0.2s;
+            margin-top: 4px;
+        }
+
+        .btn-add-row:hover {
+            background: #bbdefb;
+            border-color: var(--blue);
+        }
+
+        .btn-add-row .plus {
+            width: 22px; height: 22px;
+            background: var(--blue);
+            color: white;
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1rem;
+            flex-shrink: 0;
+        }
+
+        /* Actions */
+        .actions {
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            margin-top: 10px;
+            flex-wrap: wrap;
+        }
+
+        .btn-submit {
+            background: var(--blue);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 12px 40px;
+            font-family: 'Tajawal', sans-serif;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.1s;
+            box-shadow: 0 3px 10px rgba(21,101,192,0.25);
+        }
+
+        .btn-submit:hover { background: var(--blue-dark); transform: translateY(-1px); }
+        .btn-submit:active { transform: translateY(0); }
+
+        .btn-track {
+            background: var(--white);
+            color: var(--blue);
+            border: 2px solid var(--blue);
+            border-radius: 8px;
+            padding: 11px 30px;
+            font-family: 'Tajawal', sans-serif;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .btn-track:hover { background: var(--blue-pale); }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            bottom: 28px;
+            left: 50%;
+            transform: translateX(-50%) translateY(80px);
+            background: var(--blue);
+            color: white;
+            padding: 13px 30px;
+            border-radius: 30px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            box-shadow: 0 6px 24px rgba(0,0,0,0.18);
+            transition: transform 0.35s cubic-bezier(.34,1.56,.64,1);
+            z-index: 999;
+        }
+
+        .toast.show { transform: translateX(-50%) translateY(0); }
+
+        @media (max-width: 600px) {
+            .form-grid { grid-template-columns: 1fr; }
+            .form-grid.three, .form-grid.four { grid-template-columns: 1fr; }
+            .header { padding: 10px 14px; }
+            .university-banner img { height: 60px; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- شعار الجامعة -->
+<div class="university-banner">
+    <img src="images/Qassim_University_logo.svg.png" alt="شعار جامعة القصيم"
+         onerror="this.style.display='none'">
+    
+    <div class="system-name">نظام الحذف والإضافة</div>
+</div>
+
+<!-- Header -->
+<div class="header">
+    <div class="header-right">
+        <div class="header-title">
+            طلب جديد
+            <span>أدخل بياناتك وأرسل طلبك</span>
+        </div>
+    </div>
+    <div class="welcome-badge">مرحباً، <span id="userName">الطالب</span></div>
+</div>
+
+<!-- Main -->
+<div class="main">
+
+    <div class="page-title">
+        <h2>طلب جديد</h2>
+        <div class="line"></div>
+    </div>
+
+    <form id="requestForm">
+
+        <!-- بيانات الطالب -->
+        <div class="card">
+            <div class="card-title">بيانات الطالب</div>
+            <div class="form-grid">
+                <div class="input-group">
+                    <label>الاسم الرباعي</label>
+                    <input type="text" id="fullName" placeholder="أدخل اسمك الرباعي" required>
+                </div>
+                <div class="input-group">
+                    <label>الرقم الجامعي</label>
+                    <input type="text" id="studentId" placeholder="مثال: 441234567" required>
+                </div>
+                <div class="input-group">
+                    <label>التخصص</label>
+                    <input type="text" id="major" placeholder="مثال: إحصاء" required>
+                </div>
+                <div class="input-group">
+                    <label>الساعات المسجلة</label>
+                    <input type="number" id="creditHours" placeholder="مثال: 15" min="1" max="24" required>
+                </div>
+                <div class="input-group full">
+                    <label>رقم الجوال</label>
+                    <input type="tel" id="phone" placeholder="05XXXXXXXX" required>
+                </div>
+            </div>
+        </div>
+
+        <!-- إضافة مقرر -->
+        <div class="card">
+            <div class="card-title">إضافة مقرر</div>
+            <div id="addList"></div>
+            <button type="button" class="btn-add-row" onclick="addRow('add')">
+                <span class="plus">+</span> إضافة مقرر
+            </button>
+        </div>
+
+        <!-- حذف مقرر -->
+        <div class="card">
+            <div class="card-title">حذف مقرر</div>
+            <div id="removeList"></div>
+            <button type="button" class="btn-add-row" onclick="addRow('remove')">
+                <span class="plus">+</span> إضافة مقرر للحذف
+            </button>
+        </div>
+
+        <!-- تغيير شعبة -->
+        <div class="card">
+            <div class="card-title">تغيير شعبة</div>
+            <div id="changeList"></div>
+            <button type="button" class="btn-add-row" onclick="addRow('change')">
+                <span class="plus">+</span> إضافة تغيير شعبة
+            </button>
+        </div>
+
+        <!-- ملاحظات -->
+        <div class="card">
+            <div class="card-title">ملاحظات</div>
+            <div class="input-group">
+                <textarea id="notes" placeholder="أي ملاحظات إضافية تريد إضافتها..."></textarea>
+            </div>
+        </div>
+
+        <!-- أزرار -->
+        <div class="actions">
+            <button type="submit" class="btn-submit">إرسال الطلب</button>
+            <button type="button" class="btn-track" onclick="window.location.href='track.html'">متابعة طلب سابق</button>
+        </div>
+
+    </form>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script type="module">
+import { auth, db } from "./js/firebase-config.js";
+import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+onAuthStateChanged(auth, (user) => {
+    if (!user) {
+        window.location.href = "loginPage.html";
+        return;
+    }
+    document.getElementById("userName").textContent = user.email.split("@")[0];
+});
+
+let counters = { add: 0, remove: 0, change: 0 };
+
+window.addRow = function(type) {
+    counters[type]++;
+    const id = `${type}_${counters[type]}`;
+    const container = document.getElementById(`${type}List`);
+    const div = document.createElement("div");
+    div.className = "section-block";
+    div.id = id;
+
+    if (type === "add" || type === "remove") {
+        div.innerHTML = `
+            <div class="section-block-header">
+                <span class="section-label">${type === "add" ? "إضافة" : "حذف"} #${counters[type]}</span>
+                <button type="button" class="btn-remove-row" onclick="removeRow('${id}')">✕</button>
+            </div>
+            <div class="form-grid three">
+                <div class="input-group">
+                    <label>اسم المقرر</label>
+                    <input type="text" name="${type}_courseName_${counters[type]}" placeholder="مثال: إحصاء رياضي">
+                </div>
+                <div class="input-group">
+                    <label>رقم المقرر</label>
+                    <input type="text" name="${type}_courseCode_${counters[type]}" placeholder="مثال: STAT321">
+                </div>
+                <div class="input-group">
+                    <label>الشعبة</label>
+                    <input type="text" name="${type}_section_${counters[type]}" placeholder="مثال: 1">
+                </div>
+            </div>`;
+    } else {
+        div.innerHTML = `
+            <div class="section-block-header">
+                <span class="section-label">تغيير شعبة #${counters[type]}</span>
+                <button type="button" class="btn-remove-row" onclick="removeRow('${id}')">✕</button>
+            </div>
+            <div class="form-grid four">
+                <div class="input-group">
+                    <label>اسم المقرر</label>
+                    <input type="text" name="change_courseName_${counters[type]}" placeholder="اسم المقرر">
+                </div>
+                <div class="input-group">
+                    <label>رمز المقرر</label>
+                    <input type="text" name="change_courseCode_${counters[type]}" placeholder="رمز المقرر">
+                </div>
+                <div class="input-group">
+                    <label>الشعبة الحالية</label>
+                    <input type="text" name="change_currentSection_${counters[type]}" placeholder="مثال: 1">
+                </div>
+                <div class="input-group">
+                    <label>الشعبة المطلوبة</label>
+                    <input type="text" name="change_targetSection_${counters[type]}" placeholder="مثال: 2">
+                </div>
+            </div>`;
+    }
+
+    container.appendChild(div);
+};
+
+window.removeRow = function(id) {
+    document.getElementById(id)?.remove();
+};
+
+document.getElementById("requestForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+
+    const user = auth.currentUser;
+    if (!user) return;
+
+    const collectRows = (type, fields) => {
+        const rows = [];
+        document.querySelectorAll(`[name^="${type}_courseName_"]`).forEach(el => {
+            const num = el.name.split("_").pop();
+            const row = {};
+            fields.forEach(f => {
+                const input = document.querySelector(`[name="${type}_${f}_${num}"]`);
+                if (input) row[f] = input.value;
+            });
+            if (Object.values(row).some(v => v)) rows.push(row);
+        });
+        return rows;
+    };
+
+    const requestData = {
+        uid: user.uid,
+        fullName:    document.getElementById("fullName").value,
+        studentId:   document.getElementById("studentId").value,
+        major:       document.getElementById("major").value,
+        creditHours: document.getElementById("creditHours").value,
+        phone:       document.getElementById("phone").value,
+        notes:       document.getElementById("notes").value,
+        addCourses:    collectRows("add",    ["courseName","courseCode","section"]),
+        removeCourses: collectRows("remove", ["courseName","courseCode","section"]),
+        changeSections:collectRows("change", ["courseName","courseCode","currentSection","targetSection"]),
+        status: "pending",
+        createdAt: serverTimestamp()
+    };
+
+    try {
+        await addDoc(collection(db, "requests"), requestData);
+        showToast("✅ تم إرسال الطلب بنجاح!");
+        setTimeout(() => {
+            e.target.reset();
+            document.getElementById("addList").innerHTML = "";
+            document.getElementById("removeList").innerHTML = "";
+            document.getElementById("changeList").innerHTML = "";
+            counters = { add: 0, remove: 0, change: 0 };
+        }, 1500);
+    } catch (err) {
+        showToast("❌ حدث خطأ: " + err.message);
+    }
+});
+
+function showToast(msg) {
+    const t = document.getElementById("toast");
+    t.textContent = msg;
+    t.classList.add("show");
+    setTimeout(() => t.classList.remove("show"), 3500);
+}
+</script>
+</body>
+</html>

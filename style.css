@@ -164,8 +164,8 @@ select {
 :root {
     --qu-blue: #1a3a6b;
     --qu-gold: #c8972b;
-    --qu-bg: #f4f6fa;
-    --qu-white: #ffffff;
+    --qu-bg:   #f4f6fa;
+    --qu-white:#ffffff;
     --qu-gray: #e8edf5;
 }
 
@@ -178,7 +178,6 @@ select {
     justify-content: unset;
 }
 
-/* الترويسة */
 .student-main-page header {
     background-color: var(--qu-blue);
     border-bottom: 4px solid var(--qu-gold);
@@ -203,7 +202,6 @@ select {
     white-space: nowrap;
 }
 
-/* المحتوى الرئيسي */
 .student-main-page main {
     display: flex;
     flex-direction: column;
@@ -213,7 +211,6 @@ select {
     padding: 32px 16px;
 }
 
-/* البطاقة */
 .student-main-page .options-card {
     background: var(--qu-white);
     border-radius: 14px;
@@ -234,7 +231,6 @@ select {
     margin-bottom: 24px;
 }
 
-/* الروابط */
 .student-main-page .option-link {
     display: flex;
     align-items: center;
@@ -269,28 +265,15 @@ select {
     opacity: 0.6;
 }
 
-/* الجوال */
 @media (max-width: 480px) {
-    .student-main-page header img {
-        height: 48px;
-    }
-
-    .student-main-page .welcome-text {
-        font-size: 13px;
-    }
-
-    .student-main-page .options-card {
-        padding: 28px 24px;
-    }
-
-    .student-main-page .option-link {
-        font-size: 15px;
-        padding: 14px 0;
-    }
+    .student-main-page header img    { height: 48px; }
+    .student-main-page .welcome-text { font-size: 13px; }
+    .student-main-page .options-card { padding: 28px 24px; }
+    .student-main-page .option-link  { font-size: 15px; padding: 14px 0; }
 }
 
 /* ================================= */
-/* صفحة رفع عذر الغياب */
+/* صفحة رفع عذر الغياب               */
 /* ================================= */
 
 .absence-page {
@@ -322,9 +305,7 @@ select {
     margin-bottom: 15px;
 }
 
-.absence-page textarea {
-    resize: none;
-}
+.absence-page textarea { resize: none; }
 
 .absence-page input,
 .absence-page textarea {
@@ -345,6 +326,5 @@ select {
     font-size: 15px;
 }
 
-.absence-page button:hover {
-    background: #0f2a4d;
-}
+.absence-page button:hover { background: #0f2a4d; }
+
