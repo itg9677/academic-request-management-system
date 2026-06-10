@@ -1,350 +1,486 @@
-/* الأساس */
-* {
-    box-sizing: border-box;
-    font-family: Arial, sans-serif;
+/* =====================================================
+   الألوان الرئيسية
+===================================================== */
+:root{
+    --primary:#1a3a6b;
+    --secondary:#c8972b;
+    --background:#f4f6fa;
+    --white:#ffffff;
+    --border:#d6dce6;
+    --text:#1f2937;
+    --gray:#6b7280;
 }
 
-body {
-    margin: 0;
-    background: #f2f4f8;
-    min-height: 100vh;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    padding: 20px;
+/* =====================================================
+   الأساس
+===================================================== */
+*{
+    box-sizing:border-box;
+    font-family:Arial,sans-serif;
 }
 
-/* الصندوق */
-.container {
-    width: 100%;
-    max-width: 450px;
-    background: white;
-    padding: 25px;
-    border-radius: 12px;
-    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
+body{
+    margin:0;
+    background:var(--background);
+    min-height:100vh;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    padding:20px;
+    color:var(--text);
 }
 
-/* اللوجو */
-.logo {
-    width: 120px;
-    display: block;
-    margin: 0 auto 15px;
+/* =====================================================
+   الصندوق العام
+===================================================== */
+.container{
+    width:100%;
+    max-width:450px;
+    background:var(--white);
+    padding:25px;
+    border-radius:16px;
+    border-top:5px solid var(--primary);
+    box-shadow:0 8px 25px rgba(26,58,107,.12);
 }
 
-/* العنوان */
-.title {
-    text-align: center;
-    margin-bottom: 10px;
+/* =====================================================
+   الشعار
+===================================================== */
+/* =====================================================
+   الشعار والزخرفة
+===================================================== */
+
+.logo-container{
+    text-align:center;
+    margin-bottom:20px;
 }
 
-/* الفورم */
-.form {
-    display: flex;
-    flex-direction: column;
-    gap: 15px;
+.logo{
+    width:220px;
+    max-width:90%;
+    height:auto;
+    display:block;
+    margin:0 auto;
 }
 
-/* الحقول */
-.input-group {
-    display: flex;
-    flex-direction: column;
+.header-pattern{
+    width:100%;
+    max-width:900px;
+    height:auto;
+    display:block;
+    margin:15px auto 25px;
+    opacity:.9;
+}
+/* =====================================================
+   العناوين
+===================================================== */
+.title,
+h2{
+    text-align:center;
+    color:var(--primary);
+    margin-bottom:20px;
 }
 
-label {
-    margin-bottom: 6px;
-    font-weight: bold;
-    font-size: 14px;
+/* =====================================================
+   النماذج
+===================================================== */
+.form{
+    display:flex;
+    flex-direction:column;
+    gap:15px;
 }
 
+.input-group{
+    display:flex;
+    flex-direction:column;
+}
+
+label{
+    margin-bottom:6px;
+    font-weight:bold;
+    font-size:14px;
+}
+
+/* =====================================================
+   الحقول
+===================================================== */
 input,
-select {
-    padding: 10px;
-    border: 1px solid #ccc;
-    border-radius: 8px;
-    font-size: 14px;
-    width: 100%;
+select,
+textarea{
+    width:100%;
+    padding:12px;
+    border:1px solid var(--border);
+    border-radius:10px;
+    font-size:14px;
+    transition:.2s;
+    background:white;
 }
 
-/* الزر */
-.btn {
-    padding: 12px;
-    background: #007bff;
-    color: white;
-    border: none;
-    border-radius: 8px;
-    cursor: pointer;
-    font-size: 15px;
+input:focus,
+select:focus,
+textarea:focus{
+    outline:none;
+    border-color:var(--primary);
+    box-shadow:0 0 0 3px rgba(26,58,107,.15);
 }
 
-.btn:hover {
-    background: #0056b3;
+/* =====================================================
+   الأزرار
+===================================================== */
+.btn{
+    padding:12px;
+    background:var(--primary);
+    color:white;
+    border:none;
+    border-radius:10px;
+    cursor:pointer;
+    font-size:15px;
+    font-weight:600;
+    transition:.3s;
 }
 
-/* الموبايل */
-@media (max-width: 600px) {
-    .container {
-        max-width: 100%;
-        border-radius: 0;
-        box-shadow: none;
+.btn:hover{
+    background:var(--secondary);
+}
+
+/* =====================================================
+   الموبايل
+===================================================== */
+@media (max-width:600px){
+
+    .container{
+        max-width:100%;
     }
 
-    body {
-        align-items: flex-start;
+    body{
+        align-items:flex-start;
     }
 
     input,
-    select {
-        font-size: 16px;
+    select,
+    textarea{
+        font-size:16px;
     }
 }
-
-/* ================================= */
-/* صفحة تسجيل الدخول فقط */
-/* ================================= */
-.login-page {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    min-height: 100vh;
-    background: white;
-}
-
-.login-page .container {
-    width: 360px;
-    border: 1px solid #d9d9d9;
-    padding: 30px;
-    background: white;
-}
-
-.login-page .logo {
-    width: 220px;
-    display: block;
-    margin: 0 auto 20px;
-}
-
-.login-page .title {
-    text-align: center;
-    margin-bottom: 40px;
-}
-
-.login-page input {
-    padding: 10px;
-    border: 1px solid #ccc;
-    border-radius: 8px;
-    font-size: 14px;
-    width: 100%;
-}
-
-.login-page .btn {
-    width: 180px;
-    height: 45px;
-    display: block;
-    margin: 25px auto;
-    background: #d9d9d9;
-    color: black;
-    border: none;
-}
-
-.login-page .links {
-    text-align: center;
-}
-
-.login-page .links a {
-    display: block;
-    margin: 10px 0;
-    color: black;
-    text-decoration: none;
-}
-
 
 /* =====================================================
-   صفحة الطالب الرئيسية — student-main-page
-   ===================================================== */
-
-:root {
-    --qu-blue: #1a3a6b;
-    --qu-gold: #c8972b;
-    --qu-bg: #f4f6fa;
-    --qu-white: #ffffff;
-    --qu-gray: #e8edf5;
+   صفحة تسجيل الدخول
+===================================================== */
+.login-page{
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    min-height:100vh;
+    background:var(--background);
 }
 
-.student-main-page {
-    display: block;
-    background-color: var(--qu-bg);
-    min-height: 100vh;
-    padding: 0;
-    align-items: unset;
-    justify-content: unset;
+.login-page .container{
+    width:360px;
 }
 
-/* الترويسة */
-.student-main-page header {
-    background-color: var(--qu-blue);
-    border-bottom: 4px solid var(--qu-gold);
-    padding: 12px 20px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    gap: 8px;
+.login-page .logo{
+    width:220px;
+    display:block;
+    margin:0 auto 20px;
 }
 
-.student-main-page header img {
-    height: 60px;
-    object-fit: contain;
-    max-width: 55%;
+.login-page .science-pattern{
+    display:block;
+    width:260px;
+    max-width:80%;
+    margin:0 auto 20px;
 }
 
-.student-main-page .welcome-text {
-    font-size: 15px;
-    font-weight: bold;
-    color: var(--qu-gold);
-    white-space: nowrap;
+.login-page .title{
+    text-align:center;
+    margin-bottom:35px;
 }
 
-/* المحتوى الرئيسي */
-.student-main-page main {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    min-height: calc(100vh - 80px);
-    padding: 32px 16px;
+.login-page input{
+    margin-bottom:15px;
 }
 
-/* البطاقة */
-.student-main-page .options-card {
-    background: var(--qu-white);
-    border-radius: 14px;
-    border-top: 5px solid var(--qu-blue);
-    box-shadow: 0 4px 24px rgba(26, 58, 107, 0.12);
-    padding: 36px 48px;
-    display: flex;
-    flex-direction: column;
-    width: 100%;
-    max-width: 420px;
-    text-align: center;
+.login-page .btn{
+    width:180px;
+    height:45px;
+    display:block;
+    margin:25px auto;
+    background:var(--primary);
+    color:white;
 }
 
-.student-main-page .card-title {
-    font-size: 15px;
-    color: var(--qu-blue);
-    font-weight: 600;
-    margin-bottom: 24px;
+.login-page .btn:hover{
+    background:var(--secondary);
 }
 
-/* الروابط */
-.student-main-page .option-link {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 17px;
-    color: var(--qu-blue);
-    text-decoration: underline;
-    text-decoration-color: var(--qu-gold);
-    text-underline-offset: 6px;
-    text-decoration-thickness: 2px;
-    font-weight: 600;
-    cursor: pointer;
-    padding: 16px 0;
-    min-height: 48px;
-    transition: color 0.2s;
+.login-page .links{
+    text-align:center;
 }
 
-.student-main-page .option-link:hover,
-.student-main-page .option-link:active {
-    color: var(--qu-gold);
-    text-decoration-color: var(--qu-blue);
+.login-page .links a{
+    display:block;
+    margin:10px 0;
+    color:var(--primary);
+    text-decoration:none;
+    font-weight:600;
 }
 
-.student-main-page .divider {
-    border: none;
-    border-top: 1px solid var(--qu-gray);
+.login-page .links a:hover{
+    color:var(--secondary);
+}
+/* =====================================================
+   صفحة الطالب الرئيسية
+===================================================== */
+/* =====================================================
+   صفحة الطالب الرئيسية
+===================================================== */
+
+.student-main-page{
+    background:var(--background);
+    min-height:100vh;
+    display:flex;
+    flex-direction:column;
 }
 
-.student-main-page .loading {
-    color: var(--qu-blue);
-    font-size: 14px;
-    opacity: 0.6;
+/* =====================================================
+   الترويسة
+===================================================== */
+
+.student-main-page header{
+
+    padding:25px 20px 15px;
+    text-align:center;
 }
 
-/* الجوال */
-@media (max-width: 480px) {
-    .student-main-page header img {
-        height: 48px;
+.student-main-page header img{
+    width:260px;
+    max-width:90%;
+    height:auto;
+    display:block;
+    margin:0 auto;
+}
+
+.student-main-page .welcome-text{
+    display:block;
+    margin-top:15px;
+
+    color:var(--primary);
+
+    font-size:22px;
+    font-weight:700;
+}
+
+/* =====================================================
+   الزخرفة
+===================================================== */
+
+.student-pattern{
+    width:90%;
+    max-width:850px;
+
+    display:block;
+
+    margin:10px auto 20px;
+}
+
+/* =====================================================
+   المحتوى
+===================================================== */
+
+.student-main-page main{
+    width:100%;
+    max-width:700px;
+
+    margin:0 auto;
+
+    padding:0 20px 40px;
+}
+
+/* =====================================================
+   البطاقة
+===================================================== */
+
+.student-main-page .options-card{
+    background:white;
+
+    border-radius:20px;
+    border-top:6px solid var(--primary);
+
+    padding:40px;
+
+    box-shadow:0 10px 30px rgba(26,58,107,.12);
+}
+
+/* =====================================================
+   عنوان البطاقة
+===================================================== */
+
+.student-main-page .card-title{
+    text-align:center;
+
+    color:var(--primary);
+
+    font-size:22px;
+    font-weight:bold;
+
+    margin-bottom:30px;
+}
+
+/* =====================================================
+   روابط الخدمات
+===================================================== */
+
+.student-main-page .option-link{
+    display:flex;
+    justify-content:center;
+    align-items:center;
+
+    width:100%;
+
+    background:white;
+
+    border:2px solid var(--primary);
+    border-radius:14px;
+
+    color:var(--primary);
+    text-decoration:none;
+
+    font-size:17px;
+    font-weight:600;
+
+    padding:18px;
+
+    margin:15px 0;
+
+    transition:.3s;
+}
+
+.student-main-page .option-link:hover{
+    background:var(--primary);
+    color:white;
+    transform:translateY(-2px);
+}
+
+/* =====================================================
+   عناصر إضافية
+===================================================== */
+
+.student-main-page .divider{
+    display:none;
+}
+
+.student-main-page .loading{
+    text-align:center;
+    color:var(--gray);
+}
+
+/* =====================================================
+   الجوال
+===================================================== */
+
+@media (max-width:768px){
+
+    .student-main-page header{
+        padding:20px 15px 10px;
     }
 
-    .student-main-page .welcome-text {
-        font-size: 13px;
+    .student-main-page header img{
+        width:190px;
     }
 
-    .student-main-page .options-card {
-        padding: 28px 24px;
+    .student-main-page .welcome-text{
+        font-size:18px;
     }
 
-    .student-main-page .option-link {
-        font-size: 15px;
-        padding: 14px 0;
+    .student-pattern{
+        width:95%;
+    }
+
+    .student-main-page main{
+        padding:0 15px 30px;
+    }
+
+    .student-main-page .options-card{
+        padding:25px;
+    }
+
+    .student-main-page .card-title{
+        font-size:18px;
+    }
+
+    .student-main-page .option-link{
+        font-size:15px;
+        padding:15px;
     }
 }
-
-/* ================================= */
-/* صفحة رفع عذر الغياب */
-/* ================================= */
-
-.absence-page {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    min-height: 100vh;
-    background: #f2f4f8;
+/* =====================================================
+   صفحة رفع عذر الغياب
+===================================================== */
+.absence-page{
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    min-height:100vh;
+    background:var(--background);
 }
 
-.absence-page .container {
-    width: 100%;
-    max-width: 450px;
-    background: white;
-    padding: 25px;
-    border-radius: 12px;
-    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
+.absence-page .container{
+    width:100%;
+    max-width:450px;
 }
 
-.absence-page h2 {
-    text-align: center;
-    margin-bottom: 20px;
-    color: #1a3a6b;
+.absence-page h2{
+    text-align:center;
+    margin-bottom:20px;
+    color:var(--primary);
 }
 
-.absence-page .form-group {
-    display: flex;
-    flex-direction: column;
-    margin-bottom: 15px;
+.absence-page .form-group{
+    display:flex;
+    flex-direction:column;
+    margin-bottom:15px;
 }
 
-.absence-page textarea {
-    resize: none;
+.absence-page textarea{
+    resize:vertical;
+    min-height:120px;
 }
 
-.absence-page input,
-.absence-page textarea {
-    padding: 10px;
-    border: 1px solid #ccc;
-    border-radius: 8px;
-    font-size: 14px;
+.absence-page button{
+    width:100%;
+    padding:12px;
+    background:var(--primary);
+    color:white;
+    border:none;
+    border-radius:10px;
+    cursor:pointer;
+    font-size:15px;
+    font-weight:600;
+    transition:.3s;
 }
 
-.absence-page button {
-    width: 100%;
-    padding: 12px;
-    background: #1a3a6b;
-    color: white;
-    border: none;
-    border-radius: 8px;
-    cursor: pointer;
-    font-size: 15px;
+.absence-page button:hover{
+    background:var(--secondary);
 }
 
-.absence-page button:hover {
-    background: #0f2a4d;
+/* =====================================================
+   الجوال لصفحة الطالب
+===================================================== */
+@media (max-width:480px){
+
+    .student-main-page header img{
+        height:48px;
+    }
+
+    .student-main-page .welcome-text{
+        font-size:13px;
+    }
+
+    .student-main-page .options-card{
+        padding:20px;
+    }
+
+    .student-main-page .option-link{
+        font-size:14px;
+    }
 }
