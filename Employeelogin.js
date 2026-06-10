@@ -56,7 +56,7 @@ form.addEventListener("submit", async (e) => {
         }
 
         // 🚀 تحويل للصفحة الرئيسية للموظف
-        window.location.href = "employeeMainPage.html";
+        window.location.href = "EmployeeDashboard.html"
 
     } catch (error) {
         console.error(error);
