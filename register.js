@@ -1,12 +1,18 @@
 import { auth, db } from "./firebase.js";
-import { 
+
+import {
     createUserWithEmailAndPassword,
     sendEmailVerification
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { 
-    doc, 
-    setDoc, 
-    serverTimestamp 
+
+import {
+    doc,
+    setDoc,
+    serverTimestamp,
+    collection,
+    query,
+    where,
+    getDocs
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const form = document.getElementById("registerForm");
@@ -15,47 +21,105 @@ const msg = document.getElementById("msg");
 form.addEventListener("submit", async (e) => {
     e.preventDefault();
 
-    const studentId = document.getElementById("studentId").value;
-    const fullName = document.getElementById("fullName").value;
+    const universityId = document.getElementById("studentId").value.trim();
+    const fullName = document.getElementById("fullName").value.trim();
+    const phoneNumber = document.getElementById("phoneNumber").value.trim();
     const major = document.getElementById("major").value;
-    const email = document.getElementById("email").value;
+    const email = document.getElementById("email").value.trim();
     const password = document.getElementById("password").value;
 
-// التحقق من صيغة الإيميل
-    const emailPattern = /^\d{9}@qu\.edu\.sa$/;
-    if (!emailPattern.test(email)) {
+    // ❌ منع البريد الجامعي
+    if (email.endsWith("@qu.edu.sa")) {
         msg.style.color = "red";
-        msg.textContent = "البريد الإلكتروني يجب أن يكون البريد الجامعي ";
+        msg.textContent = "لا تستخدم البريد الجامعي";
         return;
     }
 
-   try {
-    msg.style.color = "blue";
-    msg.textContent = "جاري إنشاء الحساب...";
+    // ❌ التحقق من الرقم الجامعي (9 أرقام)
+    const idPattern = /^\d{9}$/;
+    if (!idPattern.test(universityId)) {
+        msg.style.color = "red";
+        msg.textContent = "الرقم الجامعي يجب أن يكون 9 أرقام فقط";
+        return;
+    }
 
-    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-    const user = userCredential.user;
+    // ❌ التحقق من الجوال (يبدأ بـ 05)
+    const phonePattern = /^05\d{8}$/;
+    if (!phonePattern.test(phoneNumber)) {
+        msg.style.color = "red";
+        msg.textContent = "رقم الجوال يجب أن يبدأ بـ 05 ويكون 10 أرقام";
+        return;
+    }
 
-    await sendEmailVerification(user);
+    try {
+        msg.style.color = "blue";
+        msg.textContent = "جاري التحقق من البيانات...";
 
-    await setDoc(doc(db, "students", user.uid), {
-        studentId,
-        fullName,
-        major,
-        email,
-        role: "student",
-        createdAt: serverTimestamp()
-    });
+        // ❌ منع تكرار الرقم الجامعي
+        const q = query(
+            collection(db, "students"),
+            where("universityId", "==", universityId)
+        );
 
-    await auth.signOut();
+        const snapshot = await getDocs(q);
 
-    msg.style.color = "green";
-    msg.textContent = "تم إنشاء الحساب! تحقق من بريدك الإلكتروني";
+        if (!snapshot.empty) {
+            msg.style.color = "red";
+            msg.textContent = "الرقم الجامعي مسجل مسبقاً";
+            return;
+        }
 
-window.location.href = "verifyEmail.html?type=student";
-} catch (error) {
-    console.error(error);
-    msg.style.color = "red";
-    msg.textContent = error.message;
-}
+        msg.textContent = "جاري إنشاء الحساب...";
+
+        const userCredential = await createUserWithEmailAndPassword(
+            auth,
+            email,
+            password
+        );
+
+        const user = userCredential.user;
+
+        await sendEmailVerification(user);
+
+        await setDoc(doc(db, "students", user.uid), {
+            universityId,
+            fullName,
+            phoneNumber,
+            major,
+            email,
+            role: "student",
+            emailVerified: false,
+            createdAt: serverTimestamp()
+        });
+
+        msg.style.color = "green";
+        msg.textContent = "تم إنشاء الحساب بنجاح";
+
+        // ✅ مهم: تأكد من الانتقال
+        setTimeout(() => {
+            window.location.href = "verifyEmail.html?type=student";
+        }, 1000);
+
+    } catch (error) {
+        console.error(error);
+
+        msg.style.color = "red";
+
+        switch (error.code) {
+            case "auth/email-already-in-use":
+                msg.textContent = "البريد الإلكتروني مستخدم مسبقاً";
+                break;
+
+            case "auth/weak-password":
+                msg.textContent = "كلمة المرور يجب أن تكون 6 أحرف أو أكثر";
+                break;
+
+            case "auth/invalid-email":
+                msg.textContent = "البريد الإلكتروني غير صحيح";
+                break;
+
+            default:
+                msg.textContent = "حدث خطأ أثناء إنشاء الحساب";
+        }
+    }
 });

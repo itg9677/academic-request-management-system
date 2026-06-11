@@ -1,14 +1,25 @@
+
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
- 
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-</div>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>تسجيل حساب جديد</title>
-    <link rel="stylesheet" href="style.css">
+<title>تسجيل حساب جديد</title>
+
+<link rel="stylesheet" href="style.css">
+
+<style>
+.email-hint{
+    color:red;
+    font-size:13px;
+    margin-top:5px;
+    display:block;
+}
+</style>
+
 </head>
+
 <body class="login-page">
 
 <div class="container">
@@ -19,58 +30,61 @@
 
     <h1>نظام الخدمات الطلابية</h1>
     <p>تسجيل حساب جديد</p>
-<form id="registerForm">
 
-    <div class="input-group">
-        <label>الرقم الجامعي</label>
-        <input type="text" id="studentId" required>
-    </div>
+    <form id="registerForm">
 
-    <div class="input-group">
-        <label>الاسم الثلاثي</label>
-        <input type="text" id="fullName" required>
-    </div>
         <div class="input-group">
-        <label>رقم الجوال </label>
-        <input type="text" id="phoneNumber" required>
-    </div>
-
-    <div class="input-group">
-        <label>التخصص</label>
-        <select id="major" required>
-            <option value="">اختر التخصص</option>
-            <option value="فيزياء">فيزياء</option>
-            <option value="أحياء">أحياء</option>
-            <option value="كيمياء">كيمياء</option>
-            <option value="رياضيات">رياضيات</option>
-            <option value="إحصاء">إحصاء</option>
-        </select>
-    </div>
-
-    <div class="input-group">
-        <label>البريد الإلكتروني</label>
-        <input type="email" id="email" required>
-    </div>
-
-    <div class="input-group">
-        <label>كلمة المرور</label>
-        <input type="password" id="password" required>
-    </div>
-
-    <button type="submit" class="btn">
-                تسجيل 
-            </button>
-
-
-        <div class="links">
-            <a href="loginPage.html">لدي حساب بالفعل </a>
-
-            </a>
+            <label>الرقم الجامعي</label>
+            <input type="text" id="studentId" required>
         </div>
 
-</form>
+        <div class="input-group">
+            <label>الاسم الثلاثي</label>
+            <input type="text" id="fullName" required>
+        </div>
 
-<p id="msg"></p>
+        <div class="input-group">
+            <label>رقم الجوال</label>
+            <input type="text" id="phoneNumber" required>
+        </div>
+
+        <div class="input-group">
+            <label>التخصص</label>
+            <select id="major" required>
+                <option value="">اختر التخصص</option>
+                <option value="فيزياء">فيزياء</option>
+                <option value="أحياء">أحياء</option>
+                <option value="كيمياء">كيمياء</option>
+                <option value="رياضيات">رياضيات</option>
+                <option value="إحصاء">إحصاء</option>
+            </select>
+        </div>
+
+        <div class="input-group">
+            <label>البريد الإلكتروني</label>
+            <input type="email" id="email" required>
+
+            <small class="email-hint">
+                لا تستخدم بريدك الجامعي، استخدم بريداً شخصياً مثل Gmail أو Outlook
+            </small>
+        </div>
+
+        <div class="input-group">
+            <label>كلمة المرور</label>
+            <input type="password" id="password" required>
+        </div>
+
+        <button type="submit" class="btn">
+            تسجيل
+        </button>
+
+        <div class="links">
+            <a href="loginPage.html">لدي حساب بالفعل</a>
+        </div>
+
+    </form>
+
+    <p id="msg"></p>
 
 </div>
 

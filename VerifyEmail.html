@@ -1,15 +1,36 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-    <meta charset="UTF-8">
-    <title>تحقق من البريد</title>
+<meta charset="UTF-8">
+<title>تحقق من البريد</title>
 </head>
+
 <body style="text-align:center; font-family:Arial">
 
     <h2>تم إنشاء الحساب 🎉</h2>
+
     <p>تم إرسال رابط التحقق إلى بريدك الإلكتروني</p>
 
     <p>يرجى فتح البريد وتفعيل الحساب ثم تسجيل الدخول</p>
+
+    <button id="loginBtn" class="btn">
+        الانتقال إلى صفحة تسجيل الدخول
+    </button>
+
+<script>
+const params = new URLSearchParams(window.location.search);
+const type = params.get("type");
+
+document.getElementById("loginBtn").addEventListener("click", () => {
+
+    if (type === "employee") {
+        window.location.href = "EmployeeLogin.html";
+    } else {
+        window.location.href = "loginPage.html";
+    }
+
+});
+</script>
 
 </body>
 </html>
