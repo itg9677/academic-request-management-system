@@ -359,50 +359,6 @@ body{
     <div class="system-name">نظام الحذف والإضافة</div>
 </div>
 
-<!-- Header -->
-<div class="header">
-    <div class="header-right">
-        <div class="header-title">
-            طلب جديد
-            <span>أدخل بياناتك وأرسل طلبك</span>
-        </div>
-    </div>
-    <div class="welcome-badge">مرحباً، <span id="userName">الطالب</span></div>
-</div>
-
-<!-- Main -->
-<div class="main">
-
-    <div class="page-title">
-        <h2>طلب جديد</h2>
-        <div class="line"></div>
-    </div>
-
-    <form id="requestForm">
-
-        <!-- بيانات الطالب -->
-        <div class="card">
-            <div class="card-title">بيانات الطالب</div>
-            <div class="form-grid">
-                <div class="input-group">
-                    <label>الاسم الرباعي</label>
-                    <input type="text" id="fullName" placeholder="أدخل اسمك الرباعي" required>
-                </div>
-                <div class="input-group">
-                    <label>الرقم الجامعي</label>
-                    <input type="text" id="studentId" placeholder="مثال: 441234567" required>
-                </div>
-                <div class="input-group">
-                    <label>التخصص</label>
-                    <input type="text" id="major" placeholder="مثال: إحصاء" required>
-                </div>
-
-                <div class="input-group full">
-                    <label>رقم الجوال</label>
-                    <input type="tel" id="phone" placeholder="05XXXXXXXX" required>
-                </div>
-            </div>
-        </div>
 
         <!-- إضافة مقرر -->
         <div class="card">
@@ -550,7 +506,7 @@ document.getElementById("requestForm").addEventListener("submit", async (e) => {
     const requestData = {
         uid: user.uid,
         fullName:    document.getElementById("fullName").value,
-        studentId:   document.getElementById("studentId").value,
+        universityId:   document.getElementById("universityId").value,
         major:       document.getElementById("major").value,
         creditHours: document.getElementById("creditHours").value,
         phone:       document.getElementById("phone").value,

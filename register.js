@@ -21,7 +21,7 @@ const msg = document.getElementById("msg");
 form.addEventListener("submit", async (e) => {
     e.preventDefault();
 
-    const universityId = document.getElementById("studentId").value.trim();
+    const universityId = document.getElementById("universityId").value.trim();
     const fullName = document.getElementById("fullName").value.trim();
     const phoneNumber = document.getElementById("phoneNumber").value.trim();
     const major = document.getElementById("major").value;

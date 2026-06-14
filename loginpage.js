@@ -20,7 +20,7 @@ const form = document.getElementById("loginForm");
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
 
-  const universityId = document.getElementById("studentId").value.trim();
+  const universityId = document.getElementById("universityId").value.trim();
   const password     = document.getElementById("password").value;
 
   try {

@@ -329,13 +329,17 @@ function buildVisitExpand(studentData, records) {
       ? badge("خارجية", "b-drop")
       : badge("داخلية", "b-add");
 
-    return '<tr>' +
-      '<td>' + visitTypeBadge + '</td>' +
-      '<td>' + (r.courseCode || "-") + '</td>' +
-      '<td>' + (r.courseName || "-") + '</td>' +
-      '<td>' + badge(statusLabel[r.status] || r.status, statusClass[r.status] || "") + '</td>' +
-      '<td>' + actionButtons("visits", r.id, r.status) + '</td>' +
-      '</tr>';
+    var courses = (r.courses && r.courses.length) ? r.courses : [{ courseCode: "-", courseName: "-" }];
+
+    return courses.map(function(c) {
+      return '<tr data-req-id="' + r.id + '">' +
+        '<td>' + visitTypeBadge + '</td>' +
+        '<td>' + (c.courseCode || "-") + '</td>' +
+        '<td>' + (c.courseName || "-") + '</td>' +
+        '<td>' + badge(statusLabel[r.status] || r.status, statusClass[r.status] || "") + '</td>' +
+        '<td>' + actionButtons("visitRequests", r.id, r.status) + '</td>' +
+        '</tr>';
+    }).join("");
   }).join("");
 
   return '<div class="emp-expand-inner">' +
@@ -361,9 +365,10 @@ async function loadVisitTable() {
   async function render(statusFilter, typeFilter) {
     tbody.innerHTML = '<tr><td colspan="6" class="emp-loading">جاري التحميل...</td></tr>';
 
-    var q = isAffairs
-      ? query(collection(db, "visits"))
-      : query(collection(db, "visits"), where("assignedDepartment", "==", currentEmployee.department));
+    // ملاحظة: طلبات الزيارة تُحفظ في collection اسمه "visitRequests"
+    // (انظر visitRequest.js) ولا تحتوي على حقل assignedDepartment،
+    // لذلك تُعرض جميع الطلبات لكل الموظفين حاليًا.
+    var q = query(collection(db, "visitRequests"));
 
     var snap = await getDocs(q);
 
@@ -376,8 +381,8 @@ async function loadVisitTable() {
     var byStudent = {};
     snap.forEach(function(d) {
       var r = Object.assign({ id: d.id }, d.data());
-      if (!byStudent[r.studentUid]) byStudent[r.studentUid] = [];
-      byStudent[r.studentUid].push(r);
+      if (!byStudent[r.uid]) byStudent[r.uid] = [];
+      byStudent[r.uid].push(r);
     });
 
     var pendingCount = snap.docs.filter(function(d) { return d.data().status === "pending"; }).length;
@@ -401,8 +406,8 @@ async function loadVisitTable() {
         filtered.some(function(r) { return r.status === "under_review"; }) ? "under_review" :
         filtered.some(function(r) { return r.status === "approved"; }) ? "approved" : "rejected";
 
-      var courseCodes = [...new Set(filtered.map(function(r) { return r.courseCode; }).filter(Boolean))].join("، ");
-      var courseNames = [...new Set(filtered.map(function(r) { return r.courseName; }).filter(Boolean))].join("، ");
+      var courseCodes = [...new Set(filtered.flatMap(function(r) { return (r.courses || []).map(function(c) { return c.courseCode; }); }).filter(Boolean))].join("، ");
+      var courseNames = [...new Set(filtered.flatMap(function(r) { return (r.courses || []).map(function(c) { return c.courseName; }); }).filter(Boolean))].join("، ");
 
       var mainRow = document.createElement("tr");
       mainRow.className = "emp-main-row";

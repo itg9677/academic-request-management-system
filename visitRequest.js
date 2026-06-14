@@ -1,4 +1,4 @@
-import { auth, db } from "./js/firebase-config.js";
+import { auth, db } from "./firebase.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { collection, addDoc, doc, getDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
@@ -12,9 +12,9 @@ onAuthStateChanged(auth, async (user) => {
     if (studentSnap.exists()) {
         const data = studentSnap.data();
         document.getElementById("fullName").value  = data.fullName  || "";
-        document.getElementById("studentId").value = data.studentId || "";
+        document.getElementById("universityId").value = data.universityId || "";
         document.getElementById("major").value     = data.major     || "";
-        document.getElementById("phone").value     = data.phone     || "";
+        document.getElementById("phone").value     = data.phoneNumber || "";
     }
 });
 
@@ -56,7 +56,7 @@ document.getElementById("submitBtn").addEventListener("click", async (e) => {
         await addDoc(collection(db, "visitRequests"), {
             uid:       user.uid,
             fullName:  document.getElementById("fullName").value,
-            studentId: document.getElementById("studentId").value,
+            universityId: document.getElementById("universityId").value,
             major:     document.getElementById("major").value,
             phone:     document.getElementById("phone").value,
             visitType, level, visitPlace, reason, courses,

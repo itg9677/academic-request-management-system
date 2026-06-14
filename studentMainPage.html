@@ -1,119 +1,127 @@
-
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>بوابة الطالب</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>بوابة الطالب</title>
 
-    <link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="style.css">
+
+<style>
+
+.student-info-card{
+    width: 100%;
+    max-width: 700px;
+    margin: 20px auto;
+    background: #fff;
+    border-radius: 15px;
+    padding: 20px;
+    box-shadow: 0 4px 12px rgba(0,0,0,.08);
+}
+
+.student-info-card h3{
+    margin: 0 0 15px;
+    color: #1a3a6b;
+    text-align: right;
+}
+
+.info-row{
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 0;
+    border-bottom: 1px solid #eee;
+}
+
+.info-row:last-child{
+    border-bottom: none;
+}
+
+.info-label{
+    font-weight: bold;
+    color: #1a3a6b;
+}
+
+.info-value{
+    color: #444;
+}
+
+</style>
+
 </head>
 
 <body class="student-main-page">
 
-    <header>
+<header>
 
-        <img src="images/Qassim_University_logo.svg.png"
-             alt="شعار الجامعة">
-             
+    <img
+        src="images/Qassim_University_logo.svg.png"
+        alt="شعار الجامعة">
 
-        <div class="welcome-text">
-            مرحباً، <span id="fullName">...</span>
+  <!--  <div class="welcome-text">
+        مرحباً، <span id="fullName">...</span>
+    </div> -->
+
+</header>
+
+<main>
+
+    <img
+        src="images/pattern.png"
+        class="science-pattern"
+        alt="">
+
+    <!-- بيانات الطالب -->
+
+    <div class="student-info-card">
+
+        <h3>بيانات الطالب</h3>
+
+        <div class="info-row">
+            <span class="info-label">الاسم</span>
+            <span class="info-value" id="fullName">...</span>
         </div>
 
-    </header>
-
-    <main>
-                <img src="images/pattern.png"
-             class="science-pattern"
-             alt="">
-
-
-        <div class="options-card">
-
-            <div class="card-title">
-                الخدمات الطلابية
-            </div>
-
-            <a class="option-link"
-               href="request.html">
-                طلبات الحذف والإضافة
-            </a>
-
-            <a class="option-link"
-               href="visitRequestPage.html">
-                طلبات الزيارة
-            </a>
-
-            <a class="option-link"
-               href="absence.html">
-                طلبات رفع الأعذار
-            </a>
-
+        <div class="info-row">
+            <span class="info-label">الرقم الجامعي</span>
+            <span class="info-value" id="universityId">...</span>
         </div>
 
-    </main>
+        <div class="info-row">
+            <span class="info-label">التخصص</span>
+            <span class="info-value" id="major">...</span>
+        </div>
 
-    <script type="module">
+        <div class="info-row">
+                 <span class="info-label">رقم الجوال</span>
+                 <span class="info-value" id="phoneNumber">...</span>
+        </div>
 
-        import { auth, db } from "./js/firebase-config.js";
+    </div>
 
-        import {
-            onAuthStateChanged
-        } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+    <!-- الخدمات -->
 
-        import {
-            doc,
-            getDoc
-        } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    <div class="options-card">
 
-        onAuthStateChanged(auth, async (user) => {
+        <div class="card-title">
+            الخدمات الطلابية
+        </div>
 
-            if (!user) {
-                window.location.href = "login.html";
-                return;
-            }
+        <a class="option-link" href="request.html">
+            طلبات الحذف والإضافة
+        </a>
 
-            try {
+        <a class="option-link" href="visitRequestPage.html">
+            طلبات الزيارة
+        </a>
 
-                const studentRef = doc(
-                    db,
-                    "students",
-                    user.uid
-                );
+        <a class="option-link" href="absence.html">
+            طلبات رفع الأعذار
+        </a>
 
-                const studentSnap =
-                    await getDoc(studentRef);
+    </div>
 
-                if (!studentSnap.exists()) {
-                    window.location.href = "login.html";
-                    return;
-                }
-
-                const data =
-                    studentSnap.data();
-
-                document.getElementById("fullName")
-                    .textContent =
-                    data.fullName || "الطالب";
-
-                if (data.role !== "student") {
-                    window.location.href =
-                        "login.html";
-                }
-
-            } catch (error) {
-
-                console.error(error);
-
-                window.location.href =
-                    "login.html";
-            }
-
-        });
-
-    </script>
-
+</main>
+<script type="module" src="studentMain.js"></script>
 </body>
 </html>
-```
