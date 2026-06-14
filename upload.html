@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+<meta charset="UTF-8">
+<title>رفع المواد</title>
+</head>
+
+<body>
+
+<input type="file" id="fileInput" accept=".xlsx,.xls">
+<button id="uploadBtn">رفع المواد</button>
+
+<script type="module">
+
+import { auth, db } from "./firebase.js";
+import {
+  collection,
+  addDoc,
+  serverTimestamp
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+import * as XLSX from "https://cdn.jsdelivr.net/npm/xlsx@0.18.5/+esm";
+
+document.getElementById("uploadBtn").addEventListener("click", upload);
+
+async function upload() {
+
+    const file = document.getElementById("fileInput").files[0];
+
+    if (!file) {
+        alert("اختر ملف Excel");
+        return;
+    }
+
+    const reader = new FileReader();
+
+    reader.onload = async function (e) {
+
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, { type: "array" });
+
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const json = XLSX.utils.sheet_to_json(sheet);
+
+        for (let row of json) {
+
+            await addDoc(collection(db, "courses"), {
+                courseCode: row.courseCode || "",
+                courseName: row.courseName || "",
+                department: row.department || "",
+                createdAt: serverTimestamp()
+            });
+        }
+
+        alert("تم رفع المواد بنجاح");
+    };
+
+    reader.readAsArrayBuffer(file);
+}
+
+</script>
+
+</body>
+</html>
