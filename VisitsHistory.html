@@ -1,0 +1,83 @@
+
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>متابعة طلبات الزيارة</title>
+
+    <link rel="stylesheet" href="style.css">
+    <link rel="icon" href="data:,">
+</head>
+
+<body class="previous-requests-page">
+
+    <div class="previous-header">
+
+        <div class="previous-header-right">
+
+            <img
+                src="images/Qassim_University_logo.svg.png"
+                alt="شعار الجامعة"
+                class="previous-header-logo">
+
+            <div>
+                <div class="previous-header-title">
+                    نظام الخدمات الطلابية
+                </div>
+
+                <div class="previous-header-sub">
+                    مرحباً،
+                    <span id="studentName">...</span>
+                </div>
+            </div>
+
+        </div>
+
+        <button
+            class="back-btn"
+            onclick="window.location.href='StudentMainPage.html'">
+            العودة للرئيسية
+        </button>
+
+    </div>
+
+    <div class="requests-title">
+        <h1>متابعة طلبات الزيارة</h1>
+    </div>
+
+    <div class="requests-card">
+
+        <div class="requests-card-header">
+            طلبات الزيارة السابقة
+        </div>
+
+        <div class="table-wrapper">
+
+            <table class="requests-table">
+
+                <thead>
+                    <tr>
+                        <th>رقم الطلب</th>
+                        <th>نوع الزيارة</th>
+                        <th>الجهة المحولة</th>
+                        <th>الحالة</th>
+                    </tr>
+                </thead>
+
+                <tbody id="visitsTableBody">
+                </tbody>
+
+            </table>
+
+        </div>
+
+    </div>
+
+    <script type="module" src="visitsHistory.js"></script>
+
+</body>
+
+</html>
+```
