@@ -55,12 +55,12 @@ form.addEventListener("submit", async (e) => {
             return;
         }
 
-        // 🚀 تحويل للصفحة الرئيسية للموظف
+        // 🚀 تحويل حسب الصلاحية
         if (employeeData.isAdmin === true) {
-    window.location.href = "Admindashboard.html";
-} else {
-    window.location.href = "Employeedashboard.html";
-}
+            window.location.href = "Admindashboard.html";
+        } else {
+            window.location.href = "employeeMainPage.html";
+        }
 
     } catch (error) {
         console.error(error);
