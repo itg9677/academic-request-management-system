@@ -1,92 +1,53 @@
-// Admindashboard.js
-
-import { auth, db } from "./firebase.js";
-import {
-  onAuthStateChanged,
-  signOut
-} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-import {
-  doc as fsDoc,
-  getDoc,
-  collection,
-  query,
-  getDocs,
-  orderBy
-} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-
-// ─── State ───────────────────────────────────────────────────────────────────
-let allData = {
-  addDrop: [],
-  excuse:  [],
-  visit:   []
-};
-
-let employeeCache    = {};
-let studentCache     = {};
-let currentTab       = "addDrop";
-let currentFilter    = "all";   // stat card filter (all/pending/approved/rejected)
-let searchQuery      = "";
-let openRequestId    = null;    // now tracks a single request id
-let currentAdminData = null;
-
-// ─── Status maps ─────────────────────────────────────────────────────────────
-const STATUS_LABEL = {
-  pending:      "معلق",
-  under_review: "قيد المراجعة",
-  approved:     "مقبول",
-  rejected:     "مرفوض"
-};
-
-const STATUS_CLASS = {
-  pending:      "s-pending",
-  under_review: "s-under_review",
-  approved:     "s-approved",
-  rejected:     "s-rejected"
-};
-
-const TAB_LABELS = {
-  addDrop: "الحذف والإضافة",
-  excuse:  "رفع الأعذار",
-  visit:   "طلبات الزيارة"
-};
-
-// ─── DOM refs ─────────────────────────────────────────────────────────────────
-const mainTbody     = document.getElementById("mainTbody");
-const loadingState  = document.getElementById("loadingState");
-const tableWrap     = document.getElementById("tableWrap");
-const emptyState    = document.getElementById("emptyState");
-const searchInfoBar = document.getElementById("searchInfoBar");
-const sidePanel     = document.getElementById("sidePanel");
-const spOverlay     = document.getElementById("spOverlay");
-const spTitle       = document.getElementById("spTitle");
-const spSub         = document.getElementById("spSub");
-const spBody        = document.getElementById("spBody");
-const adminMain     = document.querySelector(".admin-main");
-const tableTitle    = document.getElementById("tableTitle");
-
-// ─── Auth guard ───────────────────────────────────────────────────────────────
 onAuthStateChanged(auth, async (user) => {
   try {
-    if (!user) { window.location.replace("EmployeeLogin.html"); return; }
+    if (!user) {
+      window.location.replace("EmployeeLogin.html");
+      return;
+    }
 
-    const empSnap = await getDoc(fsDoc(db, "employees", user.uid));
-    if (!empSnap.exists()) { await signOut(auth); window.location.replace("EmployeeLogin.html"); return; }
+    // 🔴 بدل doc مباشرة → نستخدم Query لأن الـ docId مو uid
+    const q = query(
+      collection(db, "employees"),
+      where("email", "==", user.email)
+    );
 
-    const data = empSnap.data();
-    if (!data.isAdmin) { await signOut(auth); window.location.replace("EmployeeLogin.html"); return; }
+    const snap = await getDocs(q);
+
+    if (snap.empty) {
+      await signOut(auth);
+      window.location.replace("EmployeeLogin.html");
+      return;
+    }
+
+    const data = snap.docs[0].data();
+
+    if (!data.isAdmin) {
+      await signOut(auth);
+      window.location.replace("EmployeeLogin.html");
+      return;
+    }
 
     currentAdminData = data;
-    const adminNameEl = document.getElementById("adminName");
-    if (adminNameEl) adminNameEl.textContent = data.fullName ?? "الأدمن";
+
+     const adminNameEl = document.getElementById("adminName");
+
+    if (adminNameEl) {
+      adminNameEl.textContent = `مرحبا، ${data.fullName ?? "الأدمن"} 👋`;
+    }
+    
 
     setDates();
     await loadAllData();
+
   } catch (err) {
     console.error("Auth error:", err);
     await signOut(auth);
     window.location.replace("EmployeeLogin.html");
   }
-});
+ document.getElementById("logoutBtn").addEventListener("click", async function() {
+   await signOut(auth);
+   window.location.href = "EmployeeLogin.html";
+ });
 
 // ─── Logout ───────────────────────────────────────────────────────────────────
 document.getElementById("logoutBtn")?.addEventListener("click", async () => {
