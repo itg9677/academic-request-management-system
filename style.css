@@ -485,3 +485,262 @@ textarea:focus{
 .absence-page button:hover {
     background: #0f2a4d;
 }
+
+/* =====================================================
+   صفحة متابعة الطلبات السابقة
+===================================================== */
+
+.previous-requests-page{
+    background:
+        radial-gradient(
+            circle at top right,
+            rgba(200,151,43,.08),
+            transparent 350px
+        ),
+        var(--background);
+
+    min-height:100vh;
+    display:block;
+    padding:30px 20px;
+}
+
+/* الهيدر */
+
+.previous-header{
+    background:var(--white);
+    border-radius:18px;
+    padding:20px 30px;
+    margin-bottom:25px;
+
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+
+    box-shadow:0 4px 20px rgba(26,58,107,.08);
+    border-right:5px solid var(--secondary);
+}
+
+.previous-header-right{
+    display:flex;
+    align-items:center;
+    gap:15px;
+}
+
+.previous-header-logo{
+    width:180px;
+    height:auto;
+}
+
+.previous-header-title{
+    color:var(--primary);
+    font-size:26px;
+    font-weight:bold;
+}
+
+.previous-header-sub{
+    color:var(--gray);
+    margin-top:5px;
+}
+
+.back-btn{
+    background:var(--primary);
+    color:white;
+    border:none;
+    border-radius:10px;
+    padding:12px 20px;
+    cursor:pointer;
+    transition:.3s;
+    font-weight:bold;
+}
+
+.back-btn:hover{
+    background:var(--secondary);
+}
+
+/* عنوان الصفحة */
+
+.requests-title{
+    text-align:center;
+    margin-bottom:25px;
+}
+
+.requests-title h1{
+    color:var(--primary);
+    margin-bottom:8px;
+    font-size:32px;
+}
+
+.requests-title p{
+    color:var(--gray);
+}
+
+/* بطاقات الإحصائيات */
+
+.requests-stats{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+    gap:20px;
+    margin-bottom:30px;
+}
+
+.stat-card{
+    background:white;
+    border-radius:18px;
+    padding:25px;
+    text-align:center;
+    box-shadow:0 4px 15px rgba(26,58,107,.08);
+    transition:.3s;
+}
+
+.stat-card:hover{
+    transform:translateY(-4px);
+}
+
+.stat-number{
+    font-size:34px;
+    font-weight:bold;
+    margin-bottom:10px;
+}
+
+.stat-label{
+    color:var(--gray);
+}
+
+.stat-total .stat-number{
+    color:var(--primary);
+}
+
+.stat-approved .stat-number{
+    color:#16a34a;
+}
+
+.stat-review .stat-number{
+    color:#d97706;
+}
+
+.stat-rejected .stat-number{
+    color:#dc2626;
+}
+
+/* بطاقة الجدول */
+
+.requests-card{
+    background:white;
+    border-radius:20px;
+    overflow:hidden;
+    box-shadow:0 4px 20px rgba(26,58,107,.08);
+}
+
+.requests-card-header{
+    background:linear-gradient(
+        135deg,
+        var(--primary),
+        #264d85
+    );
+
+    color:white;
+    padding:18px 24px;
+    font-size:20px;
+    font-weight:bold;
+}
+
+.table-wrapper{
+    overflow-x:auto;
+}
+
+/* الجدول */
+
+.requests-table{
+    width:100%;
+    border-collapse:collapse;
+}
+
+.requests-table th{
+    background:#eef3fb;
+    color:var(--primary);
+    padding:16px;
+    text-align:center;
+    font-weight:bold;
+}
+
+.requests-table td{
+    padding:16px;
+    text-align:center;
+    border-bottom:1px solid #ececec;
+}
+
+.requests-table tr:hover{
+    background:#fafbfd;
+}
+
+/* الحالات */
+
+.status{
+    padding:6px 14px;
+    border-radius:999px;
+    font-size:13px;
+    font-weight:bold;
+}
+
+.status-approved{
+    background:#dcfce7;
+    color:#166534;
+}
+
+.status-review{
+    background:#fef3c7;
+    color:#92400e;
+}
+
+.status-rejected{
+    background:#fee2e2;
+    color:#991b1b;
+}
+
+.status-pending{
+    background:#dbeafe;
+    color:#1e40af;
+}
+
+/* زر التفاصيل */
+
+.details-btn{
+    background:var(--primary);
+    color:white;
+    border:none;
+    border-radius:8px;
+    padding:8px 14px;
+    cursor:pointer;
+    transition:.3s;
+}
+
+.details-btn:hover{
+    background:var(--secondary);
+}
+
+/* الجوال */
+
+@media(max-width:768px){
+
+    .previous-header{
+        flex-direction:column;
+        gap:15px;
+        text-align:center;
+    }
+
+    .previous-header-right{
+        flex-direction:column;
+    }
+
+    .previous-header-logo{
+        width:140px;
+    }
+
+    .requests-title h1{
+        font-size:24px;
+    }
+
+    .stat-number{
+        font-size:28px;
+    }
+}

@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>متابعة الطلبات السابقة</title>
+
+    <link rel="stylesheet" href="style.css">
+    <link rel="icon" href="data:,">
+</head>
+
+<body class="previous-requests-page">
+
+    <!-- Header -->
+    <div class="previous-header">
+
+        <div class="previous-header-right">
+
+            <img
+                src="images/Qassim_University_logo.svg.png"
+                alt="شعار الجامعة"
+                class="previous-header-logo">
+
+            <div>
+                <div class="previous-header-title">
+                    نظام الخدمات الطلابية
+                </div>
+            </div>
+
+        </div>
+
+        <button
+            class="back-btn"
+            onclick="window.location.href='StudentMainPage.html'">
+            العودة للرئيسية
+        </button>
+
+    </div>
+
+    <!-- Title -->
+    <div class="requests-title">
+        <h1>متابعة الطلبات السابقة</h1>
+    </div>
+
+    <!-- Requests Table -->
+    <div class="requests-card">
+
+        <div class="requests-card-header">
+            طلبات الإضافة والحذف السابقة
+        </div>
+
+        <div class="table-wrapper">
+
+            <table class="requests-table">
+
+                <thead>
+                    <tr>
+                        <th>رقم الطلب</th>
+                        <th>نوع الطلب</th>
+                        <th>المقرر</th>
+                        <th>الشعبة</th>
+                        <th>الحالة</th>
+                        <th>الإجراءات</th>
+                    </tr>
+                </thead>
+
+                <tbody id="requestsTableBody">
+                </tbody>
+
+            </table>
+
+        </div>
+
+    </div>
+
+    <script type="module" src="previousRequests.js"></script>
+
+</body>
+
+</html>
