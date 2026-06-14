@@ -59,7 +59,7 @@ form.addEventListener("submit", async (e) => {
         if (employeeData.isAdmin === true) {
             window.location.href = "Admindashboard.html";
         } else {
-            window.location.href = "employeeMainPage.html";
+            window.location.href = "Employeedashboard.html";
         }
 
     } catch (error) {
