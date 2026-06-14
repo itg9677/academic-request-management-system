@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>نظام الخدمات الطلابية - الأدمن</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="empStyle.css" />
+  <link rel="stylesheet" href="adminStyle.css" />
+</head>
+
+<body class="admin-page employee-dashboard-page">
+
+  <!-- Header -->
+  <header class="emp-header">
+    <div class="emp-header-right">
+      <img src="images/Qassim_University_logo.svg.png" alt="شعار جامعة القصيم" class="emp-logo" />
+      <div>
+        <div class="emp-header-title">نظام الخدمات الطلابية</div>
+        <div class="emp-header-sub">
+          مرحباً، <span id="adminName">...</span> —
+          <span style="color:#c8972b">مدير النظام</span>
+        </div>
+      </div>
+    </div>
+    <div class="emp-header-left">
+      <div class="emp-date" id="hijriDate">...</div>
+      <div class="emp-day" id="gregDate">...</div>
+      <button class="emp-logout-btn" id="logoutBtn">تسجيل خروج</button>
+    </div>
+  </header>
+
+  <main class="admin-main">
+
+    <!-- Stats Cards -->
+    <div class="admin-stats-grid">
+      <div class="admin-stat-card stat-total active" data-filter="all" id="card-all">
+        <div class="stat-icon"><i class="ti ti-copy"></i></div>
+        <div class="stat-num" id="cnt-all">0</div>
+        <div class="stat-label">إجمالي الطلبات</div>
+      </div>
+      <div class="admin-stat-card stat-pending" data-filter="pending" id="card-pending">
+        <div class="stat-icon"><i class="ti ti-clock"></i></div>
+        <div class="stat-num" id="cnt-pending">0</div>
+        <div class="stat-label">طلبات معلقة</div>
+      </div>
+      <div class="admin-stat-card stat-approved" data-filter="approved" id="card-approved">
+        <div class="stat-icon"><i class="ti ti-circle-check"></i></div>
+        <div class="stat-num" id="cnt-approved">0</div>
+        <div class="stat-label">طلبات مقبولة</div>
+      </div>
+      <div class="admin-stat-card stat-rejected" data-filter="rejected" id="card-rejected">
+        <div class="stat-icon"><i class="ti ti-circle-x"></i></div>
+        <div class="stat-num" id="cnt-rejected">0</div>
+        <div class="stat-label">طلبات مرفوضة</div>
+      </div>
+    </div>
+
+    <!-- Main Table Card -->
+    <div class="admin-table-card">
+      <div class="admin-table-top">
+
+        <!-- Tabs -->
+        <div class="admin-tabs">
+          <button class="admin-tab active" data-tab="addDrop">
+            حذف وإضافة
+            <span class="admin-tab-badge" id="badge-addDrop">0</span>
+          </button>
+          <button class="admin-tab" data-tab="excuse">
+            رفع الأعذار
+            <span class="admin-tab-badge" id="badge-excuse">0</span>
+          </button>
+          <button class="admin-tab" data-tab="visit">
+            طلبات الزيارة
+            <span class="admin-tab-badge" id="badge-visit">0</span>
+          </button>
+        </div>
+
+        <!-- Filters -->
+        <div class="admin-filters">
+          <select class="admin-filter-select" id="deptFilter">
+            <option value="all">كل الأقسام</option>
+            <option value="شؤون الطالبات">شؤون الطالبات</option>
+            <option value="رياضيات">رياضيات</option>
+            <option value="فيزياء">فيزياء</option>
+            <option value="كيمياء">كيمياء</option>
+            <option value="أحياء">أحياء</option>
+            <option value="إحصاء">إحصاء</option>
+          </select>
+          <select class="admin-filter-select" id="statusFilter">
+            <option value="all">كل الحالات</option>
+            <option value="pending">معلق</option>
+            <option value="under_review">قيد المراجعة</option>
+            <option value="approved">مقبول</option>
+            <option value="rejected">مرفوض</option>
+          </select>
+        </div>
+
+      </div>
+
+      <!-- Table title row -->
+      <div class="admin-table-title-bar">
+        <span id="tableTitle">طلبات الحذف والإضافة — كل الأقسام</span>
+        <span class="admin-sort-hint">
+          <i class="ti ti-sort-ascending"></i> مرتب من الأقدم — الطلبات المكتملة تنزل تلقائياً للأسفل
+        </span>
+      </div>
+
+      <!-- Search Bar -->
+      <div class="admin-search-row">
+        <div class="admin-search-bar">
+          <i class="ti ti-search admin-search-icon"></i>
+          <input
+            type="text"
+            id="searchInput"
+            placeholder="ابحث باسم الطالب أو رقمه الجامعي..."
+            autocomplete="off"
+          />
+        </div>
+      </div>
+
+      <!-- Search info bar -->
+      <div class="admin-search-info" id="searchInfoBar" style="display:none"></div>
+
+      <!-- Loading -->
+      <div class="admin-loading" id="loadingState">
+        <i class="ti ti-loader-2 spin"></i> جاري التحميل...
+      </div>
+
+      <!-- Table wrapper -->
+      <div class="admin-table-wrap" id="tableWrap" style="display:none">
+        <table class="admin-table" id="mainTable">
+          <thead>
+            <tr>
+              <th>اسم الطالب</th>
+              <th>الرقم الجامعي</th>
+              <th>القسم</th>
+              <th>تاريخ الطلب</th>
+              <th>حالة الطلب</th>
+              <th>الموظف المعالج</th>
+              <th>التفاصيل</th>
+            </tr>
+          </thead>
+          <tbody id="mainTbody"></tbody>
+        </table>
+        <div class="admin-empty" id="emptyState" style="display:none">
+          <i class="ti ti-inbox-off"></i>
+          <p>لا توجد طلبات مطابقة</p>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- Side Panel -->
+  <div class="admin-side-panel" id="sidePanel">
+    <div class="sp-header">
+      <div>
+        <div class="sp-title" id="spTitle">تفاصيل الطالب</div>
+        <div class="sp-sub" id="spSub">بيانات الطلبات</div>
+      </div>
+      <button class="sp-close-btn" id="spCloseBtn" aria-label="إغلاق">
+        <i class="ti ti-x"></i>
+      </button>
+    </div>
+    <div class="sp-body" id="spBody">
+      <!-- filled dynamically -->
+    </div>
+    <div class="sp-footer">
+      <button class="sp-print-btn" id="spPrintBtn">
+        <i class="ti ti-printer"></i> طباعة بيانات الطالب
+      </button>
+    </div>
+  </div>
+
+  <!-- Side panel overlay -->
+  <div class="sp-overlay" id="spOverlay"></div>
+
+  <script type="module" src="Admindashboard.js"></script>
+</body>
+</html>
