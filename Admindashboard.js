@@ -115,46 +115,87 @@ console.log("typeof db =", typeof db);
 console.log("auth =", auth);
 async function loadAllData() {
   try {
-    console.log("collection =", collection);
-console.log("query =", query);
-console.log("getDocs =", getDocs);
-console.log("orderBy =", orderBy);
-console.log("db =", db);
-    console.log("=== loadAllData START ===");
+    console.log("START loadAllData");
+    console.log("db =", db);
 
-    console.log("1");
-    const requestsRef = collection(db, "requests");
+    loadingState.style.display = "block";
+    tableWrap.style.display = "none";
 
-    console.log("2");
-    const excusesRef = collection(db, "excuses");
+    // Add / Drop Requests
+    const reqSnap = await getDocs(
+      query(
+        collection(db, "requests"),
+        orderBy("createdAt", "asc")
+      )
+    );
 
-    console.log("3");
-    const visitsRef = collection(db, "visits");
+    // Excuses
+    const excSnap = await getDocs(
+      query(
+        collection(db, "excuses"),
+        orderBy("createdAt", "asc")
+      )
+    );
 
-    console.log("4");
-    const reqQuery = query(requestsRef, orderBy("createdAt", "asc"));
+    // Visits
+    const visSnap = await getDocs(
+      query(
+        collection(db, "visits"),
+        orderBy("createdAt", "asc")
+      )
+    );
 
-    console.log("5");
-    const excQuery = query(excusesRef, orderBy("createdAt", "asc"));
+    allData.addDrop = reqSnap.docs.map(docSnap => ({
+      id: docSnap.id,
+      ...docSnap.data()
+    }));
 
-    console.log("6");
-    const visQuery = query(visitsRef, orderBy("createdAt", "asc"));
+    allData.excuse = excSnap.docs.map(docSnap => ({
+      id: docSnap.id,
+      ...docSnap.data()
+    }));
 
-    console.log("7");
-    const reqSnap = await getDocs(reqQuery);
+    allData.visit = visSnap.docs.map(docSnap => ({
+      id: docSnap.id,
+      ...docSnap.data()
+    }));
 
-    console.log("8");
-    const excSnap = await getDocs(excQuery);
+    const studentUids = [
+      ...new Set([
+        ...allData.addDrop.map(r => r.studentUid),
+        ...allData.excuse.map(r => r.studentUid),
+        ...allData.visit.map(r => r.studentUid)
+      ].filter(Boolean))
+    ];
 
-    console.log("9");
-    const visSnap = await getDocs(visQuery);
+    const employeeUids = [
+      ...new Set([
+        ...allData.addDrop.map(r => r.assignedEmployee),
+        ...allData.excuse.map(r => r.assignedEmployee),
+        ...allData.visit.map(r => r.assignedEmployee)
+      ].filter(Boolean))
+    ];
 
-    console.log("10");
-    console.log(reqSnap.size, excSnap.size, visSnap.size);
+    await fetchStudents(studentUids);
+    await fetchEmployees(employeeUids);
 
+    updateBadges();
+    updateStatCards();
+    renderTable();
+
+    loadingState.style.display = "none";
+    tableWrap.style.display = "block";
+
+    console.log("Dashboard loaded successfully");
   } catch (err) {
     console.error("LOAD ERROR:", err);
-    throw err;
+    console.error("ERROR STACK:", err.stack);
+
+    loadingState.innerHTML = `
+      <div style="padding:20px;color:red">
+        ${err.message}
+      </div>
+    `;
   }
 }
 async function fetchStudents(uids) {
