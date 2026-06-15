@@ -23,7 +23,7 @@ function getRequestTypeText(type){
 onAuthStateChanged(auth, async (user) => {
 
   if (!user) {
-    window.location.href = "login.html";
+    window.location.href = "loginPage.html";
     return;
   }
 
@@ -37,8 +37,7 @@ onAuthStateChanged(auth, async (user) => {
 
     const q = query(
       collection(db, "requests"),
-      where("uid", "==", user.uid)
-    );
+where("studentUid", "==", user.uid)    );
 
     const snapshot = await getDocs(q);
 
