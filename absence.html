@@ -2,56 +2,186 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>رفع عذر الغياب</title>
     <link rel="stylesheet" href="style.css">
+    <link rel="icon" href="data:,">
 </head>
 
 <body class="absence-page">
 
 <div class="container">
     <div class="logo-container">
-    <img src="images/Qassim_University_logo.svg.png" alt="شعار الجامعة" class="logo">
-
-    <img src="images/pattern.png" alt="" class="header-pattern">
-</div>
+        <img src="images/Qassim_University_logo.svg.png" alt="شعار الجامعة" class="logo">
+        <img src="images/pattern.png" alt="" class="header-pattern">
+    </div>
 
     <h2>رفع عذر الغياب</h2>
 
-    <form>
+    <form id="excuseForm">
 
-        <!-- اسم المادة -->
+        <!-- رمز المقرر (قائمة منسدلة حسب القسم) -->
         <div class="form-group">
             <label>رمز المقرر</label>
-            <input type="text" placeholder="أدخل رمز المقرر" required>
+            <select id="courseSelect" required>
+                <option value="">جاري التحميل...</option>
+            </select>
         </div>
 
         <!-- تاريخ الغياب -->
         <div class="form-group">
             <label>تاريخ الغياب</label>
-            <input type="date" required>
+            <input type="date" id="absenceDate" required>
         </div>
 
         <!-- سبب الغياب -->
         <div class="form-group">
             <label>سبب الغياب</label>
-            <textarea placeholder="اكتب سبب الغياب" rows="4" required></textarea>
+            <textarea id="absenceReason" placeholder="اكتب سبب الغياب" rows="4" required></textarea>
         </div>
 
         <!-- رفع ملف -->
         <div class="form-group">
-            <label>إرفاق ملف</label>
-            <input type="file" accept=".pdf,.png,.jpg,.jpeg" required>
+            <label>إرفاق ملف (PDF أو صورة)</label>
+            <input type="file" id="attachmentFile" accept=".pdf,.png,.jpg,.jpeg" required>
         </div>
 
         <!-- زر الإرسال -->
-        <button type="submit">إرسال الطلب</button>
+        <button type="submit" id="submitBtn">إرسال الطلب</button>
         <br><br>
-         <button type="button" class="btn-track" onclick="window.location.href='ExcusesHistory.html'">متابعة طلب سابق</button>
-
-
+        <button type="button" class="btn-track" onclick="window.location.href='ExcusesHistory.html'">متابعة طلب سابق</button>
     </form>
-
 </div>
+
+<script type="module">
+import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import {
+  getFirestore, doc, getDoc, collection, addDoc, getDocs, query, where, serverTimestamp
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
+
+const firebaseConfig = {
+  apiKey:            "AIzaSyDg4iYMZEdc8pjJU67KtXbSvhBaqdoP0iA",
+  authDomain:        "studentsreq-d9ea1.firebaseapp.com",
+  projectId:         "studentsreq-d9ea1",
+  storageBucket:     "studentsreq-d9ea1.appspot.com",
+  messagingSenderId: "375395162945",
+  appId:             "1:375395162945:web:e3edb97c48a30ab6401fc0"
+};
+
+const app     = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
+const auth    = getAuth(app);
+const db      = getFirestore(app);
+const storage = getStorage(app);
+
+let currentUser   = null;
+let studentData   = null;
+let courseOptions = [];
+
+const courseSelect = document.getElementById("courseSelect");
+const submitBtn    = document.getElementById("submitBtn");
+
+// ===== تحميل المقررات حسب التخصص =====
+async function loadCourses(major) {
+  try {
+    const q = query(collection(db, "courses"), where("department", "==", major));
+    const snap = await getDocs(q);
+    courseOptions = snap.docs
+      .map(d => d.data())
+      .map(c => ({ code: c.courseCode || "", name: c.courseName || "", dept: c.department || "" }))
+      .filter(c => c.code)
+      .sort((a, b) => a.name.localeCompare(b.name, "ar"));
+
+    courseSelect.innerHTML = '<option value="">اختر المقرر</option>' +
+      courseOptions.map(c => `<option value="${c.code}">${c.code} - ${c.name}</option>`).join("");
+  } catch (err) {
+    console.error("خطأ في تحميل المقررات:", err);
+    courseSelect.innerHTML = '<option value="">-- أدخل الرمز يدوياً --</option>';
+    // fallback: حقل نصي
+    const grp = courseSelect.parentElement;
+    courseSelect.style.display = "none";
+    const inp = document.createElement("input");
+    inp.type = "text"; inp.id = "courseCodeManual";
+    inp.placeholder = "أدخل رمز المقرر"; inp.required = true;
+    grp.appendChild(inp);
+  }
+}
+
+// ===== Auth =====
+onAuthStateChanged(auth, async (user) => {
+  if (!user) { window.location.href = "login.html"; return; }
+  currentUser = user;
+
+  try {
+    const snap = await getDoc(doc(db, "students", user.uid));
+    if (!snap.exists()) { alert("لا توجد بيانات للطالب"); return; }
+    studentData = snap.data();
+    await loadCourses(studentData.major || "");
+  } catch (err) {
+    console.error(err);
+    courseSelect.innerHTML = '<option value="">خطأ في التحميل</option>';
+  }
+});
+
+// ===== إرسال الطلب =====
+document.getElementById("excuseForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+
+  const courseCodeManual = document.getElementById("courseCodeManual");
+  const courseCode = courseCodeManual
+    ? courseCodeManual.value.trim()
+    : courseSelect.value;
+
+  const courseObj   = courseOptions.find(c => c.code === courseCode);
+  const courseName  = courseObj ? courseObj.name : "";
+  const absenceDate = document.getElementById("absenceDate").value;
+  const reason      = document.getElementById("absenceReason").value.trim();
+  const file        = document.getElementById("attachmentFile").files[0];
+
+  if (!courseCode || !absenceDate || !reason || !file) {
+    alert("رجاءً اكملي جميع الحقول");
+    return;
+  }
+
+  submitBtn.disabled = true;
+  submitBtn.textContent = "جاري الرفع...";
+
+  try {
+    // رفع الملف إلى Firebase Storage
+    let attachmentUrl = null;
+    const fileRef = ref(storage, `excuses/${currentUser.uid}/${Date.now()}_${file.name}`);
+    await uploadBytes(fileRef, file);
+    attachmentUrl = await getDownloadURL(fileRef);
+
+    // حفظ الطلب في Firestore
+    await addDoc(collection(db, "excuses"), {
+      studentUid:          currentUser.uid,
+      fullName:            studentData.fullName      || "",
+      universityId:        studentData.universityId  || "",
+      major:               studentData.major         || "",
+      assignedDepartment:  studentData.major         || "",
+      courseCode,
+      courseName,
+      absenceDate,
+      reason,
+      attachmentUrl,
+      status:    "pending",
+      createdAt: serverTimestamp()
+    });
+
+    alert("تم إرسال الطلب بنجاح ✅");
+    document.getElementById("excuseForm").reset();
+    if (!courseCodeManual) courseSelect.value = "";
+  } catch (err) {
+    console.error(err);
+    alert("حدث خطأ أثناء الإرسال: " + err.message);
+  } finally {
+    submitBtn.disabled = false;
+    submitBtn.textContent = "إرسال الطلب";
+  }
+});
+</script>
 
 </body>
 </html>
