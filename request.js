@@ -37,11 +37,16 @@ async function loadCourses(user) {
 }
 
 /* ===================== */
+function getCourseNameByCode(code){
+    const course = availableCourses.find(c => c.courseCode === code);
+    return course ? course.courseName : "";
+}
+
+/* ===================== */
 function createCourseSelect(name){
 
     return `
     <div class="combo-wrapper">
-
         <select name="${name}" class="combo-select">
             <option value="">اختر المادة</option>
 
@@ -52,7 +57,6 @@ function createCourseSelect(name){
             `).join("")}
 
         </select>
-
     </div>`;
 }
 
@@ -112,12 +116,6 @@ window.addRow = function(type){
 };
 
 /* ===================== */
-window.goToRequests = function(){
-    window.location.href = "PreviousRequests.html";
-};
-
-/* ===================== */
-/* التحقق من الشعبة */
 function validateChangeSections() {
 
     const blocks = document.querySelectorAll("#changeList .section-block");
@@ -137,13 +135,10 @@ function validateChangeSections() {
 }
 
 /* ===================== */
-/* إرسال الطلب */
 document.getElementById("submitBtn").addEventListener("click", async () => {
 
     const user = auth.currentUser;
     if(!user) return;
-
-    if (!validateChangeSections()) return;
 
     const studentRef = doc(db,"students",user.uid);
     const studentSnap = await getDoc(studentRef);
@@ -163,12 +158,13 @@ document.getElementById("submitBtn").addEventListener("click", async () => {
         const course = block.querySelector("select")?.value;
         const section = block.querySelector("input")?.value;
 
-        if(course){
+        if(course && course !== ""){
             requests.push({
                 uid:user.uid,
                 universityId:student.universityId,
                 requestType:"add",
                 courseCode:course,
+                courseName:getCourseNameByCode(course),
                 requestedSection:section || null,
                 assignedDepartment,
                 status:"pending",
@@ -183,12 +179,13 @@ document.getElementById("submitBtn").addEventListener("click", async () => {
     document.querySelectorAll("#removeList .section-block").forEach(block=>{
         const course = block.querySelector("select")?.value;
 
-        if(course){
+        if(course && course !== ""){
             requests.push({
                 uid:user.uid,
                 universityId:student.universityId,
                 requestType:"remove",
                 courseCode:course,
+                courseName:getCourseNameByCode(course),
                 assignedDepartment,
                 status:"pending",
                 notes,
@@ -203,12 +200,13 @@ document.getElementById("submitBtn").addEventListener("click", async () => {
         const course = block.querySelector("select")?.value;
         const section = block.querySelector("input")?.value?.trim();
 
-        if(course){
+        if(course && course !== ""){
             requests.push({
                 uid:user.uid,
                 universityId:student.universityId,
                 requestType:"change",
                 courseCode:course,
+                courseName:getCourseNameByCode(course),
                 requestedSection:section,
                 assignedDepartment,
                 status:"pending",
@@ -219,13 +217,19 @@ document.getElementById("submitBtn").addEventListener("click", async () => {
         }
     });
 
+    /* ===================== */
+    if (!validateChangeSections()) return;
+
+    if (requests.length === 0) {
+        alert("يرجى إضافة مادة واحدة على الأقل قبل إرسال الطلب");
+        return;
+    }
+
     for (let r of requests){
         await addDoc(collection(db,"requests"), r);
     }
 
-    /* ===================== */
-    /* 🔥 RESET الصفحة بدل تحويل */
-
+    /* RESET */
     document.getElementById("addList").innerHTML = "";
     document.getElementById("removeList").innerHTML = "";
     document.getElementById("changeList").innerHTML = "";

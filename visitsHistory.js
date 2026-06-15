@@ -2,7 +2,7 @@ import { auth, db } from "./firebase.js";
 
 import {
     onAuthStateChanged
-} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
 import {
     doc,
@@ -11,7 +11,7 @@ import {
     query,
     where,
     getDocs
-} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const studentName = document.getElementById("studentName");
 const visitsTableBody = document.getElementById("visitsTableBody");
@@ -35,8 +35,8 @@ onAuthStateChanged(auth, async (user) => {
         }
 
         const visitsQuery = query(
-            collection(db, "visits"),
-            where("studentUid", "==", user.uid)
+            collection(db, "visitRequests"),
+            where("uid", "==", user.uid)
         );
 
         const visitsSnap = await getDocs(visitsQuery);
@@ -51,7 +51,7 @@ onAuthStateChanged(auth, async (user) => {
                         لا توجد طلبات زيارة سابقة
                     </td>
                 </tr>
-            ` ;
+            `;
 
             return;
         }
@@ -76,7 +76,7 @@ onAuthStateChanged(auth, async (user) => {
                 <tr>
                     <td>${count++}</td>
                     <td>${data.visitType || "-"}</td>
-                    <td>${data.assignedDepartment || "-"}</td>
+                    <td>${data.visitPlace || "-"}</td>
                     <td>${statusText}</td>
                 </tr>
             `;
