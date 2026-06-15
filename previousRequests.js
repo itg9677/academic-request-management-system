@@ -2,16 +2,23 @@ import { auth, db } from "./firebase.js";
 
 import {
   onAuthStateChanged
-} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
 import {
   collection,
   query,
   where,
   getDocs
-} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const tableBody = document.getElementById("requestsTableBody");
+
+function getRequestTypeText(type){
+  if(type === "add") return "إضافة";
+  if(type === "remove") return "حذف";
+  if(type === "change") return "تغيير شعبة";
+  return type || "-";
+}
 
 onAuthStateChanged(auth, async (user) => {
 
@@ -20,16 +27,27 @@ onAuthStateChanged(auth, async (user) => {
     return;
   }
 
+  if (!db) {
+    console.error("db غير معرف! تحقق من ملف firebase.js");
+    tableBody.innerHTML = `<tr><td colspan="6">خطأ في الاتصال بقاعدة البيانات</td></tr>`;
+    return;
+  }
+
   try {
 
     const q = query(
       collection(db, "requests"),
-      where("studentUid", "==", user.uid)
+      where("uid", "==", user.uid)
     );
 
     const snapshot = await getDocs(q);
 
     tableBody.innerHTML = "";
+
+    if (snapshot.empty) {
+      tableBody.innerHTML = `<tr><td colspan="6">لا توجد طلبات مرسلة</td></tr>`;
+      return;
+    }
 
     let count = 1;
 
@@ -50,23 +68,29 @@ onAuthStateChanged(auth, async (user) => {
         statusClass = "status-rejected";
       }
 
+      const courseDisplay = data.courseName
+        ? `${data.courseCode || ""} - ${data.courseName}`
+        : (data.courseCode || "-");
+
       tableBody.innerHTML += `
         <tr>
           <td>${count++}</td>
-          <td>${data.requestType || "-"}</td>
-          <td>${data.courseCode || "-"}</td>
-          <td>${data.courseName || "-"}</td>
+          <td>${getRequestTypeText(data.requestType)}</td>
+          <td>${courseDisplay}</td>
+          <td>${data.requestedSection || "-"}</td>
           <td>
             <span class="${statusClass}">
               ${statusText}
             </span>
           </td>
+          <td>-</td>
         </tr>
       `;
     });
 
   } catch (error) {
     console.error("Error:", error);
+    tableBody.innerHTML = `<tr><td colspan="6">حدث خطأ: ${error.message}</td></tr>`;
   }
 
 });

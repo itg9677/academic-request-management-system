@@ -37,6 +37,13 @@ async function loadCourses(user) {
 }
 
 /* ===================== */
+/* دالة للبحث عن اسم المقرر بناءً على رمزه */
+function getCourseNameByCode(code){
+    const course = availableCourses.find(c => c.courseCode === code);
+    return course ? course.courseName : "";
+}
+
+/* ===================== */
 function createCourseSelect(name){
 
     return `
@@ -113,7 +120,7 @@ window.addRow = function(type){
 
 /* ===================== */
 window.goToRequests = function(){
-    window.location.href = "PreviousRequests.html";
+    window.location.href = "requests.html";
 };
 
 /* ===================== */
@@ -169,6 +176,7 @@ document.getElementById("submitBtn").addEventListener("click", async () => {
                 universityId:student.universityId,
                 requestType:"add",
                 courseCode:course,
+                courseName:getCourseNameByCode(course),
                 requestedSection:section || null,
                 assignedDepartment,
                 status:"pending",
@@ -189,6 +197,7 @@ document.getElementById("submitBtn").addEventListener("click", async () => {
                 universityId:student.universityId,
                 requestType:"remove",
                 courseCode:course,
+                courseName:getCourseNameByCode(course),
                 assignedDepartment,
                 status:"pending",
                 notes,
@@ -209,6 +218,7 @@ document.getElementById("submitBtn").addEventListener("click", async () => {
                 universityId:student.universityId,
                 requestType:"change",
                 courseCode:course,
+                courseName:getCourseNameByCode(course),
                 requestedSection:section,
                 assignedDepartment,
                 status:"pending",
