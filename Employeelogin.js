@@ -1,7 +1,8 @@
 import { auth, db } from "./firebase.js";
 
 import {
-    signInWithEmailAndPassword
+    signInWithEmailAndPassword,
+    signOut
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
 import {
@@ -37,10 +38,10 @@ form.addEventListener("submit", async (e) => {
         }
 
         let employeeData;
-
         snapshot.forEach(doc => employeeData = doc.data());
 
         const email = employeeData.email;
+        const isAdmin = employeeData.isAdmin; // ✅ هنا المكان الصح
 
         // 🔐 تسجيل الدخول
         const userCredential = await signInWithEmailAndPassword(auth, email, password);
@@ -51,15 +52,15 @@ form.addEventListener("submit", async (e) => {
         // ⚠️ التحقق من الإيميل
         if (!user.emailVerified) {
             alert("⚠️ يجب تفعيل الحساب عبر البريد الإلكتروني");
-            await auth.signOut();
+            await signOut(auth);
             return;
         }
-
-        // 🚀 تحويل حسب الصلاحية
-        if (employeeData.isAdmin === true) {
-            window.location.href = "Admindashboard.html";
+  
+        // 🚀 التوجيه حسب الصلاحية
+        if (isAdmin === true) {
+            window.location.href = "adminDashboard.html";
         } else {
-            window.location.href = "Employeedashboard.html";
+            window.location.href = "employeedashboard.html";
         }
 
     } catch (error) {
