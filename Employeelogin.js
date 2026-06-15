@@ -56,11 +56,7 @@ form.addEventListener("submit", async (e) => {
         }
 
         // 🚀 تحويل للصفحة الرئيسية للموظف
-        if (employeeData.isAdmin === true) {
-    window.location.href = "Admindashboard.html";
-} else {
-    window.location.href = "Employeedashboard.html";
-}
+        window.location.href = "employeeMainPage.html";
 
     } catch (error) {
         console.error(error);
