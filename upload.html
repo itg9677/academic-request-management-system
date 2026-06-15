@@ -14,9 +14,9 @@
 
 import { auth, db } from "./firebase.js";
 import {
-  collection,
-  addDoc,
-  serverTimestamp
+  doc,
+  serverTimestamp,
+  setDoc
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 import * as XLSX from "https://cdn.jsdelivr.net/npm/xlsx@0.18.5/+esm";
@@ -42,17 +42,25 @@ async function upload() {
         const sheet = workbook.Sheets[workbook.SheetNames[0]];
         const json = XLSX.utils.sheet_to_json(sheet);
 
-        for (let row of json) {
+       
 
-            await addDoc(collection(db, "courses"), {
-                courseCode: row.courseCode || "",
-                courseName: row.courseName || "",
-                department: row.department || "",
-                createdAt: serverTimestamp()
-            });
+for (let row of json) {
+
+    const courseCode = row.courseCode;
+    const department = row.department;
+
+    const docId = `${courseCode}_${department}`;
+
+    await setDoc(
+        doc(db, "courses", docId),
+        {
+            ...row,
+            updatedAt: serverTimestamp()
         }
+    );
+}
 
-        alert("تم رفع المواد بنجاح");
+alert("تم رفع المواد بنجاح");
     };
 
     reader.readAsArrayBuffer(file);
