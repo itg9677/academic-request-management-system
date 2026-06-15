@@ -113,7 +113,7 @@ window.addRow = function(type){
 
 /* ===================== */
 window.goToRequests = function(){
-    window.location.href = "requests.html";
+    window.location.href = "PreviousRequests.html";
 };
 
 /* ===================== */
