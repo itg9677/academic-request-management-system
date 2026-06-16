@@ -103,7 +103,7 @@ window.addRow = function(type){
             <label>المقرر</label>
             ${createCourseSelect(`change_${counters[type]}`)}
 
-            <label>رقم الشعبة الجديدة (إجباري)</label>
+            <label>رقم الشعبة الجديدة</label>
             <input type="text" name="change_new_${counters[type]}" required>
 
             <button type="button" class="btn-remove" onclick="this.parentElement.remove()">
@@ -126,7 +126,7 @@ function validateChangeSections() {
         const section = block.querySelector("input")?.value?.trim();
 
         if (course && (!section || section === "")) {
-            alert("يرجى إدخال رقم الشعبة الجديدة لكل طلب تغيير شعبة");
+            alert("يرجى إدخال رقم الشعبة الجديدة");
             return false;
         }
     }
@@ -151,6 +151,15 @@ document.getElementById("submitBtn").addEventListener("click", async () => {
 
     const notes = document.getElementById("notes").value;
 
+    /* ===== Snapshot بيانات الطالب ===== */
+    const studentSnapshot = {
+        studentUid: user.uid,
+        fullName: student.fullName || "",
+        universityId: student.universityId || "",
+        phoneNumber: student.phoneNumber || "",
+        major: student.major || ""
+    };
+
     const requests = [];
 
     /* ===== ADD ===== */
@@ -158,10 +167,10 @@ document.getElementById("submitBtn").addEventListener("click", async () => {
         const course = block.querySelector("select")?.value;
         const section = block.querySelector("input")?.value;
 
-        if(course && course !== ""){
+        if(course){
             requests.push({
-                uid:user.uid,
-                universityId:student.universityId,
+                ...studentSnapshot,
+
                 requestType:"add",
                 courseCode:course,
                 courseName:getCourseNameByCode(course),
@@ -179,10 +188,10 @@ document.getElementById("submitBtn").addEventListener("click", async () => {
     document.querySelectorAll("#removeList .section-block").forEach(block=>{
         const course = block.querySelector("select")?.value;
 
-        if(course && course !== ""){
+        if(course){
             requests.push({
-                uid:user.uid,
-                universityId:student.universityId,
+                ...studentSnapshot,
+
                 requestType:"remove",
                 courseCode:course,
                 courseName:getCourseNameByCode(course),
@@ -200,10 +209,10 @@ document.getElementById("submitBtn").addEventListener("click", async () => {
         const course = block.querySelector("select")?.value;
         const section = block.querySelector("input")?.value?.trim();
 
-        if(course && course !== ""){
+        if(course){
             requests.push({
-                uid:user.uid,
-                universityId:student.universityId,
+                ...studentSnapshot,
+
                 requestType:"change",
                 courseCode:course,
                 courseName:getCourseNameByCode(course),
@@ -217,11 +226,10 @@ document.getElementById("submitBtn").addEventListener("click", async () => {
         }
     });
 
-    /* ===================== */
     if (!validateChangeSections()) return;
 
     if (requests.length === 0) {
-        alert("يرجى إضافة مادة واحدة على الأقل قبل إرسال الطلب");
+        alert("يرجى إضافة مادة واحدة على الأقل");
         return;
     }
 
@@ -229,7 +237,6 @@ document.getElementById("submitBtn").addEventListener("click", async () => {
         await addDoc(collection(db,"requests"), r);
     }
 
-    /* RESET */
     document.getElementById("addList").innerHTML = "";
     document.getElementById("removeList").innerHTML = "";
     document.getElementById("changeList").innerHTML = "";

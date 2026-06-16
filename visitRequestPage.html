@@ -201,26 +201,6 @@
 </div>
 
 <script type="module" src="visitRequest.js"></script>
-<script>
-    let courseCount = 0;
-
-    window.addCourseRow = function() {
-        courseCount++;
-        const tbody = document.getElementById("coursesBody");
-        const tr = document.createElement("tr");
-        tr.id = `course_${courseCount}`;
-        const s = "width:100%;border:none;background:transparent;text-align:center;font-family:Tajawal;font-size:0.9rem;";
-        tr.innerHTML = `
-            <td>${courseCount}</td>
-            <td><input type="text" name="courseName_${courseCount}" placeholder="اسم المادة" style="${s}"></td>
-            <td><input type="text" name="courseCode_${courseCount}" placeholder="الرمز" style="${s}"></td>
-            <td><input type="text" name="section_${courseCount}" placeholder="الشعبة" style="width:60px;border:none;background:transparent;text-align:center;font-family:Tajawal;font-size:0.9rem;"></td>
-            <td><input type="number" name="theoryHours_${courseCount}" placeholder="0" min="0" max="6" style="width:50px;border:none;background:transparent;text-align:center;font-family:Tajawal;font-size:0.9rem;"></td>
-            <td><input type="number" name="labHours_${courseCount}" placeholder="0" min="0" max="6" style="width:50px;border:none;background:transparent;text-align:center;font-family:Tajawal;font-size:0.9rem;"></td>
-        `;
-        tbody.appendChild(tr);
-    }
-</script>
 
 </body>
 </html>

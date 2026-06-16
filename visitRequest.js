@@ -1,6 +1,7 @@
 import { auth, db } from "./firebase.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import {
+<<<<<<< HEAD
     collection, addDoc, doc, getDoc, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
@@ -41,6 +42,14 @@ async function loadVisitFormFile() {
 loadVisitFormFile();
 
 // ==================== بيانات الطالبة ====================
+=======
+    collection, addDoc, doc, getDoc, getDocs, query, where, serverTimestamp
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+// قائمة مقررات قسم الطالبة (تُجلب مرة واحدة بحسب التخصص)
+let courseOptions = []; // [{ code, name }]
+let courseCount = 0;
+>>>>>>> d2d3df72632a0886aeda0bde01b7adee5a1f1288
 
 onAuthStateChanged(auth, async (user) => {
     if (!user) {
@@ -53,12 +62,95 @@ onAuthStateChanged(auth, async (user) => {
         const data = studentSnap.data();
         document.getElementById("fullName").value     = data.fullName     || "";
         document.getElementById("universityId").value = data.universityId || "";
+<<<<<<< HEAD
         document.getElementById("major").value        = data.major        || "";
         document.getElementById("phone").value        = data.phoneNumber  || "";
     }
 });
 
 // ==================== إرسال الطلب ====================
+=======
+        document.getElementById("major").value     = data.major     || "";
+        document.getElementById("phone").value     = data.phoneNumber || "";
+
+        // جلب مقررات القسم المطابق لتخصص الطالبة من مجموعة "courses"
+        if (data.major) {
+            try {
+                const coursesQuery = query(
+                    collection(db, "courses"),
+                    where("department", "==", data.major)
+                );
+                const coursesSnap = await getDocs(coursesQuery);
+
+                courseOptions = coursesSnap.docs
+                    .map((d) => d.data())
+                    .map((c) => ({ code: c.courseCode || "", name: c.courseName || "" }))
+                    .filter((c) => c.code)
+                    .sort((a, b) => a.name.localeCompare(b.name, "ar"));
+            } catch (err) {
+                console.error("Error loading courses:", err);
+                courseOptions = [];
+            }
+        }
+    }
+});
+
+// إضافة صف مادة جديد للجدول
+window.addCourseRow = function () {
+    courseCount++;
+    const n = courseCount;
+
+    const tbody = document.getElementById("coursesBody");
+    const tr = document.createElement("tr");
+    tr.id = `course_${n}`;
+
+    const sBig   = "width:100%;border:none;background:transparent;text-align:center;font-family:Tajawal;font-size:0.9rem;";
+    const sSmall = "width:60px;border:none;background:transparent;text-align:center;font-family:Tajawal;font-size:0.9rem;";
+    const sNum   = "width:50px;border:none;background:transparent;text-align:center;font-family:Tajawal;font-size:0.9rem;";
+
+    let courseCellHtml;
+    let codeCellHtml;
+
+    if (courseOptions.length) {
+        // قائمة منسدلة لمقررات القسم — مرتبطة برمز المقرر تلقائيًا
+        const options = courseOptions
+            .map((c) => `<option value="${c.code}">${c.name}</option>`)
+            .join("");
+
+        courseCellHtml = `
+            <select name="courseSelect_${n}" style="${sBig}">
+                <option value="">اختر المادة</option>
+                ${options}
+            </select>
+        `;
+        codeCellHtml = `<input type="text" name="courseCode_${n}" readonly class="readonly-field" style="${sBig}">`;
+    } else {
+        // لا توجد مقررات مرتبطة بالقسم — إدخال يدوي كما كان
+        courseCellHtml = `<input type="text" name="courseName_${n}" placeholder="اسم المادة" style="${sBig}">`;
+        codeCellHtml   = `<input type="text" name="courseCode_${n}" placeholder="الرمز" style="${sBig}">`;
+    }
+
+    tr.innerHTML = `
+        <td>${n}</td>
+        <td>${courseCellHtml}</td>
+        <td>${codeCellHtml}</td>
+        <td><input type="text" name="section_${n}" placeholder="الشعبة" style="${sSmall}"></td>
+        <td><input type="number" name="theoryHours_${n}" placeholder="0" min="0" max="6" style="${sNum}"></td>
+        <td><input type="number" name="labHours_${n}" placeholder="0" min="0" max="6" style="${sNum}"></td>
+    `;
+
+    tbody.appendChild(tr);
+
+    // ربط القائمة المنسدلة برمز المقرر عند الاختيار
+    const selectEl = tr.querySelector(`select[name="courseSelect_${n}"]`);
+    const codeInput = tr.querySelector(`input[name="courseCode_${n}"]`);
+    if (selectEl && codeInput) {
+        selectEl.addEventListener("change", () => {
+            codeInput.value = selectEl.value;
+        });
+    }
+};
+>>>>>>> d2d3df72632a0886aeda0bde01b7adee5a1f1288
 
 document.getElementById("submitBtn").addEventListener("click", async (e) => {
     e.preventDefault();
@@ -83,16 +175,38 @@ document.getElementById("submitBtn").addEventListener("click", async (e) => {
     }
 
     const courses = [];
+    let missingCourse = false;
+
     rows.forEach(row => {
         const n = row.id.split('_')[1];
+        const select = row.querySelector(`[name="courseSelect_${n}"]`);
+
+        let courseName = "";
+        let courseCode = "";
+
+        if (select) {
+            const opt = select.options[select.selectedIndex];
+            courseCode = select.value;
+            courseName = courseCode ? (opt?.textContent || "") : "";
+            if (!courseCode) missingCourse = true;
+        } else {
+            courseName = document.querySelector(`[name="courseName_${n}"]`)?.value || "";
+            courseCode = document.querySelector(`[name="courseCode_${n}"]`)?.value || "";
+        }
+
         courses.push({
-            courseName:  document.querySelector(`[name="courseName_${n}"]`)?.value  || "",
-            courseCode:  document.querySelector(`[name="courseCode_${n}"]`)?.value  || "",
+            courseName,
+            courseCode,
             section:     document.querySelector(`[name="section_${n}"]`)?.value     || "",
             theoryHours: document.querySelector(`[name="theoryHours_${n}"]`)?.value || "0",
             labHours:    document.querySelector(`[name="labHours_${n}"]`)?.value    || "0",
         });
     });
+
+    if (missingCourse) {
+        alert("رجاءً اختاري المادة لكل صف مضاف");
+        return;
+    }
 
     try {
         await addDoc(collection(db, "visitRequests"), {
