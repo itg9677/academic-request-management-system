@@ -1,83 +1,265 @@
-
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
-
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>متابعة طلبات الزيارة</title>
+<meta charset="UTF-8">
+<title>طلب زيارة</title>
+<link rel="stylesheet" href="visitRequest.css">
+<style>
+    .courses-table-wrapper {
+        margin-top: 20px;
+        overflow-x: auto;
+    }
 
-    <link rel="stylesheet" href="style.css">
-    <link rel="icon" href="data:,">
+    .courses-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-family: 'Tajawal', sans-serif;
+        font-size: 0.9rem;
+    }
+
+    .courses-table th {
+        background: #1a3a6e;
+        color: white;
+        padding: 10px 12px;
+        text-align: center;
+        border: 1px solid #ccc;
+    }
+
+    .courses-table td {
+        padding: 9px 12px;
+        text-align: center;
+        border: 1px solid #ddd;
+        background: #fff;
+    }
+
+    .courses-table tr:nth-child(even) td {
+        background: #f5f7fc;
+    }
+
+    .courses-table .th-hours {
+        background: #0d2b6e;
+    }
+
+    .btn-add-course {
+        margin-top: 12px;
+        background: #e8ecf8;
+        color: #0d2b6e;
+        border: 1.5px dashed #a0aed4;
+        border-radius: 8px;
+        padding: 9px 18px;
+        font-family: 'Tajawal', sans-serif;
+        font-size: 0.88rem;
+        font-weight: 600;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        transition: background 0.2s;
+    }
+
+    .btn-add-course:hover { background: #d4daf0; }
+
+    .btn-add-course .plus {
+        width: 22px; height: 22px;
+        background: #0d2b6e;
+        color: white;
+        border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 1rem;
+    }
+
+    .readonly-field {
+        background: #eef1fa !important;
+        color: #555 !important;
+        cursor: not-allowed;
+    }
+
+    .section-divider {
+        font-weight: 700;
+        color: #0d2b6e;
+        margin: 18px 0 8px;
+        font-size: 0.95rem;
+        border-right: 4px solid #0d2b6e;
+        padding-right: 8px;
+    }
+
+    /* ===== منطقة تحميل النموذج ===== */
+    .visit-form-download-area {
+        margin: 6px 0 18px;
+        min-height: 44px;
+    }
+
+    .download-form-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background: #1a3a6e;
+        color: #fff;
+        text-decoration: none;
+        padding: 10px 20px;
+        border-radius: 8px;
+        font-family: 'Tajawal', sans-serif;
+        font-size: 0.9rem;
+        font-weight: 600;
+        transition: background 0.2s;
+    }
+
+    .download-form-btn:hover { background: #c8972b; }
+
+    .download-form-btn svg {
+        width: 18px; height: 18px; flex-shrink: 0;
+    }
+
+    .form-upload-date {
+        display: block;
+        margin-top: 6px;
+        font-size: 0.78rem;
+        color: #888;
+        font-family: 'Tajawal', sans-serif;
+    }
+
+    .no-form-msg {
+        font-size: 0.85rem;
+        color: #999;
+        font-family: 'Tajawal', sans-serif;
+    }
+</style>
 </head>
 
-<body class="previous-requests-page">
+<body>
 
-    <div class="previous-header">
+<div class="page">
 
-        <div class="previous-header-right">
+    <div class="logo-container">
+        <img src="images/Qassim_University_logo.svg.png" alt="logo">
+    </div>
 
-            <img
-                src="images/Qassim_University_logo.svg.png"
-                alt="شعار الجامعة"
-                class="previous-header-logo">
+    <img src="images/pattern.png" class="science-pattern" alt="">
 
-            <div>
-                <div class="previous-header-title">
-                    نظام الخدمات الطلابية
-                </div>
+    <div class="request-form">
 
-                <div class="previous-header-sub">
-                    مرحباً،
-                    <span id="studentName">...</span>
-                </div>
+        <h1>طلب زيارة</h1>
+
+        <!-- بيانات الطالبة -->
+        <div class="section-divider">بيانات الطالبة</div>
+        <div class="form-grid student-info">
+            <div class="form-group">
+                <label>الاسم</label>
+                <input type="text" id="fullName" readonly class="readonly-field">
             </div>
-
+            <div class="form-group">
+                <label>الرقم الجامعي</label>
+                <input type="text" id="universityId" readonly class="readonly-field">
+            </div>
+            <div class="form-group">
+                <label>التخصص</label>
+                <input type="text" id="major" readonly class="readonly-field">
+            </div>
+            <div class="form-group">
+                <label>رقم الجوال</label>
+                <input type="text" id="phone" readonly class="readonly-field">
+            </div>
         </div>
 
-        <button
-            class="back-btn"
-            onclick="window.location.href='StudentMainPage.html'">
-            العودة للرئيسية
-        </button>
-
-    </div>
-
-    <div class="requests-title">
-        <h1>متابعة طلبات الزيارة</h1>
-    </div>
-
-    <div class="requests-card">
-
-        <div class="requests-card-header">
-            طلبات الزيارة السابقة
+        <!-- نموذج الزيارة — يظهر إذا رفع الأدمن ملفاً -->
+        <div class="section-divider">نموذج الزيارة</div>
+        <div class="visit-form-download-area" id="visitFormDownload">
+            <span class="no-form-msg">جاري التحميل...</span>
         </div>
 
-        <div class="table-wrapper">
+        <!-- تفاصيل الزيارة -->
+        <div class="section-divider">تفاصيل الزيارة</div>
+        <div class="form-group">
+            <label>نوع الزيارة</label>
+            <div class="radio-group">
+                <label class="radio-card">
+                    <input type="radio" name="visitType" value="internal"> زيارة داخلية
+                </label>
+                <label class="radio-card">
+                    <input type="radio" name="visitType" value="external"> زيارة خارجية
+                </label>
+            </div>
+        </div>
 
-            <table class="requests-table">
+        <div class="form-grid">
+            <div class="form-group">
+                <label>المستوى الدراسي</label>
+                <select id="level">
+                    <option value="" disabled selected>اختر المستوى</option>
+                    <option value="1">المستوى الأول</option>
+                    <option value="2">المستوى الثاني</option>
+                    <option value="3">المستوى الثالث</option>
+                    <option value="4">المستوى الرابع</option>
+                    <option value="5">المستوى الخامس</option>
+                    <option value="6">المستوى السادس</option>
+                    <option value="7">المستوى السابع</option>
+                    <option value="8">المستوى الثامن</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>المقر المراد زيارته</label>
+                <input type="text" id="visitPlace" placeholder="أدخل المقر">
+            </div>
+        </div>
 
+        <div class="form-group full-width">
+            <label>سبب الزيارة</label>
+            <textarea id="reason" rows="4" placeholder="اكتبي سبب الزيارة..."></textarea>
+        </div>
+
+        <!-- جدول المواد -->
+        <div class="section-divider">المواد الدراسية</div>
+        <div class="courses-table-wrapper">
+            <table class="courses-table">
                 <thead>
                     <tr>
-                        <th>رقم الطلب</th>
-                        <th>نوع الزيارة</th>
-                        <th>الجهة المحولة</th>
-                        <th>الحالة</th>
+                        <th rowspan="2">م</th>
+                        <th rowspan="2">المادة</th>
+                        <th rowspan="2">الرمز</th>
+                        <th rowspan="2">الشعبة</th>
+                        <th colspan="2" class="th-hours">عدد الساعات</th>
+                    </tr>
+                    <tr>
+                        <th class="th-hours">نظري</th>
+                        <th class="th-hours">عملي</th>
                     </tr>
                 </thead>
-
-                <tbody id="visitsTableBody">
-                </tbody>
-
+                <tbody id="coursesBody"></tbody>
             </table>
-
         </div>
 
-    </div>
+        <button type="button" class="btn-add-course" onclick="addCourseRow()">
+            <span class="plus">+</span> إضافة مادة
+        </button>
 
-    <script type="module" src="visitsHistory.js"></script>
+        <br><br>
+        <button id="submitBtn">إرسال الطلب</button>
+        <button type="button" class="btn-track" onclick="window.location.href='VisitsHistory.html'">متابعة طلب سابق</button>
+
+    </div>
+</div>
+
+<script type="module" src="visitRequest.js"></script>
+<script>
+    let courseCount = 0;
+
+    window.addCourseRow = function() {
+        courseCount++;
+        const tbody = document.getElementById("coursesBody");
+        const tr = document.createElement("tr");
+        tr.id = `course_${courseCount}`;
+        const s = "width:100%;border:none;background:transparent;text-align:center;font-family:Tajawal;font-size:0.9rem;";
+        tr.innerHTML = `
+            <td>${courseCount}</td>
+            <td><input type="text" name="courseName_${courseCount}" placeholder="اسم المادة" style="${s}"></td>
+            <td><input type="text" name="courseCode_${courseCount}" placeholder="الرمز" style="${s}"></td>
+            <td><input type="text" name="section_${courseCount}" placeholder="الشعبة" style="width:60px;border:none;background:transparent;text-align:center;font-family:Tajawal;font-size:0.9rem;"></td>
+            <td><input type="number" name="theoryHours_${courseCount}" placeholder="0" min="0" max="6" style="width:50px;border:none;background:transparent;text-align:center;font-family:Tajawal;font-size:0.9rem;"></td>
+            <td><input type="number" name="labHours_${courseCount}" placeholder="0" min="0" max="6" style="width:50px;border:none;background:transparent;text-align:center;font-family:Tajawal;font-size:0.9rem;"></td>
+        `;
+        tbody.appendChild(tr);
+    }
+</script>
 
 </body>
-
 </html>
-```

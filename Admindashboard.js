@@ -2,8 +2,11 @@ import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.12
 import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 import {
   getFirestore, doc, getDoc, collection, query, where, getDocs,
-  updateDoc, serverTimestamp
+  updateDoc, setDoc, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import {
+  getStorage, ref, uploadBytesResumable, getDownloadURL
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
 
 // ==================== Firebase ====================
 
@@ -16,9 +19,10 @@ const firebaseConfig = {
   appId:             "1:375395162945:web:e3edb97c48a30ab6401fc0"
 };
 
-const app  = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db   = getFirestore(app);
+const app     = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
+const auth    = getAuth(app);
+const db      = getFirestore(app);
+const storage = getStorage(app);
 
 // ==================== State ====================
 
@@ -31,11 +35,11 @@ const employeesCache = {};
 // بيانات كل تبويب (تُحمّل مرة واحدة من فايرستور)
 const tabData = { addDrop: [], excuse: [], visit: [] };
 
-let currentTab        = "addDrop";
+let currentTab          = "addDrop";
 let currentStatusFilter = "all";
 let currentDeptFilter   = "all";
-let searchQuery       = "";
-let activeRequest     = null; // { tab, item } المعروض حاليًا في اللوحة الجانبية
+let searchQuery         = "";
+let activeRequest       = null; // { tab, item } المعروض حاليًا في اللوحة الجانبية
 
 // ==================== أدوات مساعدة ====================
 
@@ -72,13 +76,13 @@ const statusLabel = {
   rejected: "مرفوض"
 };
 
-const reqTypeLabel = { add: "اضافة", drop: "حذف", edit: "تعديل شعبة" };
+const reqTypeLabel   = { add: "اضافة", drop: "حذف", edit: "تعديل شعبة" };
 const visitTypeLabel = { internal: "داخلية", external: "خارجية" };
 
 const tabConfig = {
-  addDrop: { collectionName: "requests",     studentField: "studentUid", title: "طلبات الحذف والإضافة" },
-  excuse:  { collectionName: "excuses",      studentField: "studentUid", title: "طلبات رفع الأعذار" },
-  visit:   { collectionName: "visitRequests", studentField: "uid",       title: "طلبات الزيارة" }
+  addDrop: { collectionName: "requests",      studentField: "studentUid", title: "طلبات الحذف والإضافة" },
+  excuse:  { collectionName: "excuses",       studentField: "studentUid", title: "طلبات رفع الأعذار"    },
+  visit:   { collectionName: "visitRequests", studentField: "uid",        title: "طلبات الزيارة"        }
 };
 
 // يجلب بيانات الطالب ويخزّنها في الكاش (قراءة واحدة فقط لكل طالب)
@@ -107,7 +111,7 @@ async function getEmployeeName(uid) {
   return employeesCache[uid];
 }
 
-// القسم المرتبط بالطلب: assignedDepartment إن وُجد، وإلا تخصص الطالب (لطلبات الزيارة)
+// القسم المرتبط بالطلب
 function getReqDepartment(item, student) {
   return item.assignedDepartment || (student && student.major) || null;
 }
@@ -115,10 +119,10 @@ function getReqDepartment(item, student) {
 // ==================== تحميل البيانات ====================
 
 async function loadAllData() {
-  const loadingEl  = document.getElementById("loadingState");
+  const loadingEl   = document.getElementById("loadingState");
   const tableWrapEl = document.getElementById("tableWrap");
 
-  loadingEl.style.display = "";
+  loadingEl.style.display  = "";
   tableWrapEl.style.display = "none";
 
   try {
@@ -141,7 +145,7 @@ async function loadAllData() {
   } catch (err) {
     console.error("loadAllData error:", err);
   } finally {
-    loadingEl.style.display = "none";
+    loadingEl.style.display  = "none";
     tableWrapEl.style.display = "";
   }
 
@@ -157,7 +161,7 @@ function updateBadges() {
 // ==================== عرض الجدول الرئيسي ====================
 
 async function renderTab() {
-  const cfg = tabConfig[currentTab];
+  const cfg   = tabConfig[currentTab];
   const items = tabData[currentTab];
 
   // تحميل بيانات الطلاب اللازمة (مع كاش)
@@ -197,7 +201,7 @@ async function renderTab() {
     });
   }
 
-  // الترتيب: الأقدم أولاً، والطلبات المكتملة (مقبول/مرفوض) تنزل للأسفل
+  // الترتيب: الأقدم أولاً، والطلبات المكتملة تنزل للأسفل
   filtered.sort((a, b) => {
     const ga = (a.status === "approved" || a.status === "rejected") ? 1 : 0;
     const gb = (b.status === "approved" || b.status === "rejected") ? 1 : 0;
@@ -208,7 +212,7 @@ async function renderTab() {
   });
 
   // الرسم
-  const tbody = document.getElementById("mainTbody");
+  const tbody     = document.getElementById("mainTbody");
   const emptyState = document.getElementById("emptyState");
   tbody.innerHTML = "";
 
@@ -234,16 +238,16 @@ async function renderTab() {
 }
 
 function buildRow(tab, item) {
-  const cfg = tabConfig[tab];
+  const cfg     = tabConfig[tab];
   const student = studentsCache[item[cfg.studentField]] || {};
 
   const tr = document.createElement("tr");
   tr.dataset.tab = tab;
-  tr.dataset.id = item.id;
+  tr.dataset.id  = item.id;
 
-  const initials = (student.fullName || "??").slice(0, 2);
-  const dept = item.assignedDepartment || student.major || "-";
-  const empName = item.assignedEmployee ? employeesCache[item.assignedEmployee] : null;
+  const initials  = (student.fullName || "??").slice(0, 2);
+  const dept      = item.assignedDepartment || student.major || "-";
+  const empName   = item.assignedEmployee ? employeesCache[item.assignedEmployee] : null;
   const statusKey = item.status || "pending";
 
   tr.innerHTML = `
@@ -271,7 +275,7 @@ function buildRow(tab, item) {
 // ==================== اللوحة الجانبية ====================
 
 function buildDetailRows(tab, item) {
-  const statusKey = item.status || "pending";
+  const statusKey  = item.status || "pending";
   const statusHtml = `<span class="status-badge s-${statusKey}">${statusLabel[statusKey] || statusKey}</span>`;
 
   if (tab === "addDrop") {
@@ -317,7 +321,7 @@ function buildDetailRows(tab, item) {
 }
 
 function buildOtherRequestsTable(tab, item) {
-  const cfg = tabConfig[tab];
+  const cfg    = tabConfig[tab];
   const others = tabData[tab].filter((it) => it.id !== item.id && it[cfg.studentField] === item[cfg.studentField]);
 
   if (!others.length) return "";
@@ -351,12 +355,12 @@ function buildOtherRequestsTable(tab, item) {
 
 function openSidePanel(tab, item) {
   activeRequest = { tab, item };
-  const cfg = tabConfig[tab];
+  const cfg     = tabConfig[tab];
   const student = studentsCache[item[cfg.studentField]] || {};
   const statusKey = item.status || "pending";
 
   document.getElementById("spTitle").textContent = student.fullName || "تفاصيل الطالب";
-  document.getElementById("spSub").textContent = cfg.title;
+  document.getElementById("spSub").textContent   = cfg.title;
 
   document.getElementById("spBody").innerHTML = `
     <div class="sp-student-card">
@@ -410,24 +414,24 @@ function closeSidePanel() {
 }
 
 async function updateRequestStatus(tab, item, newStatus) {
-  const cfg = tabConfig[tab];
+  const cfg     = tabConfig[tab];
   const buttons = document.querySelectorAll("#spBody .sp-action-btn");
   buttons.forEach((b) => (b.disabled = true));
 
   try {
     await updateDoc(doc(db, cfg.collectionName, item.id), {
-      status: newStatus,
+      status:           newStatus,
       assignedEmployee: currentAdminData.docId,
-      updatedAt: serverTimestamp()
+      updatedAt:        serverTimestamp()
     });
 
-    item.status = newStatus;
+    item.status           = newStatus;
     item.assignedEmployee = currentAdminData.docId;
     employeesCache[currentAdminData.docId] = currentAdminData.fullName || "الأدمن";
 
     updateBadges();
     await renderTab();
-    openSidePanel(tab, item); // إعادة فتح اللوحة ببيانات محدثة
+    openSidePanel(tab, item);
   } catch (err) {
     console.error(err);
     alert("حدث خطأ: " + err.message);
@@ -440,12 +444,12 @@ async function updateRequestStatus(tab, item, newStatus) {
 function printActiveStudent() {
   if (!activeRequest) return;
   const { tab, item } = activeRequest;
-  const cfg = tabConfig[tab];
+  const cfg     = tabConfig[tab];
   const student = studentsCache[item[cfg.studentField]] || {};
-  const items = tabData[tab].filter((it) => it[cfg.studentField] === item[cfg.studentField]);
+  const items   = tabData[tab].filter((it) => it[cfg.studentField] === item[cfg.studentField]);
 
   let headerCols = "";
-  let rows = "";
+  let rows       = "";
 
   if (tab === "addDrop") {
     headerCols = "<th>نوع الطلب</th><th>المقرر</th><th>الشعبة المطلوبة</th><th>الحالة</th><th>التاريخ</th>";
@@ -515,6 +519,63 @@ function printActiveStudent() {
   win.print();
 }
 
+// ==================== رفع نموذج الزيارة ====================
+
+async function uploadVisitFile(file) {
+  const btn    = document.getElementById("uploadVisitFileBtn");
+  const nameEl = document.getElementById("uploadedFileName");
+
+  btn.disabled    = true;
+  btn.innerHTML   = '<i class="ti ti-loader-2 spin"></i> جاري الرفع...';
+  nameEl.textContent = "";
+  nameEl.style.color = "";
+
+  try {
+    // رفع الملف إلى Firebase Storage
+    const storageRef  = ref(storage, `visitForms/${Date.now()}_${file.name}`);
+    const uploadTask  = uploadBytesResumable(storageRef, file);
+
+    await new Promise((resolve, reject) => {
+      uploadTask.on("state_changed", null, reject, resolve);
+    });
+
+    const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+
+    // حفظ الرابط في Firestore → settings/visitForm
+    await setDoc(doc(db, "settings", "visitForm"), {
+      fileUrl:    downloadURL,
+      fileName:   file.name,
+      uploadedAt: new Date().toISOString(),
+      uploadedBy: currentAdminData.fullName || "الأدمن"
+    });
+
+    nameEl.textContent = "✓ تم رفع: " + file.name;
+    nameEl.style.color = "#2e7d32";
+
+  } catch (err) {
+    console.error("Upload error:", err);
+    nameEl.textContent = "✗ فشل الرفع، حاول مجدداً";
+    nameEl.style.color = "#c62828";
+  } finally {
+    btn.innerHTML  = '<i class="ti ti-upload"></i> رفع نموذج الزيارة (PDF)';
+    btn.disabled   = false;
+  }
+}
+
+document.getElementById("uploadVisitFileBtn").addEventListener("click", () => {
+  document.getElementById("visitFileInput").click();
+});
+
+document.getElementById("visitFileInput").addEventListener("change", (e) => {
+  const file = e.target.files[0];
+  if (file && file.type === "application/pdf") {
+    uploadVisitFile(file);
+  } else if (file) {
+    alert("يرجى اختيار ملف PDF فقط.");
+  }
+  e.target.value = ""; // reset عشان تقدر ترفع نفس الملف مرة ثانية
+});
+
 // ==================== أحداث الواجهة ====================
 
 // التبويبات
@@ -524,6 +585,10 @@ document.querySelectorAll(".admin-tab").forEach((btn) => {
 
     document.querySelectorAll(".admin-tab").forEach((t) => t.classList.remove("active"));
     btn.classList.add("active");
+
+    // إظهار/إخفاء منطقة رفع الملف عند تبويب الزيارة فقط
+    document.getElementById("visitUploadArea").style.display =
+      currentTab === "visit" ? "flex" : "none";
 
     // إعادة فلتر الحالة للوضع الافتراضي عند تبديل التبويب
     currentStatusFilter = "all";
@@ -596,7 +661,6 @@ onAuthStateChanged(auth, async (user) => {
       return;
     }
 
-    // 🔴 بدل doc مباشرة → نستخدم Query لأن الـ docId مو uid
     const q = query(
       collection(db, "employees"),
       where("email", "==", user.email)
@@ -611,7 +675,7 @@ onAuthStateChanged(auth, async (user) => {
     }
 
     const adminDoc = snap.docs[0];
-    const data = adminDoc.data();
+    const data     = adminDoc.data();
 
     if (!data.isAdmin) {
       await signOut(auth);

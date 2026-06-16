@@ -61,20 +61,31 @@
     <div class="admin-table-card">
       <div class="admin-table-top">
 
-        <!-- Tabs -->
-        <div class="admin-tabs">
-          <button class="admin-tab active" data-tab="addDrop">
-            حذف وإضافة
-            <span class="admin-tab-badge" id="badge-addDrop">0</span>
-          </button>
-          <button class="admin-tab" data-tab="excuse">
-            رفع الأعذار
-            <span class="admin-tab-badge" id="badge-excuse">0</span>
-          </button>
-          <button class="admin-tab" data-tab="visit">
-            طلبات الزيارة
-            <span class="admin-tab-badge" id="badge-visit">0</span>
-          </button>
+        <!-- Tabs + Upload Button Row -->
+        <div class="admin-tabs-row">
+          <div class="admin-tabs">
+            <button class="admin-tab active" data-tab="addDrop">
+              حذف وإضافة
+              <span class="admin-tab-badge" id="badge-addDrop">0</span>
+            </button>
+            <button class="admin-tab" data-tab="excuse">
+              رفع الأعذار
+              <span class="admin-tab-badge" id="badge-excuse">0</span>
+            </button>
+            <button class="admin-tab" data-tab="visit">
+              طلبات الزيارة
+              <span class="admin-tab-badge" id="badge-visit">0</span>
+            </button>
+          </div>
+
+          <!-- زر رفع نموذج الزيارة — يظهر فقط عند تبويب الزيارة -->
+          <div class="visit-upload-area" id="visitUploadArea" style="display:none">
+            <button class="upload-pdf-btn" id="uploadVisitFileBtn">
+              <i class="ti ti-upload"></i> رفع نموذج الزيارة (PDF)
+            </button>
+            <span class="uploaded-file-name" id="uploadedFileName"></span>
+            <input type="file" id="visitFileInput" accept="application/pdf" style="display:none" />
+          </div>
         </div>
 
         <!-- Filters -->
