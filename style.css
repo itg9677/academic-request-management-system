@@ -428,6 +428,26 @@ textarea:focus{
         font-size:15px;
     }
 }
+.card-header{
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+/* تحسين شكل الزر */
+#editProfileBtn{
+    background: #1a3a6b;
+    color: #fff;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+#editProfileBtn:hover{
+    opacity: 0.9;
+}
 /* ================================= */
 /* صفحة رفع عذر الغياب */
 /* ================================= */
