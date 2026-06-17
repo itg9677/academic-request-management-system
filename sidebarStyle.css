@@ -1,0 +1,249 @@
+/* ============================================
+   sidebarStyle.css — Sidebar Layout
+   يستبدل header العلوي بـ sidebar جانبي
+   ============================================ */
+
+/* ──── Reset layout ──── */
+.sidebar-layout {
+  display: flex;
+  flex-direction: row-reverse; /* sidebar on right, main on left  (RTL) */
+  min-height: 100vh;
+  background: #f4f6fa;
+}
+
+/* ──── Sidebar ──── */
+.sb-sidebar {
+  width: 240px;
+  min-width: 240px;
+  background: #1e2d50;       /* dark navy — matches screenshot */
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  position: sticky;
+  top: 0;
+  overflow-y: auto;
+  z-index: 100;
+  padding-bottom: 12px;
+}
+
+/* Brand / Logo */
+.sb-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 18px 16px 14px;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+
+.sb-brand-icon {
+  width: 40px;
+  height: 40px;
+  background: #c8972b;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.sb-brand-title {
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.sb-brand-sub {
+  color: rgba(255,255,255,0.45);
+  font-size: 10.5px;
+  margin-top: 2px;
+}
+
+/* Nav */
+.sb-nav {
+  display: flex;
+  flex-direction: column;
+  padding: 12px 10px;
+  gap: 4px;
+}
+
+.sb-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 9px;
+  color: rgba(255,255,255,0.60);
+  font-size: 13px;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background 0.15s, color 0.15s;
+  position: relative;
+  user-select: none;
+}
+
+.sb-nav-item i {
+  font-size: 15px;
+  width: 20px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.sb-nav-item:hover {
+  background: rgba(255,255,255,0.07);
+  color: #fff;
+}
+
+.sb-nav-item.active {
+  background: rgba(255,255,255,0.12);
+  color: #fff;
+  font-weight: 600;
+}
+
+/* Badge on sidebar link */
+.sb-badge {
+  margin-right: auto;       /* push to left (RTL = left = start) */
+  background: #c8972b;
+  color: #fff;
+  border-radius: 12px;
+  padding: 1px 9px;
+  font-size: 11px;
+  font-weight: 600;
+  min-width: 20px;
+  text-align: center;
+}
+
+/* User block at bottom */
+.sb-user {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px 6px;
+  border-top: 1px solid rgba(255,255,255,0.08);
+}
+
+.sb-user-avatar {
+  font-size: 30px;
+  color: rgba(255,255,255,0.5);
+  flex-shrink: 0;
+}
+
+.sb-user-name {
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 140px;
+}
+
+.sb-user-email {
+  color: rgba(255,255,255,0.45);
+  font-size: 11px;
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 140px;
+}
+
+/* Logout btn */
+.sb-logout-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: transparent;
+  border: none;
+  color: rgba(255,255,255,0.50);
+  font-size: 13px;
+  font-family: inherit;
+  padding: 8px 16px 10px;
+  cursor: pointer;
+  text-align: right;
+  width: 100%;
+  transition: color 0.15s;
+}
+
+.sb-logout-btn:hover { color: #fff; }
+
+.sb-logout-btn i { font-size: 14px; }
+
+/* ──── Main content area ──── */
+.sb-main {
+  flex: 1;
+  min-width: 0;
+  padding: 0 20px 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* ──── Top bar ──── */
+.sb-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 4px 4px;
+  border-bottom: 1px solid #e8edf5;
+  margin-bottom: 4px;
+}
+
+.sb-topbar-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #1a3a6b;
+}
+
+.sb-topbar-dates {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+.sb-date-hijri {
+  font-size: 12px;
+  color: #1a3a6b;
+  font-weight: 500;
+}
+
+.sb-date-greg {
+  font-size: 11px;
+  color: #94a3b8;
+}
+
+/* ──── Stats grid override (5 cols for admin, 4 for emp) ──── */
+.sidebar-layout .admin-stats-grid {
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  margin-bottom: 0;
+}
+
+/* ──── Hide old header ──── */
+.sidebar-layout .emp-header { display: none !important; }
+.sidebar-layout .emp-main   { padding: 0; }
+
+/* ──── Responsive ──── */
+@media (max-width: 768px) {
+  .sidebar-layout { flex-direction: column-reverse; }
+
+  .sb-sidebar {
+    width: 100%;
+    height: auto;
+    position: relative;
+    flex-direction: row;
+    padding-bottom: 0;
+    overflow-x: auto;
+  }
+
+  .sb-brand   { display: none; }
+  .sb-nav     { flex-direction: row; padding: 8px; gap: 4px; overflow-x: auto; }
+  .sb-nav-item span:not(.sb-badge) { display: none; }
+  .sb-nav-item { padding: 10px; border-radius: 8px; }
+  .sb-user, .sb-logout-btn { display: none; }
+
+  .sb-main { padding: 12px 12px 24px; }
+  .sb-topbar-title { font-size: 16px; }
+}

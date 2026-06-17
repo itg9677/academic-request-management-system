@@ -64,7 +64,9 @@
 }
 
 .stat-total .stat-icon   { background: #e8edf7; color: #1a3a6b; }
+.stat-new .stat-icon     { background: #e8f0fe; color: #1a73e8; }
 .stat-pending .stat-icon { background: #fff8e6; color: #c8972b; }
+.stat-review .stat-icon  { background: #eef2ff; color: #3730a3; }
 .stat-approved .stat-icon{ background: #eafaf2; color: #1a7a4a; }
 .stat-rejected .stat-icon{ background: #fef0f0; color: #c0392b; }
 
@@ -241,6 +243,41 @@
 .admin-search-row {
   padding: 10px 16px;
   border-bottom: 1px solid #f1f5f9;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.admin-search-bar { flex: 1; }
+
+/* Department filter pill (wraps the deptFilter select) */
+.dept-filter-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 8px 12px;
+  flex-shrink: 0;
+}
+
+.dept-filter-pill i {
+  color: #94a3b8;
+  font-size: 15px;
+}
+
+.dept-filter-pill select {
+  border: none;
+  background: transparent;
+  font-family: inherit;
+  font-size: 13px;
+  color: #4a5568;
+  direction: rtl;
+  outline: none;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
 }
 
 .admin-search-bar {

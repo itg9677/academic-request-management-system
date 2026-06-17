@@ -7,150 +7,180 @@
   <link rel="icon" href="data:,">
   <link rel="stylesheet" href="style.css" />
   <link rel="stylesheet" href="empStyle.css" />
+  <link rel="stylesheet" href="adminStyle.css" />
+  <link rel="stylesheet" href="sidebarStyle.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tabler-icons/3.35.0/tabler-icons.min.css" />
 </head>
 
-<body class="employee-dashboard-page">
+<body class="sidebar-layout admin-page employee-dashboard-page">
 
-  <header class="emp-header">
-    <div class="emp-header-right">
-      <img src="images/Qassim_University_logo.svg.png" alt="شعار جامعة القصيم" class="emp-logo" />
+  <!-- ===== Sidebar ===== -->
+  <aside class="sb-sidebar">
+    <div class="sb-brand">
+      <div class="sb-brand-icon"><i class="ti ti-school"></i></div>
       <div>
-        <div class="emp-header-title">بوابة الموظف - نظام الخدمات الطلابية</div>
-        <div class="emp-header-sub">
-          مرحبا، <span id="empName">...</span>
-          - <span id="empDept">...</span>
-        </div>
+        <div class="sb-brand-title">نظام الخدمات الطلابية</div>
+        <div class="sb-brand-sub" id="empDept">...</div>
       </div>
     </div>
-    <div class="emp-header-left">
-      <div class="emp-date" id="hijriDate">...</div>
-      <div class="emp-day" id="gregDate">...</div>
-      <button class="emp-logout-btn" id="logoutBtn">تسجيل خروج</button>
-    </div>
-  </header>
 
-  <main class="emp-main">
-    <div class="emp-tabs">
-      <button class="emp-tab active" data-tab="addDrop">
-        <span class="emp-tab-badge" id="badge-addDrop">0</span>حذف واضافة
-      </button>
-      <button class="emp-tab" data-tab="excuse">
-        <span class="emp-tab-badge" id="badge-excuse">0</span>رفع الاعذار
-      </button>
-      <button class="emp-tab" data-tab="visit">
-        <span class="emp-tab-badge" id="badge-visit">0</span>طلبات الزيارة
-      </button>
+    <nav class="sb-nav">
+      <div class="sb-nav-item sb-nav-item-static" id="navHome">
+        <i class="ti ti-layout-dashboard"></i>
+        <span>لوحة التحكم</span>
+      </div>
+      <div class="sb-nav-item emp-tab-btn active" data-tab="addDrop">
+        <i class="ti ti-file-text"></i>
+        <span>طلبات الحذف والإضافة</span>
+        <span class="sb-badge emp-tab-badge" id="badge-addDrop">0</span>
+      </div>
+      <div class="sb-nav-item emp-tab-btn" data-tab="excuse">
+        <i class="ti ti-note"></i>
+        <span>طلبات الأعذار</span>
+        <span class="sb-badge emp-tab-badge" id="badge-excuse">0</span>
+      </div>
+      <div class="sb-nav-item emp-tab-btn" data-tab="visit">
+        <i class="ti ti-map-pin"></i>
+        <span>طلبات الزيارة</span>
+        <span class="sb-badge emp-tab-badge" id="badge-visit">0</span>
+      </div>
+    </nav>
+
+    <div class="sb-user">
+      <i class="ti ti-user-circle sb-user-avatar"></i>
+      <div>
+        <div class="sb-user-name" id="empName">...</div>
+        <div class="sb-user-email" id="empEmail">...</div>
+      </div>
+    </div>
+    <button class="sb-logout-btn" id="logoutBtn">
+      <i class="ti ti-logout"></i> تسجيل الخروج
+    </button>
+  </aside>
+
+  <!-- ===== Main content ===== -->
+  <div class="sb-main">
+
+    <div class="sb-topbar">
+      <div class="sb-topbar-title" id="pageTitle">طلبات الحذف والإضافة</div>
+      <div class="sb-topbar-dates">
+        <div class="sb-date-hijri" id="hijriDate">...</div>
+        <div class="sb-date-greg" id="gregDate">...</div>
+      </div>
     </div>
 
-    <div class="emp-tab-content active" id="tab-addDrop">
-      <div class="emp-table-card">
-        <div class="emp-table-top">
-          <div class="emp-table-title">طلبات الحذف والاضافة</div>
-          <div class="emp-filters">
-            <select class="emp-filter-select" id="filter-addDrop">
-              <option value="all">كل الحالات</option>
-              <option value="pending">معلقة</option>
-              <option value="under_review">قيد المراجعة</option>
-              <option value="approved">مقبولة</option>
-              <option value="rejected">مرفوضة</option>
-            </select>
+    <main class="admin-main">
+
+      <!-- Stats Cards -->
+      <div class="admin-stats-grid">
+        <div class="admin-stat-card emp-stat-card stat-total active" data-filter="all" id="card-all">
+          <div class="stat-icon"><i class="ti ti-copy"></i></div>
+          <div class="stat-num" id="cnt-all">0</div>
+          <div class="stat-label">الكل</div>
+        </div>
+        <div class="admin-stat-card emp-stat-card stat-new" data-filter="new" id="card-new">
+          <div class="stat-icon"><i class="ti ti-sparkles"></i></div>
+          <div class="stat-num" id="cnt-new">0</div>
+          <div class="stat-label">جديد</div>
+        </div>
+        <div class="admin-stat-card emp-stat-card stat-pending" data-filter="pending" id="card-pending">
+          <div class="stat-icon"><i class="ti ti-clock"></i></div>
+          <div class="stat-num" id="cnt-pending">0</div>
+          <div class="stat-label">معلق</div>
+        </div>
+        <div class="admin-stat-card emp-stat-card stat-review" data-filter="under_review" id="card-under_review">
+          <div class="stat-icon"><i class="ti ti-loader-2"></i></div>
+          <div class="stat-num" id="cnt-under_review">0</div>
+          <div class="stat-label">قيد المراجعة</div>
+        </div>
+        <div class="admin-stat-card emp-stat-card stat-approved" data-filter="approved" id="card-approved">
+          <div class="stat-icon"><i class="ti ti-circle-check"></i></div>
+          <div class="stat-num" id="cnt-approved">0</div>
+          <div class="stat-label">مقبول</div>
+        </div>
+        <div class="admin-stat-card emp-stat-card stat-rejected" data-filter="rejected" id="card-rejected">
+          <div class="stat-icon"><i class="ti ti-circle-x"></i></div>
+          <div class="stat-num" id="cnt-rejected">0</div>
+          <div class="stat-label">مرفوض</div>
+        </div>
+      </div>
+
+      <!-- Main Table Card -->
+      <div class="admin-table-card">
+
+        <!-- Search -->
+        <div class="admin-search-row">
+          <div class="admin-search-bar">
+            <i class="ti ti-search admin-search-icon"></i>
+            <input
+              type="text"
+              id="searchInput"
+              placeholder="ابحث باسم الطالب أو رقمه الجامعي..."
+              autocomplete="off"
+            />
           </div>
         </div>
-        <div class="emp-table-wrap">
-          <table class="emp-table">
+
+        <!-- Search info bar -->
+        <div class="admin-search-info" id="searchInfoBar" style="display:none"></div>
+
+        <!-- Loading -->
+        <div class="admin-loading" id="loadingState">
+          <i class="ti ti-loader-2 spin"></i> جاري التحميل...
+        </div>
+
+        <!-- Table wrapper -->
+        <div class="admin-table-wrap" id="tableWrap" style="display:none">
+          <table class="admin-table" id="mainTable">
             <thead>
               <tr>
                 <th>اسم الطالب</th>
                 <th>الرقم الجامعي</th>
-                <th id="th-dept" style="display:none">القسم</th>
+                <th>القسم</th>
+                <th>عدد الطلبات</th>
                 <th>حالة الطلب</th>
+                <th>الموظف المعالج</th>
                 <th>التفاصيل</th>
               </tr>
             </thead>
-            <tbody id="tbody-addDrop">
-              <tr><td colspan="5" class="emp-loading">جاري التحميل...</td></tr>
-            </tbody>
+            <tbody id="mainTbody"></tbody>
           </table>
-        </div>
-      </div>
-    </div>
-
-    <div class="emp-tab-content" id="tab-excuse">
-      <div class="emp-table-card">
-        <div class="emp-table-top">
-          <div class="emp-table-title">طلبات رفع الاعذار</div>
-          <div class="emp-filters">
-            <select class="emp-filter-select" id="filter-excuse">
-              <option value="all">كل الحالات</option>
-              <option value="pending">معلقة</option>
-              <option value="under_review">قيد المراجعة</option>
-              <option value="approved">مقبولة</option>
-              <option value="rejected">مرفوضة</option>
-            </select>
+          <div class="admin-empty" id="emptyState" style="display:none">
+            <i class="ti ti-inbox-off"></i>
+            <p>لا توجد طلبات مطابقة</p>
           </div>
         </div>
-        <div class="emp-table-wrap">
-          <table class="emp-table">
-            <thead>
-              <tr>
-                <th>الرقم الجامعي</th>
-                <th>اسم الطالبة</th>
-                <th>رمز المقرر</th>
-                <th>حالة الطلب</th>
-                <th>التفاصيل</th>
-              </tr>
-            </thead>
-            <tbody id="tbody-excuse">
-              <tr><td colspan="5" class="emp-loading">جاري التحميل...</td></tr>
-            </tbody>
-          </table>
-        </div>
       </div>
-    </div>
 
-    <div class="emp-tab-content" id="tab-visit">
-      <div class="emp-table-card">
-        <div class="emp-table-top">
-          <div class="emp-table-title">طلبات الزيارة</div>
-          <div class="emp-filters">
-            <select class="emp-filter-select" id="filter-visit-type">
-              <option value="all">كل أنواع الزيارات</option>
-              <option value="internal">داخلية</option>
-              <option value="external">خارجية</option>
-            </select>
-            <select class="emp-filter-select" id="filter-visit">
-              <option value="all">كل الحالات</option>
-              <option value="pending">معلقة</option>
-              <option value="under_review">قيد المراجعة</option>
-              <option value="approved">مقبولة</option>
-              <option value="rejected">مرفوضة</option>
-            </select>
-          </div>
-        </div>
-        <div class="emp-table-wrap">
-          <table class="emp-table">
-            <thead>
-              <tr>
-                <th>الرقم الجامعي</th>
-                <th>اسم الطالبة</th>
-                <th>رمز المقرر</th>
-                <th>اسم المقرر</th>
-                <th>حالة الطلب</th>
-                <th>التفاصيل</th>
-              </tr>
-            </thead>
-            <tbody id="tbody-visit">
-              <tr><td colspan="6" class="emp-loading">جاري التحميل...</td></tr>
-            </tbody>
-          </table>
-        </div>
+    </main>
+  </div>
+
+  <!-- Side Panel -->
+  <div class="admin-side-panel" id="sidePanel">
+    <div class="sp-header">
+      <div>
+        <div class="sp-title" id="spTitle">تفاصيل الطالب</div>
+        <div class="sp-sub" id="spSub">بيانات الطلبات</div>
       </div>
+      <button class="sp-close-btn" id="spCloseBtn" aria-label="إغلاق">
+        <i class="ti ti-x"></i>
+      </button>
     </div>
-  </main>
+    <div class="sp-body" id="spBody">
+      <!-- filled dynamically -->
+    </div>
+    <div class="sp-footer">
+      <button class="sp-print-btn" id="spPrintBtn">
+        <i class="ti ti-printer"></i> طباعة بيانات الطالب
+      </button>
+    </div>
+  </div>
+
+  <!-- Side panel overlay -->
+  <div class="sp-overlay" id="spOverlay"></div>
 
   <div id="printArea" class="emp-print-area"></div>
 
   <script type="module" src="emp-dashboard.js"></script>
-
 </body>
 </html>
