@@ -65,7 +65,6 @@
 
 .stat-total .stat-icon   { background: #e8edf7; color: #1a3a6b; }
 .stat-new .stat-icon     { background: #e8f0fe; color: #1a73e8; }
-.stat-pending .stat-icon { background: #fff8e6; color: #c8972b; }
 .stat-review .stat-icon  { background: #eef2ff; color: #3730a3; }
 .stat-approved .stat-icon{ background: #eafaf2; color: #1a7a4a; }
 .stat-rejected .stat-icon{ background: #fef0f0; color: #c0392b; }
@@ -426,7 +425,6 @@
   font-weight: 500;
   white-space: nowrap;
 }
-.s-pending      { background: #fff8e6; color: #b7740a; }
 .s-under_review { background: #eef2ff; color: #3730a3; }
 .s-approved     { background: #eafaf2; color: #1a7a4a; }
 .s-rejected     { background: #fef0f0; color: #c0392b; }

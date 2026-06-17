@@ -68,6 +68,7 @@ function formatFieldValue(value) {
 const fieldLabels = {
   fullName:       "الاسم الكامل",
   studentId:      "الرقم الجامعي",
+  universityId:   "الرقم الجامعي",
   email:          "البريد الإلكتروني",
   major:          "التخصص",
   phoneNumber:    "رقم الجوال",
@@ -84,9 +85,7 @@ const fieldLabels = {
   enrollmentYear: "سنة الالتحاق",
   graduationYear: "سنة التخرج المتوقعة",
   status:         "حالة الطالب",
-  role:           "نوع الحساب",
   uid:            "معرف المستخدم",
-  createdAt:      "تاريخ التسجيل",
   updatedAt:      "تاريخ آخر تحديث",
   address:        "العنوان",
   city:           "المدينة",
@@ -98,11 +97,10 @@ const fieldLabels = {
 };
 
 // حقول تقنية لا تُعرض
-const hiddenFields = ["_uid", "password", "token", "fcmToken", "pushToken", "deviceId", "emailVerified"];
+const hiddenFields = ["_uid", "password", "token", "fcmToken", "pushToken", "deviceId", "emailVerified", "role", "createdAt"];
 
 const statusLabel = {
   new:          "جديد",
-  pending:      "معلق",
   under_review: "قيد المراجعة",
   approved:     "مقبول",
   rejected:     "مرفوض"
@@ -213,30 +211,33 @@ function updateBadges() {
 
 function updateStatCards() {
   const items = tabData[currentTab];
-  const newCount      = items.filter((r) => getEffectiveStatus(r) === "new").length;
-  const pendingCount  = items.filter((r) => getEffectiveStatus(r) === "pending").length;
-  const approvedCount = items.filter((r) => r.status === "approved").length;
-  const rejectedCount = items.filter((r) => r.status === "rejected").length;
+  const newCount         = items.filter((r) => getEffectiveStatus(r) === "new").length;
+  const underReviewCount = items.filter((r) => getEffectiveStatus(r) === "under_review").length;
+  const approvedCount    = items.filter((r) => r.status === "approved").length;
+  const rejectedCount    = items.filter((r) => r.status === "rejected").length;
 
-  const elNew      = document.getElementById("cnt-new");
-  const elPending  = document.getElementById("cnt-pending");
-  const elApproved = document.getElementById("cnt-approved");
-  const elRejected = document.getElementById("cnt-rejected");
-  const elAll      = document.getElementById("cnt-all");
+  const elNew         = document.getElementById("cnt-new");
+  const elUnderReview = document.getElementById("cnt-under_review");
+  const elApproved    = document.getElementById("cnt-approved");
+  const elRejected    = document.getElementById("cnt-rejected");
+  const elAll         = document.getElementById("cnt-all");
 
-  if (elNew)      elNew.textContent      = newCount;
-  if (elPending)  elPending.textContent  = pendingCount;
-  if (elApproved) elApproved.textContent = approvedCount;
-  if (elRejected) elRejected.textContent = rejectedCount;
-  if (elAll)      elAll.textContent      = items.length;
+  if (elNew)         elNew.textContent         = newCount;
+  if (elUnderReview)  elUnderReview.textContent = underReviewCount;
+  if (elApproved)     elApproved.textContent    = approvedCount;
+  if (elRejected)     elRejected.textContent    = rejectedCount;
+  if (elAll)          elAll.textContent         = items.length;
 }
 
 // ==================== عرض الجدول الرئيسي ====================
 
 // حالة "جديد" = طلب pending ما عنده assignedEmployee بعد
+// حالة "قيد المراجعة" = طلب pending وله موظف معالج (دمج معلق مع قيد المراجعة)
 function getEffectiveStatus(item) {
-  if (item.status === "pending" && !item.assignedEmployee) return "new";
-  return item.status || "pending";
+  if (item.status === "pending" || !item.status) {
+    return item.assignedEmployee ? "under_review" : "new";
+  }
+  return item.status;
 }
 
 async function renderTab() {
@@ -282,8 +283,8 @@ async function renderTab() {
 
   // ترتيب: الطلاب الذين لديهم طلبات معلقة/جديدة أولاً
   const sortedUids = Object.keys(byStudent).sort((a, b) => {
-    const worstA = byStudent[a].some(r => getEffectiveStatus(r) === "new" || getEffectiveStatus(r) === "pending") ? 0 : 1;
-    const worstB = byStudent[b].some(r => getEffectiveStatus(r) === "new" || getEffectiveStatus(r) === "pending") ? 0 : 1;
+    const worstA = byStudent[a].some(r => getEffectiveStatus(r) === "new" || getEffectiveStatus(r) === "under_review") ? 0 : 1;
+    const worstB = byStudent[b].some(r => getEffectiveStatus(r) === "new" || getEffectiveStatus(r) === "under_review") ? 0 : 1;
     if (worstA !== worstB) return worstA - worstB;
     const ta = byStudent[a][0].createdAt && byStudent[a][0].createdAt.toMillis ? byStudent[a][0].createdAt.toMillis() : 0;
     const tb = byStudent[b][0].createdAt && byStudent[b][0].createdAt.toMillis ? byStudent[b][0].createdAt.toMillis() : 0;
@@ -326,26 +327,13 @@ function buildRow(tab, studentUid, requests) {
   const initials = (student.fullName || "??").slice(0, 2);
   const dept     = requests[0]?.assignedDepartment || student.major || "-";
 
-  // الحالة الأسوأ: جديد > معلق > مراجعة > مقبول/مرفوض
-  const priority = { new: 0, pending: 1, under_review: 2, approved: 3, rejected: 3 };
+  // الحالة الأسوأ: جديد > قيد المراجعة > مقبول/مرفوض
+  const priority = { new: 0, under_review: 1, approved: 2, rejected: 2 };
   const worstItem = requests.reduce((prev, cur) => {
     const ps = getEffectiveStatus(prev);
     const cs = getEffectiveStatus(cur);
     return (priority[cs] ?? 4) < (priority[ps] ?? 4) ? cur : prev;
   });
-  const statusKey = getEffectiveStatus(worstItem);
-
-  // اسم آخر موظف عالج الطلب (الأحدث بحسب تاريخ آخر تحديث)
-  const assignedItems = requests.filter(r => r.assignedEmployee);
-  const tsMillis = (ts) => (ts && ts.toMillis ? ts.toMillis() : 0);
-  const lastAssignedItem = assignedItems.length
-    ? assignedItems.reduce((latest, cur) => {
-        const latestTime = tsMillis(latest.updatedAt) || tsMillis(latest.createdAt);
-        const curTime    = tsMillis(cur.updatedAt)    || tsMillis(cur.createdAt);
-        return curTime >= latestTime ? cur : latest;
-      })
-    : null;
-  const empName = lastAssignedItem ? employeesCache[lastAssignedItem.assignedEmployee] : null;
 
   tr.innerHTML = `
     <td>
@@ -360,10 +348,6 @@ function buildRow(tab, studentUid, requests) {
     <td class="uid-cell">${esc(student.studentId || "-")}</td>
     <td><span class="dept-chip">${esc(dept)}</span></td>
     <td><span class="req-count-badge">${requests.length}</span></td>
-    <td><span class="status-badge s-${statusKey}">${statusLabel[statusKey] || statusKey}</span></td>
-    <td>${empName
-      ? `<span class="emp-chip"><i class="ti ti-user"></i> ${esc(empName)}</span>`
-      : '<span class="no-emp">لم يُعيّن بعد</span>'}</td>
     <td><button class="detail-btn">التفاصيل <i class="ti ti-chevron-left detail-chevron"></i></button></td>
   `;
 
@@ -616,7 +600,7 @@ function printActiveStudent() {
         <td>${esc(r.courseName || "")} (${esc(r.courseCode || "")})</td>
         <td>${r.requestType === "edit" ? esc(r.requestedSection || "-") : "-"}</td>
         <td>${esc(r.notes || "-")}</td>
-        <td>${statusLabel[r.status] || r.status}${rejectNote}</td>
+        <td>${statusLabel[getEffectiveStatus(r)] || getEffectiveStatus(r)}${rejectNote}</td>
         <td>${esc(empName)}</td>
         <td>${formatDate(r.createdAt)}</td>
       </tr>
@@ -629,7 +613,7 @@ function printActiveStudent() {
         <td>${esc(r.courseCode || "-")}</td>
         <td>${esc(r.examDate || "-")}</td>
         <td>${esc(r.notes || "-")}</td>
-        <td>${statusLabel[r.status] || r.status}</td>
+        <td>${statusLabel[getEffectiveStatus(r)] || getEffectiveStatus(r)}</td>
         <td>${formatDate(r.createdAt)}</td>
       </tr>
     `).join("");
@@ -644,7 +628,7 @@ function printActiveStudent() {
         <td>${(r.courses || []).map((c) =>
           `${esc(c.courseName || "-")} (${esc(c.courseCode || "-")}) - ${esc(c.section || "-")}`
         ).join("<br>") || "-"}</td>
-        <td>${statusLabel[r.status] || r.status}</td>
+        <td>${statusLabel[getEffectiveStatus(r)] || getEffectiveStatus(r)}</td>
         <td>${formatDate(r.createdAt)}</td>
       </tr>
     `).join("");
@@ -713,7 +697,7 @@ document.querySelectorAll(".admin-stat-card").forEach((card) => {
   card.addEventListener("click", () => {
     currentStatusFilter = card.dataset.filter;
     document.getElementById("statusFilter").value =
-      ["new", "pending", "approved", "rejected"].includes(currentStatusFilter) ? currentStatusFilter : "all";
+      ["new", "under_review", "approved", "rejected"].includes(currentStatusFilter) ? currentStatusFilter : "all";
     document.querySelectorAll(".admin-stat-card").forEach((c) => c.classList.remove("active"));
     card.classList.add("active");
     renderTab();
