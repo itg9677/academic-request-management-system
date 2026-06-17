@@ -82,7 +82,13 @@ where("studentUid", "==", user.uid)    );
               ${statusText}
             </span>
           </td>
-          <td>-</td>
+        <td>
+ ${
+   data.status === "rejected"
+     ? (data.rejectReason || "-")
+     : "-"
+ }
+</td>
         </tr>
       `;
     });

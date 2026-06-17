@@ -176,7 +176,7 @@ document.getElementById("submitBtn").addEventListener("click", async () => {
                 courseName:getCourseNameByCode(course),
                 requestedSection:section || null,
                 assignedDepartment,
-                status:"pending",
+                status:"new",
                 notes,
                 createdAt:serverTimestamp(),
                 updatedAt:serverTimestamp()
@@ -196,7 +196,7 @@ document.getElementById("submitBtn").addEventListener("click", async () => {
                 courseCode:course,
                 courseName:getCourseNameByCode(course),
                 assignedDepartment,
-                status:"pending",
+                status:"new",
                 notes,
                 createdAt:serverTimestamp(),
                 updatedAt:serverTimestamp()
@@ -218,7 +218,7 @@ document.getElementById("submitBtn").addEventListener("click", async () => {
                 courseName:getCourseNameByCode(course),
                 requestedSection:section,
                 assignedDepartment,
-                status:"pending",
+                status:"new",
                 notes,
                 createdAt:serverTimestamp(),
                 updatedAt:serverTimestamp()
