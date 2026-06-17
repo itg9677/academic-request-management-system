@@ -10,16 +10,12 @@ import {
 }
 from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-let currentUserId = null;
-
 onAuthStateChanged(auth, async (user) => {
 
   if (!user) {
     window.location.href = "login.html";
     return;
   }
-
-  currentUserId = user.uid;
 
   const docRef = doc(db, "students", user.uid);
   const snap = await getDoc(docRef);
@@ -42,66 +38,62 @@ onAuthStateChanged(auth, async (user) => {
 
   document.getElementById("phoneNumber").textContent =
     data.phoneNumber || "-";
-});
 
+  const editBtn = document.getElementById("editProfileBtn");
+  const modal = document.getElementById("editModal");
 
-const editBtn = document.getElementById("editProfileBtn");
-const modal = document.getElementById("profileModal");
-const closeBtn = document.getElementById("closeModalBtn");
-const saveBtn = document.getElementById("saveProfileBtn");
+  editBtn.addEventListener("click", () => {
 
-editBtn.addEventListener("click", () => {
+    document.getElementById("editMajor").value =
+      data.major || "";
 
-  document.getElementById("editPhone").value =
-    document.getElementById("phoneNumber").textContent;
+    document.getElementById("editPhone").value =
+      data.phoneNumber || "";
 
-  document.getElementById("editMajor").value =
-    document.getElementById("major").textContent;
+    modal.style.display = "block";
+  });
 
-  modal.style.display = "flex";
-});
+  document.getElementById("closeModalBtn")
+    .addEventListener("click", () => {
+      modal.style.display = "none";
+    });
 
-closeBtn.addEventListener("click", () => {
-  modal.style.display = "none";
-});
+  document.getElementById("saveProfileBtn")
+    .addEventListener("click", async () => {
 
-saveBtn.addEventListener("click", async () => {
+      const newMajor =
+        document.getElementById("editMajor").value.trim();
 
-  const phoneNumber =
-    document.getElementById("editPhone").value.trim();
+      const newPhone =
+        document.getElementById("editPhone").value.trim();
 
-  const major =
-    document.getElementById("editMajor").value.trim();
+      try {
 
-  if (!phoneNumber || !major) {
-    alert("يرجى تعبئة جميع الحقول");
-    return;
-  }
+        await updateDoc(docRef, {
+          major: newMajor,
+          phoneNumber: newPhone
+        });
 
-  try {
+        document.getElementById("major").textContent =
+          newMajor;
 
-    await updateDoc(
-      doc(db, "students", currentUserId),
-      {
-        phoneNumber,
-        major
+        document.getElementById("phoneNumber").textContent =
+          newPhone;
+
+        data.major = newMajor;
+        data.phoneNumber = newPhone;
+
+        modal.style.display = "none";
+
+        alert("تم تحديث البيانات بنجاح");
+
+      } catch (error) {
+
+        console.error(error);
+        alert("حدث خطأ أثناء التحديث");
+
       }
-    );
 
-    document.getElementById("phoneNumber").textContent =
-      phoneNumber;
+    });
 
-    document.getElementById("major").textContent =
-      major;
-
-    modal.style.display = "none";
-
-    alert("تم تحديث البيانات بنجاح");
-
-  } catch (error) {
-
-    console.error(error);
-    alert("حدث خطأ أثناء تحديث البيانات");
-
-  }
 });

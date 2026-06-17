@@ -19,49 +19,56 @@ import {
 
 const form = document.getElementById("excuseForm");
 
-let currentUser = null;
-
-onAuthStateChanged(auth, (user) => {
-    if (!user) {
-        window.location.href = "login.html";
-        return;
-    }
-    currentUser = user;
-});
+// دالة تجيب المستخدم بشكل مضمون
+function getCurrentUser() {
+    return new Promise((resolve) => {
+        const unsub = onAuthStateChanged(auth, (user) => {
+            unsub();
+            resolve(user);
+        });
+    });
+}
 
 form.addEventListener("submit", async (e) => {
     e.preventDefault();
 
-    if (!currentUser) return;
-
-    const courseCode = document.getElementById("courseCode").value;
-    const absenceDate = document.getElementById("absenceDate").value;
-    const examType = document.getElementById("examType").value;
-    const reason = document.getElementById("reason").value;
-    const file = document.getElementById("fileInput").files[0];
-
     try {
+        const user = await getCurrentUser();
+
+        if (!user) {
+            alert("يجب تسجيل الدخول أولاً");
+            window.location.href = "login.html";
+            return;
+        }
+
+        const courseCode = document.getElementById("courseCode").value;
+        const absenceDate = document.getElementById("absenceDate").value;
+        const examType = document.getElementById("examType").value;
+        const reason = document.getElementById("reason").value;
+        const file = document.getElementById("fileInput").files[0];
+
         let fileUrl = "";
 
+        // رفع الملف إذا موجود
         if (file) {
             const storage = getStorage();
             const storageRef = ref(
                 storage,
-                `excuses/${currentUser.uid}/${Date.now()}_${file.name}`
+                `excuses/${user.uid}/${Date.now()}_${file.name}`
             );
 
             await uploadBytes(storageRef, file);
             fileUrl = await getDownloadURL(storageRef);
         }
 
+        // حفظ الطلب في Firestore
         await addDoc(collection(db, "excuses"), {
-            studentUid: currentUser.uid,
-            courseCode: courseCode,
-            absenceDate: absenceDate,
-            examType: examType,
-            excuseType: examType,
-            reason: reason,
-            fileUrl: fileUrl,
+            studentUid: user.uid,
+            courseCode,
+            absenceDate,
+            examType,
+            reason,
+            fileUrl,
             status: "pending",
             createdAt: serverTimestamp()
         });
@@ -70,7 +77,7 @@ form.addEventListener("submit", async (e) => {
         form.reset();
 
     } catch (error) {
-        console.error("Error submitting excuse:", error);
+        console.error("Submit error:", error);
         alert("حدث خطأ أثناء إرسال الطلب");
     }
 });
