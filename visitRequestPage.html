@@ -82,6 +82,19 @@
         border-right: 4px solid #0d2b6e;
         padding-right: 8px;
     }
+
+    /* صف رقم الجوال ونموذج الزيارة جنب بعض */
+    .phone-form-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+        align-items: start;
+        margin-top: 4px;
+    }
+
+    @media (max-width: 600px) {
+        .phone-form-row { grid-template-columns: 1fr; }
+    }
 </style>
 </head>
 
@@ -114,13 +127,24 @@
                 <label>التخصص</label>
                 <input type="text" id="major" readonly class="readonly-field">
             </div>
+        </div>
+
+        <!-- رقم الجوال + نموذج الزيارة جنب بعض -->
+        <div class="phone-form-row">
+
             <div class="form-group">
                 <label>رقم الجوال</label>
                 <input type="text" id="phone" readonly class="readonly-field">
             </div>
-        </div>
 
-        
+            <div>
+                <div class="section-divider">نموذج الزيارة</div>
+                <div class="visit-form-download-area" id="visitFormDownload">
+                    <span class="no-form-msg">جاري التحميل...</span>
+                </div>
+            </div>
+
+        </div>
 
         <!-- تفاصيل الزيارة -->
         <div class="section-divider">تفاصيل الزيارة</div>
@@ -189,16 +213,11 @@
 
         <br><br>
         <button id="submitBtn">إرسال الطلب</button>
-         <button type="button" class="btn-track" onclick="window.location.href='VisitsHistory.html'">متابعة طلب سابق</button>
+        <button type="button" class="btn-track" onclick="window.location.href='VisitsHistory.html'">متابعة طلب سابق</button>
 
-    </div>
+    </div><!-- نهاية request-form -->
 
-      <!-- نموذج الزيارة — يظهر إذا رفع الأدمن ملفاً -->
-        <div class="section-divider">نموذج الزيارة</div>
-        <div class="visit-form-download-area" id="visitFormDownload">
-            <span class="no-form-msg">جاري التحميل...</span>
-        </div>
-</div>
+</div><!-- نهاية page -->
 
 <script type="module" src="visitRequest.js"></script>
 
