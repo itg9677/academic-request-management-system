@@ -209,10 +209,16 @@ function subscribeAddDrop() {
   if (unsubscribeAddDrop) unsubscribeAddDrop();
 
   const types = ["add", "drop", "edit", "remove", "change"];
-  const q = isAffairs
-    ? query(collection(db, "requests"), where("requestType", "in", types))
-    : query(collection(db, "requests"), where("requestType", "in", types),
-            where("assignedDepartment", "==", currentEmployee.department));
+const q = isAffairs
+  ? query(
+      collection(db, "requests"),
+      where("assignedDepartment", "==", "شؤون الطالبات ")
+    )
+  : query(
+      collection(db, "requests"),
+      where("requestType", "in", types),
+      where("major", "==", currentEmployee.department)
+    );
 
   unsubscribeAddDrop = onSnapshot(q, async (snap) => {
     tabData.addDrop = snap.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -297,16 +303,73 @@ async function renderTab() {
     if (!byStudent[uid]) byStudent[uid] = [];
     byStudent[uid].push(it);
   });
+  Object.keys(byStudent).forEach(uid => {
 
+  byStudent[uid].sort((a,b)=>{
+
+    const aTime =
+      a.updatedAt?.toMillis?.() ||
+      a.createdAt?.toMillis?.() ||
+      0;
+
+    const bTime =
+      b.updatedAt?.toMillis?.() ||
+      b.createdAt?.toMillis?.() ||
+      0;
+
+
+    return bTime - aTime;
+
+  });
+
+});
+Object.keys(byStudent).forEach(uid => {
+
+  byStudent[uid].sort((a, b) => {
+
+    const aTime =
+      a.createdAt?.toMillis?.() ?? 0;
+
+    const bTime =
+      b.createdAt?.toMillis?.() ?? 0;
+
+    return bTime - aTime;
+
+  });
+
+});
   const priority = { new: 0, under_review: 1, approved: 2, rejected: 2 };
   const sortedUids = Object.keys(byStudent).sort((a, b) => {
     const worstA = Math.min(...byStudent[a].map(r => priority[r.status] ?? 3));
     const worstB = Math.min(...byStudent[b].map(r => priority[r.status] ?? 3));
     if (worstA !== worstB) return worstA - worstB;
-    const ta = byStudent[a][0].createdAt?.toMillis?.() ?? 0;
-    const tb = byStudent[b][0].createdAt?.toMillis?.() ?? 0;
-    return ta - tb;
+   // بعد — الأحدث أولاً
+const latestA = Math.max(
+  ...byStudent[a].map(r =>
+    r.updatedAt?.toMillis?.() ??
+    r.createdAt?.toMillis?.() ??
+    0
+  )
+);
+
+const latestB = Math.max(
+  ...byStudent[b].map(r =>
+    r.updatedAt?.toMillis?.() ??
+    r.createdAt?.toMillis?.() ??
+    0
+  )
+);
+return latestB - latestA;
   });
+
+  Object.keys(byStudent).forEach(uid => {
+  byStudent[uid].sort((a, b) => {
+    const aTime = a.createdAt?.toMillis?.() ?? 0;
+    const bTime = b.createdAt?.toMillis?.() ?? 0;
+
+    return bTime - aTime; // الأحدث أولاً
+  });
+});
 
   if (loadingEl)   loadingEl.style.display  = "none";
   if (tableWrapEl) tableWrapEl.style.display = "";
@@ -467,9 +530,17 @@ function buildDetailRows(tab, item) {
 
 function buildOtherRequestsTable(tab, item) {
   const cfg    = tabConfig[tab];
-  const others = tabData[tab].filter(
-    it => it.id !== item.id && it[cfg.studentField] === item[cfg.studentField]
-  );
+ const others = tabData[tab]
+  .filter(
+    it => it.id !== item.id &&
+    it[cfg.studentField] === item[cfg.studentField]
+  )
+  .sort((a, b) => {
+    const aTime = a.createdAt?.toMillis?.() ?? 0;
+    const bTime = b.createdAt?.toMillis?.() ?? 0;
+
+    return bTime - aTime;
+  });
   if (!others.length) return "";
 
   const rows = others.map(o => {
@@ -518,6 +589,12 @@ function openSidePanel(tab, item) {
   const cfg     = tabConfig[tab];
   const student = studentsCache[item[cfg.studentField]] || {};
   const sk      = item.status || "new";
+  const isSharedCourse =
+  item.assignedDepartment?.trim() ===
+  "شؤون الطالبات";
+
+const canApproveReject =
+  !isSharedCourse;
 
   document.getElementById("spTitle").textContent = student.fullName || "تفاصيل الطالب";
   document.getElementById("spSub").textContent   = cfg.title;
@@ -543,17 +620,53 @@ function openSidePanel(tab, item) {
       <table class="sp-detail-table">${buildDetailRows(tab, item)}</table>
     </div>
 
-    <div class="sp-actions">
-      <button class="sp-action-btn sp-approve" data-action="approved" ${sk === "approved" ? "disabled" : ""}>
-        <i class="ti ti-circle-check"></i> قبول
-      </button>
-      <button class="sp-action-btn sp-review" data-action="under_review" ${sk === "under_review" ? "disabled" : ""}>
-        <i class="ti ti-loader-2"></i> قيد المراجعة
-      </button>
-      <button class="sp-action-btn sp-reject" data-action="rejected" ${sk === "rejected" ? "disabled" : ""}>
-        <i class="ti ti-circle-x"></i> رفض
-      </button>
-    </div>
+
+${(sk === "approved" || sk === "rejected") ? `
+
+<div class="sp-status-final">
+  <span class="status-badge s-${sk}">
+    ${statusLabel[sk]}
+  </span>
+</div>
+
+` : canApproveReject ? `
+
+<button class="sp-action-btn sp-approve"
+        data-action="approved">
+  <i class="ti ti-circle-check"></i>
+  قبول
+</button>
+
+<button class="sp-action-btn sp-review"
+        data-action="under_review"
+        ${sk === "under_review" ? "disabled" : ""}>
+  <i class="ti ti-loader-2"></i>
+  قيد المراجعة
+</button>
+
+<button class="sp-action-btn sp-reject"
+        data-action="rejected">
+  <i class="ti ti-circle-x"></i>
+  رفض
+</button>
+
+` : `
+
+<button class="sp-action-btn sp-review"
+        data-action="under_review"
+        ${sk === "under_review" ? "disabled" : ""}>
+  <i class="ti ti-loader-2"></i>
+  قيد المراجعة
+</button>
+
+<div style="
+margin-top:10px;
+font-size:.85rem;
+color:#888;">
+هذه المادة تابعة لشؤون الطالبات
+</div>
+
+`}
 
     ${buildOtherRequestsTable(tab, item)}
   `;
@@ -588,6 +701,19 @@ function closeSidePanel() {
 }
 
 async function updateRequestStatus(tab, item, newStatus, rejectReason) {
+  const isSharedCourse =
+  item.assignedDepartment?.trim() ===
+  "شؤون الطالبات";
+
+if (
+  isSharedCourse &&
+  newStatus !== "under_review"
+){
+  alert(
+    "لا يمكن اعتماد أو رفض مواد شؤون الطالبات"
+  );
+  return;
+}
   const cfg     = tabConfig[tab];
   const buttons = document.querySelectorAll("#spBody .sp-action-btn");
   buttons.forEach(b => b.disabled = true);

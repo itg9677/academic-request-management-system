@@ -41,7 +41,14 @@ function getCourseNameByCode(code){
     const course = availableCourses.find(c => c.courseCode === code);
     return course ? course.courseName : "";
 }
+function getCourseDepartmentByCode(code){
 
+    const course = availableCourses.find(
+        c => c.courseCode === code
+    );
+
+    return course?.department || "";
+} 
 /* ===================== */
 function createCourseSelect(name){
 
@@ -144,10 +151,7 @@ document.getElementById("submitBtn").addEventListener("click", async () => {
     const studentSnap = await getDoc(studentRef);
     const student = studentSnap.data();
 
-    const assignedDepartment =
-        student.major === "شؤون الطالبات "
-            ? "شؤون الطالبات "
-            : student.major;
+   
 
     const notes = document.getElementById("notes").value;
 
@@ -168,19 +172,19 @@ document.getElementById("submitBtn").addEventListener("click", async () => {
         const section = block.querySelector("input")?.value;
 
         if(course){
-            requests.push({
-                ...studentSnapshot,
+          requests.push({
+    ...studentSnapshot,
 
-                requestType:"add",
-                courseCode:course,
-                courseName:getCourseNameByCode(course),
-                requestedSection:section || null,
-                assignedDepartment,
-                status:"new",
-                notes,
-                createdAt:serverTimestamp(),
-                updatedAt:serverTimestamp()
-            });
+    requestType:"add",
+    courseCode:course,
+    courseName:getCourseNameByCode(course),
+    requestedSection:section || null,
+    assignedDepartment: getCourseDepartmentByCode(course),
+    status:"new",
+    notes,
+    createdAt:serverTimestamp(),
+    updatedAt:serverTimestamp()
+});;
         }
     });
 
@@ -189,18 +193,18 @@ document.getElementById("submitBtn").addEventListener("click", async () => {
         const course = block.querySelector("select")?.value;
 
         if(course){
-            requests.push({
-                ...studentSnapshot,
+     requests.push({
+    ...studentSnapshot,
 
-                requestType:"remove",
-                courseCode:course,
-                courseName:getCourseNameByCode(course),
-                assignedDepartment,
-                status:"new",
-                notes,
-                createdAt:serverTimestamp(),
-                updatedAt:serverTimestamp()
-            });
+    requestType:"add",
+    courseCode:course,
+    courseName:getCourseNameByCode(course),
+    assignedDepartment: getCourseDepartmentByCode(course),
+    status:"new",
+    notes,
+    createdAt:serverTimestamp(),
+    updatedAt:serverTimestamp()
+});
         }
     });
 
@@ -210,19 +214,19 @@ document.getElementById("submitBtn").addEventListener("click", async () => {
         const section = block.querySelector("input")?.value?.trim();
 
         if(course){
-            requests.push({
-                ...studentSnapshot,
+     requests.push({
+    ...studentSnapshot,
 
-                requestType:"change",
-                courseCode:course,
-                courseName:getCourseNameByCode(course),
-                requestedSection:section,
-                assignedDepartment,
-                status:"new",
-                notes,
-                createdAt:serverTimestamp(),
-                updatedAt:serverTimestamp()
-            });
+    requestType:"add",
+    courseCode:course,
+    courseName:getCourseNameByCode(course),
+    requestedSection:section || null,
+    assignedDepartment: getCourseDepartmentByCode(course),
+    status:"new",
+    notes,
+    createdAt:serverTimestamp(),
+    updatedAt:serverTimestamp()
+});
         }
     });
 
