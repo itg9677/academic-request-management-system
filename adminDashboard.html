@@ -6,7 +6,7 @@
   <title>نظام الخدمات الطلابية - الأدمن</title>
   <link rel="icon" href="data:,">
   <link rel="stylesheet" href="style.css" />
-  <link rel="stylesheet" href="empStyle.css" />
+  <link rel="stylesheet" href="EmpStyle.css" />
   <link rel="stylesheet" href="adminStyle.css" />
   <link rel="stylesheet" href="sidebarStyle.css" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tabler-icons/3.35.0/tabler-icons.min.css" />
@@ -17,10 +17,10 @@
   <!-- ===== Sidebar ===== -->
   <aside class="sb-sidebar">
     <div class="sb-brand">
-      <div class="sb-brand-icon"><i class="ti ti-school"></i></div>
+      <div class="sb-brand-icon"><i class="ti ti-shield-check"></i></div>
       <div>
         <div class="sb-brand-title">نظام الخدمات الطلابية</div>
-        <div class="sb-brand-sub">إدارة الطلبات والخدمات</div>
+        <div class="sb-brand-sub">لوحة الإدارة</div>
       </div>
     </div>
 
@@ -49,7 +49,7 @@
     <div class="sb-user">
       <i class="ti ti-user-circle sb-user-avatar"></i>
       <div>
-        <div class="sb-user-name" id="adminName">...</div>
+        <div class="sb-user-name"  id="adminName">...</div>
         <div class="sb-user-email" id="adminEmail">...</div>
       </div>
     </div>
@@ -58,53 +58,69 @@
     </button>
   </aside>
 
-  <!-- ===== Main content ===== -->
+  <!-- ===== Main ===== -->
   <div class="sb-main">
 
+    <!-- Topbar -->
     <div class="sb-topbar">
       <div class="sb-topbar-title" id="tableTitle">طلبات الحذف والإضافة</div>
+
+      <div class="sb-topbar-logo">
+        <img src="images/Qassim_University_logo.svg.png" alt="جامعة القصيم" />
+      </div>
+
       <div class="sb-topbar-dates">
         <div class="sb-date-hijri" id="hijriDate">...</div>
-        <div class="sb-date-greg" id="gregDate">...</div>
+        <div class="sb-date-greg"  id="gregDate">...</div>
       </div>
     </div>
 
     <main class="admin-main">
 
-      <!-- Stats Cards -->
+      <!-- Welcome -->
+      <div class="emp-welcome">
+        <div class="emp-welcome-hi">مرحبًا بك</div>
+      <div class="emp-welcome-name"><span id="adminNameWelcome"></span></div>
+        <div class="emp-welcome-dept">
+          <i class="ti ti-shield-check"></i>
+          <span>مدير النظام</span>
+        </div>
+      </div>
+
+      <!-- Stats -->
       <div class="admin-stats-grid">
-        <div class="admin-stat-card stat-total active" data-filter="all" id="card-all">
+        <div class="admin-stat-card emp-stat-card stat-total active" data-filter="all" id="card-all">
           <div class="stat-icon"><i class="ti ti-copy"></i></div>
           <div class="stat-num" id="cnt-all">0</div>
           <div class="stat-label">الكل</div>
         </div>
-        <div class="admin-stat-card stat-new" data-filter="new" id="card-new">
+        <div class="admin-stat-card emp-stat-card stat-new" data-filter="new" id="card-new">
           <div class="stat-icon"><i class="ti ti-sparkles"></i></div>
           <div class="stat-num" id="cnt-new">0</div>
-          <div class="stat-label">طلبات جديدة</div>
+          <div class="stat-label">جديد</div>
         </div>
-        <div class="admin-stat-card stat-review" data-filter="under_review" id="card-under_review">
+        <div class="admin-stat-card emp-stat-card stat-review" data-filter="under_review" id="card-under_review">
           <div class="stat-icon"><i class="ti ti-loader-2"></i></div>
           <div class="stat-num" id="cnt-under_review">0</div>
           <div class="stat-label">قيد المراجعة</div>
         </div>
-        <div class="admin-stat-card stat-approved" data-filter="approved" id="card-approved">
+        <div class="admin-stat-card emp-stat-card stat-approved" data-filter="approved" id="card-approved">
           <div class="stat-icon"><i class="ti ti-circle-check"></i></div>
           <div class="stat-num" id="cnt-approved">0</div>
           <div class="stat-label">مقبول</div>
         </div>
-        <div class="admin-stat-card stat-rejected" data-filter="rejected" id="card-rejected">
+        <div class="admin-stat-card emp-stat-card stat-rejected" data-filter="rejected" id="card-rejected">
           <div class="stat-icon"><i class="ti ti-circle-x"></i></div>
           <div class="stat-num" id="cnt-rejected">0</div>
           <div class="stat-label">مرفوض</div>
         </div>
       </div>
 
-      <!-- Main Table Card -->
+      <!-- Table Card -->
       <div class="admin-table-card">
 
-        <!-- زر رفع نموذج الزيارة — يظهر فقط عند تبويب الزيارة -->
-        <div class="visit-upload-area" id="visitUploadArea" style="display:none; padding:14px 20px; border-bottom:1px solid #f1f5f9;">
+        <!-- زر رفع نموذج الزيارة -->
+        <div class="visit-upload-area" id="visitUploadArea" style="display:none">
           <button class="upload-pdf-btn" id="uploadVisitFileBtn">
             <i class="ti ti-upload"></i> رفع نموذج الزيارة (PDF)
           </button>
@@ -112,17 +128,15 @@
           <input type="file" id="visitFileInput" accept="application/pdf" style="display:none" />
         </div>
 
-        <!-- Search + Department filter -->
+        <!-- Search + filters -->
         <div class="admin-search-row">
           <div class="admin-search-bar">
             <i class="ti ti-search admin-search-icon"></i>
-            <input
-              type="text"
-              id="searchInput"
+            <input type="text" id="searchInput"
               placeholder="ابحث باسم الطالب أو رقمه الجامعي..."
-              autocomplete="off"
-            />
+              autocomplete="off" />
           </div>
+
           <div class="dept-filter-pill">
             <i class="ti ti-filter"></i>
             <select id="deptFilter">
@@ -135,7 +149,7 @@
               <option value="إحصاء">إحصاء</option>
             </select>
           </div>
-          <!-- statusFilter used internally by the stat cards above; kept in the DOM but hidden -->
+
           <select class="admin-filter-select" id="statusFilter" style="display:none">
             <option value="all">كل الحالات</option>
             <option value="new">جديد</option>
@@ -145,15 +159,12 @@
           </select>
         </div>
 
-        <!-- Search info bar -->
         <div class="admin-search-info" id="searchInfoBar" style="display:none"></div>
 
-        <!-- Loading -->
         <div class="admin-loading" id="loadingState">
           <i class="ti ti-loader-2 spin"></i> جاري التحميل...
         </div>
 
-        <!-- Table wrapper -->
         <div class="admin-table-wrap" id="tableWrap" style="display:none">
           <table class="admin-table" id="mainTable">
             <thead>
@@ -182,15 +193,13 @@
     <div class="sp-header">
       <div>
         <div class="sp-title" id="spTitle">تفاصيل الطالب</div>
-        <div class="sp-sub" id="spSub">بيانات الطلبات</div>
+        <div class="sp-sub"   id="spSub">بيانات الطلبات</div>
       </div>
       <button class="sp-close-btn" id="spCloseBtn" aria-label="إغلاق">
         <i class="ti ti-x"></i>
       </button>
     </div>
-    <div class="sp-body" id="spBody">
-      <!-- filled dynamically -->
-    </div>
+    <div class="sp-body" id="spBody"></div>
     <div class="sp-footer">
       <button class="sp-print-btn" id="spPrintBtn">
         <i class="ti ti-printer"></i> طباعة بيانات الطالب
@@ -198,7 +207,6 @@
     </div>
   </div>
 
-  <!-- Side panel overlay -->
   <div class="sp-overlay" id="spOverlay"></div>
 
   <script type="module" src="Admindashboard.js"></script>

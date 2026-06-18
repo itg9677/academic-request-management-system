@@ -126,11 +126,11 @@ const tabConfig = {
 };
 
 const REJECT_REASONS = [
-  { value: "section_closed", label: "الشعبة مغلقة"         },
-  { value: "system_closed",  label: "تم اقفال النظام"      },
-  { value: "no_contact",     label: "عدم تواصل الطالبة"    },
-  { value: "conflict",       label: "وجود تعارض"            },
-  { value: "other",          label: "أخرى"                  }
+  { value: "section_closed", label: "الشعبة مغلقة"      },
+  { value: "system_closed",  label: "تم اقفال النظام"   },
+  { value: "no_contact",     label: "عدم تواصل الطالبة" },
+  { value: "conflict",       label: "وجود تعارض"         },
+  { value: "other",          label: "أخرى"               }
 ];
 
 // ==================== حالة "جديد" ====================
@@ -198,8 +198,9 @@ async function getEmployeeName(uid) {
 async function loadExcuseAndVisit() {
   try {
     const excQuery = isAffairs
-      ? query(collection(db, "excuses"), where("assignedEmployees", "array-contains", currentEmployee.uid))
-      : query(collection(db, "excuses"), where("assignedEmployees", "array-contains", currentEmployee.uid));
+      ? query(collection(db, "excuses"))
+      : query(collection(db, "excuses"),
+              where("assignedDepartment", "==", currentEmployee.department));
 
     const [excSnap, visSnap] = await Promise.all([
       getDocs(excQuery),
@@ -269,11 +270,10 @@ function updateStatCards() {
   });
 }
 
-// ==================== عرض الجدول الرئيسي ====================
+// ==================== عرض الجدول ====================
 
 async function renderTab() {
   const cfg   = tabConfig[currentTab];
-  const items = tabData[currentTab];
 
   const loadingEl   = document.getElementById("loadingState");
   const tableWrapEl = document.getElementById("tableWrap");
@@ -366,7 +366,6 @@ async function renderTab() {
 }
 
 function buildRow(tab, studentUid, requests) {
-  const cfg     = tabConfig[tab];
   const student = studentsCache[studentUid] || {};
   const tr      = document.createElement("tr");
   tr.dataset.tab = tab;
@@ -462,7 +461,6 @@ function buildDetailRows(tab, item) {
     `;
   }
 
-  // visit
   const courses = (item.courses || [])
     .map(c => `${esc(c.courseName || "-")} (${esc(c.courseCode || "-")}) — الشعبة: ${esc(c.section || "-")}`)
     .join("<br>") || "-";
@@ -510,7 +508,7 @@ function buildOtherRequestsTable(tab, item) {
         <td>${label}</td>
         <td><span class="status-badge s-${sk}">${statusLabel[sk] || sk}</span></td>
         <td>${formatDate(o.createdAt)}</td>
-        <td style="color:#1a3a6b;font-size:0.85rem;">عرض ←</td>
+        <td style="color:var(--navy);font-size:0.85rem;">عرض ←</td>
       </tr>
     `;
   }).join("");
@@ -640,15 +638,11 @@ color:#888;">
 
   document.getElementById("sidePanel").classList.add("open");
   document.getElementById("spOverlay").classList.add("show");
-  const mainEl = document.querySelector(".admin-main") || document.querySelector(".emp-main");
-  if (mainEl) mainEl.classList.add("panel-open");
 }
 
 function closeSidePanel() {
   document.getElementById("sidePanel").classList.remove("open");
   document.getElementById("spOverlay").classList.remove("show");
-  const mainEl = document.querySelector(".admin-main") || document.querySelector(".emp-main");
-  if (mainEl) mainEl.classList.remove("panel-open");
   activeRequest = null;
 }
 
@@ -705,7 +699,7 @@ if (
   }
 }
 
-// ==================== مودال سبب الرفض ====================
+// ==================== مودال الرفض ====================
 
 function injectRejectModal() {
   if (document.getElementById("rejectModal")) return;
@@ -714,11 +708,11 @@ function injectRejectModal() {
   modal.style.cssText = "display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;align-items:center;justify-content:center;";
   modal.innerHTML = `
     <div style="background:#fff;border-radius:14px;padding:28px 24px;min-width:320px;max-width:420px;width:90%;direction:rtl;box-shadow:0 8px 32px rgba(0,0,0,.18);">
-      <div style="font-size:1.1rem;font-weight:700;color:#1a3a6b;margin-bottom:18px;">سبب الرفض</div>
+      <div style="font-size:1.1rem;font-weight:700;color:#1a2d5a;margin-bottom:18px;">سبب الرفض</div>
       <div id="rejectReasonList" style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px;">
         ${REJECT_REASONS.map(r => `
           <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:0.95rem;">
-            <input type="radio" name="rejectReason" value="${r.value}" style="accent-color:#c8972b;width:16px;height:16px;">
+            <input type="radio" name="rejectReason" value="${r.value}" style="accent-color:#c9a84c;width:16px;height:16px;">
             ${r.label}
           </label>`).join("")}
       </div>
@@ -727,8 +721,8 @@ function injectRejectModal() {
           style="width:100%;border:1px solid #ddd;border-radius:8px;padding:8px 10px;font-family:inherit;font-size:0.9rem;resize:vertical;box-sizing:border-box;"></textarea>
       </div>
       <div style="display:flex;gap:10px;justify-content:flex-end;">
-        <button id="rejectCancelBtn" style="padding:8px 20px;border:1px solid #ddd;border-radius:8px;background:#f5f5f5;cursor:pointer;font-family:inherit;">إلغاء</button>
-        <button id="rejectConfirmBtn" style="padding:8px 20px;border:none;border-radius:8px;background:#c0392b;color:#fff;cursor:pointer;font-weight:700;font-family:inherit;">تأكيد الرفض</button>
+        <button id="rejectCancelBtn"  style="padding:8px 20px;border:1px solid #ddd;border-radius:8px;background:#f5f5f5;cursor:pointer;font-family:inherit;">إلغاء</button>
+        <button id="rejectConfirmBtn" style="padding:8px 20px;border:none;border-radius:8px;background:#dc2626;color:#fff;cursor:pointer;font-weight:700;font-family:inherit;">تأكيد الرفض</button>
       </div>
     </div>
   `;
@@ -789,11 +783,11 @@ function printActiveStudent() {
   let rows       = "";
 
   if (tab === "addDrop") {
-    headerCols = "<th>نوع الطلب</th><th>المقرر</th><th>الشعبة المطلوبة</th><th>ملاحظات الطالب</th><th>الحالة</th><th>الموظف المعالج</th><th>التاريخ</th>";
+    headerCols = "<th>نوع الطلب</th><th>المقرر</th><th>الشعبة المطلوبة</th><th>ملاحظات</th><th>الحالة</th><th>الموظف المعالج</th><th>التاريخ</th>";
     rows = items.map(r => {
       const en = r.assignedEmployeeName || (r.assignedEmployee ? (employeesCache[r.assignedEmployee] || "-") : "-");
       const rejectNote = (r.status === "rejected" && r.rejectReason)
-        ? `<br><small style="color:#c0392b;">«${r.rejectReason}»</small>` : "";
+        ? `<br><small style="color:#dc2626;">«${r.rejectReason}»</small>` : "";
       return `<tr>
         <td>${reqTypeLabel[r.requestType] || r.requestType || "-"}</td>
         <td>${esc(r.courseName || "")} (${esc(r.courseCode || "")})</td>
@@ -819,7 +813,7 @@ function printActiveStudent() {
       </tr>`;
     }).join("");
   } else {
-    headerCols = "<th>نوع الزيارة</th><th>المستوى</th><th>المقر</th><th>سبب الزيارة</th><th>المقررات</th><th>الحالة</th><th>الموظف المعالج</th><th>التاريخ</th>";
+    headerCols = "<th>نوع الزيارة</th><th>المستوى</th><th>المقر</th><th>السبب</th><th>المقررات</th><th>الحالة</th><th>الموظف</th><th>التاريخ</th>";
     rows = items.map(r => {
       const en = r.assignedEmployeeName || (r.assignedEmployee ? (employeesCache[r.assignedEmployee] || "-") : "-");
       return `<tr>
@@ -837,13 +831,13 @@ function printActiveStudent() {
 
   const styleBlock = `
     body{font-family:Arial,sans-serif;padding:30px;direction:rtl;}
-    h2{color:#1a3a6b;border-bottom:3px solid #c8972b;padding-bottom:8px;}
-    h3{color:#1a3a6b;margin-top:24px;}
+    h2{color:#1a2d5a;border-bottom:3px solid #c9a84c;padding-bottom:8px;}
+    h3{color:#1a2d5a;margin-top:24px;}
     .info-table{width:100%;border-collapse:collapse;margin-top:10px;font-size:14px;}
     .info-table td{padding:7px 12px;border-bottom:1px solid #e0e0e0;}
     .label-col{width:35%;color:#555;font-weight:bold;}
     table.req-table{width:100%;border-collapse:collapse;margin-top:20px;font-size:13px;}
-    th{background:#1a3a6b;color:white;padding:9px 12px;text-align:right;}
+    th{background:#1a2d5a;color:white;padding:9px 12px;text-align:right;}
     td{padding:9px 12px;border-bottom:1px solid #e0e0e0;}
     tr:last-child td{border-bottom:none;}
     .footer{margin-top:30px;font-size:12px;color:#888;}
@@ -979,17 +973,16 @@ if (uploadVisitFileBtnEl && visitFileInputEl) {
 
 // ==================== أحداث الواجهة ====================
 
-document.querySelectorAll(".admin-tab, .emp-tab-btn").forEach(btn => {
+// تبديل التابات (السايدبار)
+document.querySelectorAll(".emp-tab-btn").forEach(btn => {
   btn.addEventListener("click", () => {
     currentTab = btn.dataset.tab;
-    document.querySelectorAll(".admin-tab, .emp-tab-btn").forEach(t => t.classList.remove("active"));
+    document.querySelectorAll(".emp-tab-btn").forEach(t => t.classList.remove("active"));
     btn.classList.add("active");
     currentStatusFilter = "all";
-    const sf = document.getElementById("statusFilter");
-    if (sf) sf.value = "all";
     const pageTitleEl = document.getElementById("pageTitle");
     if (pageTitleEl) pageTitleEl.textContent = tabConfig[currentTab].title;
-    document.querySelectorAll(".admin-stat-card, .emp-stat-card").forEach(c => c.classList.remove("active"));
+    document.querySelectorAll(".admin-stat-card").forEach(c => c.classList.remove("active"));
     const allCard = document.getElementById("card-all");
     if (allCard) allCard.classList.add("active");
 
@@ -1008,7 +1001,8 @@ document.querySelectorAll(".admin-tab, .emp-tab-btn").forEach(btn => {
   });
 });
 
-document.querySelectorAll(".admin-stat-card, .emp-stat-card").forEach(card => {
+// فلترة بالبطاقات
+document.querySelectorAll(".admin-stat-card").forEach(card => {
   card.addEventListener("click", () => {
     currentStatusFilter = card.dataset.filter;
     const sf = document.getElementById("statusFilter");
@@ -1020,17 +1014,7 @@ document.querySelectorAll(".admin-stat-card, .emp-stat-card").forEach(card => {
   });
 });
 
-const statusFilterEl = document.getElementById("statusFilter");
-if (statusFilterEl) {
-  statusFilterEl.addEventListener("change", e => {
-    currentStatusFilter = e.target.value;
-    document.querySelectorAll(".admin-stat-card, .emp-stat-card").forEach(c => c.classList.remove("active"));
-    const matchCard = document.getElementById("card-" + currentStatusFilter);
-    if (matchCard) matchCard.classList.add("active");
-    renderTab();
-  });
-}
-
+// البحث
 const searchInputEl = document.getElementById("searchInput");
 if (searchInputEl) {
   let searchDebounce = null;
@@ -1041,10 +1025,12 @@ if (searchInputEl) {
   });
 }
 
+// إغلاق اللوحة الجانبية
 document.getElementById("spCloseBtn")?.addEventListener("click", closeSidePanel);
 document.getElementById("spOverlay")?.addEventListener("click", closeSidePanel);
 document.getElementById("spPrintBtn")?.addEventListener("click", printActiveStudent);
 
+// تسجيل الخروج
 document.getElementById("logoutBtn")?.addEventListener("click", async () => {
   await signOut(auth);
   window.location.href = "EmployeeLogin.html";
@@ -1068,13 +1054,26 @@ auth.authStateReady().then(() => {
 
       employeesCache[user.uid] = empData.fullName || "-";
 
-      const empNameEl  = document.getElementById("empName");
-      const empDeptEl  = document.getElementById("empDept");
-      const empEmailEl = document.getElementById("empEmail");
+      // تحديث الواجهة
+      const empName    = empData.fullName   || "-";
+      const empDept    = empData.department || "-";
+      const empEmail   = empData.email || user.email || "-";
+
+      // السايدبار
+      const elName  = document.getElementById("empName");
+      const elDept  = document.getElementById("empDept");
+      const elEmail = document.getElementById("empEmail");
+      if (elName)  elName.textContent  = empName;
+      if (elDept)  elDept.textContent  = empDept;
+      if (elEmail) elEmail.textContent = empEmail;
+
+      // قسم الترحيب
+      const elWelcomeName = document.getElementById("empNameWelcome");
+      const elWelcomeDept = document.getElementById("empDeptWelcome");
+      if (elWelcomeName) elWelcomeName.textContent = empName;
+      if (elWelcomeDept) elWelcomeDept.textContent = `كلية العلوم - ${empDept}`;
+
       const pageTitleEl = document.getElementById("pageTitle");
-      if (empNameEl)  empNameEl.textContent  = empData.fullName   || "-";
-      if (empDeptEl)  empDeptEl.textContent  = empData.department || "-";
-      if (empEmailEl) empEmailEl.textContent = empData.email || user.email || "-";
       if (pageTitleEl) pageTitleEl.textContent = tabConfig[currentTab].title;
 
       setDates();

@@ -6,7 +6,7 @@
   <title>بوابة الموظف</title>
   <link rel="icon" href="data:,">
   <link rel="stylesheet" href="style.css" />
-  <link rel="stylesheet" href="empStyle.css" />
+  <link rel="stylesheet" href="EmpStyle.css" />
   <link rel="stylesheet" href="adminStyle.css" />
   <link rel="stylesheet" href="sidebarStyle.css" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tabler-icons/3.35.0/tabler-icons.min.css" />
@@ -49,7 +49,7 @@
     <div class="sb-user">
       <i class="ti ti-user-circle sb-user-avatar"></i>
       <div>
-        <div class="sb-user-name" id="empName">...</div>
+        <div class="sb-user-name"  id="empName">...</div>
         <div class="sb-user-email" id="empEmail">...</div>
       </div>
     </div>
@@ -58,23 +58,39 @@
     </button>
   </aside>
 
-  <!-- ===== Main content ===== -->
+  <!-- ===== Main ===== -->
   <div class="sb-main">
 
+    <!-- Topbar -->
     <div class="sb-topbar">
       <div class="sb-topbar-title" id="pageTitle">طلبات الحذف والإضافة</div>
+
+      <div class="sb-topbar-logo">
+        <img src="images/Qassim_University_logo.svg.png" alt="جامعة القصيم" />
+      </div>
+
       <div class="sb-topbar-dates">
         <div class="sb-date-hijri" id="hijriDate">...</div>
-        <div class="sb-date-greg" id="gregDate">...</div>
+        <div class="sb-date-greg"  id="gregDate">...</div>
       </div>
     </div>
 
     <main class="admin-main">
 
-      <!-- Stats Cards -->
+      <!-- Welcome -->
+      <div class="emp-welcome">
+        <div class="emp-welcome-hi">مرحبًا بك</div>
+        <div class="emp-welcome-name">أ. <span id="empNameWelcome">...</span></div>
+        <div class="emp-welcome-dept">
+          <i class="ti ti-building"></i>
+          <span id="empDeptWelcome">...</span>
+        </div>
+      </div>
+
+      <!-- Stats -->
       <div class="admin-stats-grid">
         <div class="admin-stat-card emp-stat-card stat-total active" data-filter="all" id="card-all">
-          <div class="stat-icon"><i class="ti ti-copy"></i></div>
+          <div class="stat-icon"><i class="ti ti-folder"></i></div>
           <div class="stat-num" id="cnt-all">0</div>
           <div class="stat-label">الكل</div>
         </div>
@@ -100,7 +116,7 @@
         </div>
       </div>
 
-      <!-- Main Table Card -->
+      <!-- Table Card -->
       <div class="admin-table-card">
 
         <!-- زر رفع نموذج الزيارة — يظهر فقط لموظفات قسم شؤون الطالبات وعند فتح تبويب الزيارة -->
@@ -116,24 +132,18 @@
         <div class="admin-search-row">
           <div class="admin-search-bar">
             <i class="ti ti-search admin-search-icon"></i>
-            <input
-              type="text"
-              id="searchInput"
+            <input type="text" id="searchInput"
               placeholder="ابحث باسم الطالب أو رقمه الجامعي..."
-              autocomplete="off"
-            />
+              autocomplete="off" />
           </div>
         </div>
 
-        <!-- Search info bar -->
         <div class="admin-search-info" id="searchInfoBar" style="display:none"></div>
 
-        <!-- Loading -->
         <div class="admin-loading" id="loadingState">
           <i class="ti ti-loader-2 spin"></i> جاري التحميل...
         </div>
 
-        <!-- Table wrapper -->
         <div class="admin-table-wrap" id="tableWrap" style="display:none">
           <table class="admin-table" id="mainTable">
             <thead>
@@ -162,15 +172,13 @@
     <div class="sp-header">
       <div>
         <div class="sp-title" id="spTitle">تفاصيل الطالب</div>
-        <div class="sp-sub" id="spSub">بيانات الطلبات</div>
+        <div class="sp-sub"   id="spSub">بيانات الطلبات</div>
       </div>
       <button class="sp-close-btn" id="spCloseBtn" aria-label="إغلاق">
         <i class="ti ti-x"></i>
       </button>
     </div>
-    <div class="sp-body" id="spBody">
-      <!-- filled dynamically -->
-    </div>
+    <div class="sp-body" id="spBody"></div>
     <div class="sp-footer">
       <button class="sp-print-btn" id="spPrintBtn">
         <i class="ti ti-printer"></i> طباعة بيانات الطالب
@@ -178,9 +186,7 @@
     </div>
   </div>
 
-  <!-- Side panel overlay -->
   <div class="sp-overlay" id="spOverlay"></div>
-
   <div id="printArea" class="emp-print-area"></div>
 
   <script type="module" src="emp-dashboard.js"></script>
