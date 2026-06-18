@@ -119,7 +119,7 @@ const levelLabel     = {
 
 const tabConfig = {
   addDrop: { collectionName: "requests",      studentField: "studentUid", title: "طلبات الحذف والإضافة" },
-  excuse:  { collectionName: "excuses",       studentField: "studentUid", title: "طلبات رفع الأعذار"   },
+  excuse:  { collectionName: "excuses",       studentField: "uid", title: "طلبات رفع الأعذار"   },
   visit:   { collectionName: "visitRequests", studentField: "uid",        title: "طلبات الزيارة"       }
 };
 
