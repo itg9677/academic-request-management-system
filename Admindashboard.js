@@ -353,7 +353,7 @@ function buildRow(tab, studentUid, requests) {
         </div>
       </div>
     </td>
-    <td class="uid-cell">${esc(student.studentId || "-")}</td>
+    <td class="uid-cell">${esc(student.universityId || "-")}</td>
     <td><span class="dept-chip">${esc(dept)}</span></td>
     <td><span class="req-count-badge">${requests.length}</span></td>
     <td><button class="detail-btn">التفاصيل <i class="ti ti-chevron-left detail-chevron"></i></button></td>
