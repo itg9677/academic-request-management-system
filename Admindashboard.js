@@ -1,9 +1,12 @@
-import { auth, db } from "./firebase.js";
+import { auth, db, storage } from "./firebase.js";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import {
-  doc, getDoc, collection, query, where, getDocs,
+  doc, getDoc, setDoc, deleteDoc, collection, query, where, getDocs,
   updateDoc, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import {
+  ref, uploadBytes, getDownloadURL, deleteObject
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
 
 // ==================== State ====================
 
@@ -68,6 +71,7 @@ function formatFieldValue(value) {
 const fieldLabels = {
   fullName:       "الاسم الكامل",
   studentId:      "الرقم الجامعي",
+  universityId:   "الرقم الجامعي",
   email:          "البريد الإلكتروني",
   major:          "التخصص",
   phoneNumber:    "رقم الجوال",
@@ -84,9 +88,7 @@ const fieldLabels = {
   enrollmentYear: "سنة الالتحاق",
   graduationYear: "سنة التخرج المتوقعة",
   status:         "حالة الطالب",
-  role:           "نوع الحساب",
   uid:            "معرف المستخدم",
-  createdAt:      "تاريخ التسجيل",
   updatedAt:      "تاريخ آخر تحديث",
   address:        "العنوان",
   city:           "المدينة",
@@ -98,11 +100,10 @@ const fieldLabels = {
 };
 
 // حقول تقنية لا تُعرض
-const hiddenFields = ["_uid", "password", "token", "fcmToken", "pushToken", "deviceId", "emailVerified"];
+const hiddenFields = ["_uid", "password", "token", "fcmToken", "pushToken", "deviceId", "emailVerified", "role", "createdAt"];
 
 const statusLabel = {
   new:          "جديد",
-  pending:      "معلق",
   under_review: "قيد المراجعة",
   approved:     "مقبول",
   rejected:     "مرفوض"
@@ -110,6 +111,7 @@ const statusLabel = {
 
 const reqTypeLabel   = { add: "اضافة", drop: "حذف", edit: "تعديل شعبة" };
 const visitTypeLabel = { internal: "داخلية", external: "خارجية" };
+const examTypeLabel  = { midterm1: "اختبار فصلي أول", midterm2: "اختبار فصلي ثاني", final: "اختبار نهائي" };
 const levelLabel     = {
   "1": "المستوى الأول", "2": "المستوى الثاني", "3": "المستوى الثالث", "4": "المستوى الرابع",
   "5": "المستوى الخامس", "6": "المستوى السادس", "7": "المستوى السابع", "8": "المستوى الثامن"
@@ -213,30 +215,34 @@ function updateBadges() {
 
 function updateStatCards() {
   const items = tabData[currentTab];
-  const newCount      = items.filter((r) => getEffectiveStatus(r) === "new").length;
-  const pendingCount  = items.filter((r) => getEffectiveStatus(r) === "pending").length;
-  const approvedCount = items.filter((r) => r.status === "approved").length;
-  const rejectedCount = items.filter((r) => r.status === "rejected").length;
+  const newCount         = items.filter((r) => getEffectiveStatus(r) === "new").length;
+  const underReviewCount = items.filter((r) => getEffectiveStatus(r) === "under_review").length;
+  const approvedCount    = items.filter((r) => r.status === "approved").length;
+  const rejectedCount    = items.filter((r) => r.status === "rejected").length;
 
-  const elNew      = document.getElementById("cnt-new");
-  const elPending  = document.getElementById("cnt-pending");
-  const elApproved = document.getElementById("cnt-approved");
-  const elRejected = document.getElementById("cnt-rejected");
-  const elAll      = document.getElementById("cnt-all");
+  const elNew         = document.getElementById("cnt-new");
+  const elUnderReview = document.getElementById("cnt-under_review");
+  const elApproved    = document.getElementById("cnt-approved");
+  const elRejected    = document.getElementById("cnt-rejected");
+  const elAll         = document.getElementById("cnt-all");
 
-  if (elNew)      elNew.textContent      = newCount;
-  if (elPending)  elPending.textContent  = pendingCount;
-  if (elApproved) elApproved.textContent = approvedCount;
-  if (elRejected) elRejected.textContent = rejectedCount;
-  if (elAll)      elAll.textContent      = items.length;
+  if (elNew)         elNew.textContent         = newCount;
+  if (elUnderReview)  elUnderReview.textContent = underReviewCount;
+  if (elApproved)     elApproved.textContent    = approvedCount;
+  if (elRejected)     elRejected.textContent    = rejectedCount;
+  if (elAll)          elAll.textContent         = items.length;
 }
 
 // ==================== عرض الجدول الرئيسي ====================
 
 // حالة "جديد" = طلب pending ما عنده assignedEmployee بعد
+// حالة "قيد المراجعة" = طلب pending وله موظف معالج (دمج معلق مع قيد المراجعة)
 function getEffectiveStatus(item) {
-  if (item.status === "pending" && !item.assignedEmployee) return "new";
-  return item.status || "pending";
+  if (item.status === "new") return "new";
+  if (item.status === "pending" || !item.status) {
+    return item.assignedEmployee ? "under_review" : "new";
+  }
+  return item.status;
 }
 
 async function renderTab() {
@@ -282,8 +288,8 @@ async function renderTab() {
 
   // ترتيب: الطلاب الذين لديهم طلبات معلقة/جديدة أولاً
   const sortedUids = Object.keys(byStudent).sort((a, b) => {
-    const worstA = byStudent[a].some(r => getEffectiveStatus(r) === "new" || getEffectiveStatus(r) === "pending") ? 0 : 1;
-    const worstB = byStudent[b].some(r => getEffectiveStatus(r) === "new" || getEffectiveStatus(r) === "pending") ? 0 : 1;
+    const worstA = byStudent[a].some(r => getEffectiveStatus(r) === "new" || getEffectiveStatus(r) === "under_review") ? 0 : 1;
+    const worstB = byStudent[b].some(r => getEffectiveStatus(r) === "new" || getEffectiveStatus(r) === "under_review") ? 0 : 1;
     if (worstA !== worstB) return worstA - worstB;
     const ta = byStudent[a][0].createdAt && byStudent[a][0].createdAt.toMillis ? byStudent[a][0].createdAt.toMillis() : 0;
     const tb = byStudent[b][0].createdAt && byStudent[b][0].createdAt.toMillis ? byStudent[b][0].createdAt.toMillis() : 0;
@@ -326,26 +332,13 @@ function buildRow(tab, studentUid, requests) {
   const initials = (student.fullName || "??").slice(0, 2);
   const dept     = requests[0]?.assignedDepartment || student.major || "-";
 
-  // الحالة الأسوأ: جديد > معلق > مراجعة > مقبول/مرفوض
-  const priority = { new: 0, pending: 1, under_review: 2, approved: 3, rejected: 3 };
+  // الحالة الأسوأ: جديد > قيد المراجعة > مقبول/مرفوض
+  const priority = { new: 0, under_review: 1, approved: 2, rejected: 2 };
   const worstItem = requests.reduce((prev, cur) => {
     const ps = getEffectiveStatus(prev);
     const cs = getEffectiveStatus(cur);
     return (priority[cs] ?? 4) < (priority[ps] ?? 4) ? cur : prev;
   });
-  const statusKey = getEffectiveStatus(worstItem);
-
-  // اسم آخر موظف عالج الطلب (الأحدث بحسب تاريخ آخر تحديث)
-  const assignedItems = requests.filter(r => r.assignedEmployee);
-  const tsMillis = (ts) => (ts && ts.toMillis ? ts.toMillis() : 0);
-  const lastAssignedItem = assignedItems.length
-    ? assignedItems.reduce((latest, cur) => {
-        const latestTime = tsMillis(latest.updatedAt) || tsMillis(latest.createdAt);
-        const curTime    = tsMillis(cur.updatedAt)    || tsMillis(cur.createdAt);
-        return curTime >= latestTime ? cur : latest;
-      })
-    : null;
-  const empName = lastAssignedItem ? employeesCache[lastAssignedItem.assignedEmployee] : null;
 
   tr.innerHTML = `
     <td>
@@ -360,10 +353,6 @@ function buildRow(tab, studentUid, requests) {
     <td class="uid-cell">${esc(student.studentId || "-")}</td>
     <td><span class="dept-chip">${esc(dept)}</span></td>
     <td><span class="req-count-badge">${requests.length}</span></td>
-    <td><span class="status-badge s-${statusKey}">${statusLabel[statusKey] || statusKey}</span></td>
-    <td>${empName
-      ? `<span class="emp-chip"><i class="ti ti-user"></i> ${esc(empName)}</span>`
-      : '<span class="no-emp">لم يُعيّن بعد</span>'}</td>
     <td><button class="detail-btn">التفاصيل <i class="ti ti-chevron-left detail-chevron"></i></button></td>
   `;
 
@@ -408,8 +397,9 @@ function buildDetailRows(tab, item) {
       ? `<tr><td class="sp-detail-label">سبب الرفض</td><td><span class="sp-reject-reason">${esc(item.rejectReason)}</span></td></tr>` : "";
     return `
       <tr><td class="sp-detail-label">رمز المقرر</td><td>${esc(item.courseCode || "-")}</td></tr>
+      <tr><td class="sp-detail-label">نوع الاختبار</td><td><strong>${examTypeLabel[item.examType] || esc(item.examType || "-")}</strong></td></tr>
       <tr><td class="sp-detail-label">تاريخ الاختبار</td><td>${esc(item.examDate || "-")}</td></tr>
-      <tr><td class="sp-detail-label">الملاحظات</td><td>${esc(item.notes || "-")}</td></tr>
+      <tr><td class="sp-detail-label">سبب الغياب</td><td>${esc(item.reason || item.notes || "-")}</td></tr>
       <tr><td class="sp-detail-label">المرفق</td><td>${attach}</td></tr>
       <tr><td class="sp-detail-label">تاريخ الطلب</td><td>${formatDate(item.createdAt)}</td></tr>
       <tr><td class="sp-detail-label">الحالة</td><td>${statusHtml}</td></tr>
@@ -450,7 +440,7 @@ function buildOtherRequestsTable(tab, item) {
   const rows = others.map((o) => {
     let label = "-";
     if (tab === "addDrop") label = `${reqTypeLabel[o.requestType] || o.requestType || "-"} — ${esc(o.courseName || o.courseCode || "")}`;
-    else if (tab === "excuse") label = esc(o.courseCode || "-");
+    else if (tab === "excuse") label = `${esc(o.courseCode || "-")} — ${examTypeLabel[o.examType] || esc(o.examType || "-")}`;
     else label = visitTypeLabel[o.visitType] || o.visitType || "-";
 
     const statusKey = getEffectiveStatus(o);
@@ -616,20 +606,21 @@ function printActiveStudent() {
         <td>${esc(r.courseName || "")} (${esc(r.courseCode || "")})</td>
         <td>${r.requestType === "edit" ? esc(r.requestedSection || "-") : "-"}</td>
         <td>${esc(r.notes || "-")}</td>
-        <td>${statusLabel[r.status] || r.status}${rejectNote}</td>
+        <td>${statusLabel[getEffectiveStatus(r)] || getEffectiveStatus(r)}${rejectNote}</td>
         <td>${esc(empName)}</td>
         <td>${formatDate(r.createdAt)}</td>
       </tr>
       `;
     }).join("");
   } else if (tab === "excuse") {
-    headerCols = "<th>رمز المقرر</th><th>تاريخ الاختبار</th><th>الملاحظات</th><th>الحالة</th><th>التاريخ</th>";
+    headerCols = "<th>رمز المقرر</th><th>نوع الاختبار</th><th>تاريخ الاختبار</th><th>سبب الغياب</th><th>الحالة</th><th>التاريخ</th>";
     rows = items.map((r) => `
       <tr>
         <td>${esc(r.courseCode || "-")}</td>
+        <td><strong>${examTypeLabel[r.examType] || esc(r.examType || "-")}</strong></td>
         <td>${esc(r.examDate || "-")}</td>
-        <td>${esc(r.notes || "-")}</td>
-        <td>${statusLabel[r.status] || r.status}</td>
+        <td>${esc(r.reason || r.notes || "-")}</td>
+        <td>${statusLabel[getEffectiveStatus(r)] || getEffectiveStatus(r)}</td>
         <td>${formatDate(r.createdAt)}</td>
       </tr>
     `).join("");
@@ -644,7 +635,7 @@ function printActiveStudent() {
         <td>${(r.courses || []).map((c) =>
           `${esc(c.courseName || "-")} (${esc(c.courseCode || "-")}) - ${esc(c.section || "-")}`
         ).join("<br>") || "-"}</td>
-        <td>${statusLabel[r.status] || r.status}</td>
+        <td>${statusLabel[getEffectiveStatus(r)] || getEffectiveStatus(r)}</td>
         <td>${formatDate(r.createdAt)}</td>
       </tr>
     `).join("");
@@ -694,6 +685,102 @@ function printActiveStudent() {
   win.print();
 }
 
+// ==================== رفع/عرض نموذج الزيارة (PDF) - متاح فقط داخل تبويب الزيارة ====================
+
+const VISIT_FORM_STORAGE_PATH = "visitForms/visit_form.pdf";
+const visitFormDocRef = () => doc(db, "settings", "visitForm");
+
+async function loadVisitFormInfo() {
+  const nameEl = document.getElementById("uploadedFileName");
+  if (!nameEl) return;
+
+  nameEl.innerHTML = `<span style="color:#888;font-size:0.85rem;">جاري التحقق من الملف...</span>`;
+
+  try {
+    const snap = await getDoc(visitFormDocRef());
+    if (snap.exists()) {
+      const data = snap.data();
+      nameEl.innerHTML = `
+        <span style="display:inline-flex;align-items:center;gap:6px;background:#eef3ff;color:#1a3a6b;border:1px solid #c7d6f5;border-radius:8px;padding:5px 10px;font-size:0.85rem;">
+          <i class="ti ti-file-type-pdf" style="color:#c0392b;"></i>
+          <span>${esc(data.fileName || "نموذج_الزيارة.pdf")}</span>
+          <button type="button" id="removeVisitFileBtn" title="حذف الملف" style="border:none;background:transparent;color:#c0392b;cursor:pointer;display:flex;align-items:center;padding:0;margin-right:2px;">
+            <i class="ti ti-trash"></i>
+          </button>
+        </span>
+      `;
+      const removeBtn = document.getElementById("removeVisitFileBtn");
+      if (removeBtn) removeBtn.addEventListener("click", removeVisitForm);
+    } else {
+      nameEl.innerHTML = `<span style="color:#888;font-size:0.85rem;">لا يوجد ملف مرفوع حالياً</span>`;
+    }
+  } catch (err) {
+    console.error("loadVisitFormInfo error:", err);
+    nameEl.innerHTML = `<span style="color:#c0392b;font-size:0.85rem;">تعذر تحميل بيانات الملف</span>`;
+  }
+}
+
+async function uploadVisitForm(file) {
+  const nameEl = document.getElementById("uploadedFileName");
+
+  if (file.type !== "application/pdf") {
+    alert("يجب أن يكون الملف بصيغة PDF فقط");
+    return;
+  }
+
+  const maxSizeMB = 10;
+  if (file.size > maxSizeMB * 1024 * 1024) {
+    alert(`حجم الملف يجب ألا يتجاوز ${maxSizeMB} ميجابايت`);
+    return;
+  }
+
+  if (nameEl) nameEl.innerHTML = `<span style="color:#1a3a6b;font-size:0.85rem;">جاري رفع الملف...</span>`;
+
+  try {
+    const storageRef = ref(storage, VISIT_FORM_STORAGE_PATH);
+    await uploadBytes(storageRef, file);
+    const fileUrl = await getDownloadURL(storageRef);
+
+    await setDoc(visitFormDocRef(), {
+      fileUrl,
+      fileName:   file.name,
+      uploadedAt: serverTimestamp(),
+      uploadedBy: currentAdminData?.fullName || "الأدمن"
+    });
+
+    await loadVisitFormInfo();
+  } catch (err) {
+    console.error("uploadVisitForm error:", err);
+    alert("حدث خطأ أثناء رفع الملف: " + err.message);
+    await loadVisitFormInfo();
+  }
+}
+
+async function removeVisitForm() {
+  if (!confirm("هل تريدين حذف نموذج الزيارة الحالي؟ الطالبات لن يتمكنّ من تحميله بعد الحذف.")) return;
+  try {
+    await deleteObject(ref(storage, VISIT_FORM_STORAGE_PATH)).catch(() => {});
+    await deleteDoc(visitFormDocRef());
+    await loadVisitFormInfo();
+  } catch (err) {
+    console.error("removeVisitForm error:", err);
+    alert("حدث خطأ أثناء حذف الملف: " + err.message);
+  }
+}
+
+const uploadVisitFileBtnEl = document.getElementById("uploadVisitFileBtn");
+const visitFileInputEl     = document.getElementById("visitFileInput");
+
+if (uploadVisitFileBtnEl && visitFileInputEl) {
+  uploadVisitFileBtnEl.addEventListener("click", () => visitFileInputEl.click());
+
+  visitFileInputEl.addEventListener("change", (e) => {
+    const file = e.target.files[0];
+    if (file) uploadVisitForm(file);
+    e.target.value = "";
+  });
+}
+
 // ==================== أحداث الواجهة ====================
 
 document.querySelectorAll(".admin-tab").forEach((btn) => {
@@ -706,38 +793,26 @@ document.querySelectorAll(".admin-tab").forEach((btn) => {
     document.querySelectorAll(".admin-stat-card").forEach((c) => c.classList.remove("active"));
     document.getElementById("card-all").classList.add("active");
 
-    // إظهار زر رفع نموذج الزيارة فقط عند تبويب الزيارة
-    const visitUploadArea = document.getElementById("visitUploadArea");
-    if (visitUploadArea) {
-      visitUploadArea.style.display = currentTab === "visit" ? "flex" : "none";
+    // إظهار منطقة رفع نموذج الزيارة فقط داخل تبويب "طلبات الزيارة"
+    const visitUploadAreaEl = document.getElementById("visitUploadArea");
+    if (visitUploadAreaEl) {
+      if (currentTab === "visit") {
+        visitUploadAreaEl.style.display = "";
+        loadVisitFormInfo();
+      } else {
+        visitUploadAreaEl.style.display = "none";
+      }
     }
 
     renderTab();
   });
 });
 
-// رفع ملف الزيارة
-const uploadVisitFileBtn = document.getElementById("uploadVisitFileBtn");
-const visitFileInput     = document.getElementById("visitFileInput");
-const uploadedFileName   = document.getElementById("uploadedFileName");
-
-if (uploadVisitFileBtn && visitFileInput) {
-  uploadVisitFileBtn.addEventListener("click", () => visitFileInput.click());
-
-  visitFileInput.addEventListener("change", () => {
-    const file = visitFileInput.files[0];
-    if (file) {
-      if (uploadedFileName) uploadedFileName.textContent = "✓ " + file.name;
-      // هنا تضيف كود الرفع لـ Firebase Storage إذا احتجت
-    }
-  });
-}
-
 document.querySelectorAll(".admin-stat-card").forEach((card) => {
   card.addEventListener("click", () => {
     currentStatusFilter = card.dataset.filter;
     document.getElementById("statusFilter").value =
-      ["new", "pending", "approved", "rejected"].includes(currentStatusFilter) ? currentStatusFilter : "all";
+      ["new", "under_review", "approved", "rejected"].includes(currentStatusFilter) ? currentStatusFilter : "all";
     document.querySelectorAll(".admin-stat-card").forEach((c) => c.classList.remove("active"));
     card.classList.add("active");
     renderTab();
@@ -805,6 +880,15 @@ auth.authStateReady().then(() => {
 
       currentAdminData = { docId: adminDoc.id, uid: user.uid, ...data };
       employeesCache[adminDoc.id] = data.fullName || "الأدمن";
+
+      // مزامنة uid هذا الأدمن في مجموعة مخصصة (adminUids) تُستخدم فقط من
+      // قواعد الأمان (Security Rules) للتحقق من صلاحية الأدمن عند الكتابة
+      // المباشرة لقاعدة البيانات/التخزين (رفع/حذف نموذج الزيارة)
+      try {
+        await setDoc(doc(db, "adminUids", user.uid), { isAdmin: true, email: user.email }, { merge: true });
+      } catch (syncErr) {
+        console.error("adminUids sync error:", syncErr);
+      }
 
       const adminNameEl = document.getElementById("adminName");
       if (adminNameEl) adminNameEl.textContent = data.fullName || "الأدمن";

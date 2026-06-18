@@ -251,7 +251,7 @@
     z-index: 100;
   }
 
-  .sb-main { margin-right: 0; padding-bottom: 70px; }
+  .sb-main { margin-right: 0; padding: 12px 12px 70px; }
 
   .sb-brand   { display: none; }
   .sb-nav     { flex-direction: row; padding: 6px; gap: 4px; overflow-x: auto; }

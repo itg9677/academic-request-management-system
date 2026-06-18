@@ -330,7 +330,7 @@
     font-weight: bold;
 }
 
-.employee-dashboard-page .b-pending  { background: #fff3e0; color: #b45000; }
+.employee-dashboard-page .b-new  { background: #fff3e0; color: #b45000; }
 .employee-dashboard-page .b-review   { background: #e3f2fd; color: #1565c0; }
 .employee-dashboard-page .b-approved { background: #e8f5e9; color: #2e7d52; }
 .employee-dashboard-page .b-rejected { background: #fdecea; color: #c0392b; }

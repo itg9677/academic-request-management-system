@@ -1,9 +1,13 @@
-import { auth, db } from "./firebase.js";
+import { auth, db, storage } from "./firebase.js";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import {
-  doc, getDoc, collection, query, where, getDocs,
+  doc, getDoc, setDoc, deleteDoc, collection, query, where, getDocs,
   updateDoc, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import {
+  ref, uploadBytes, getDownloadURL, deleteObject
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
 
 let currentEmployee = null;
 let isAffairs = false;
@@ -82,9 +86,7 @@ const fieldLabels = {
   enrollmentYear: "سنة الالتحاق",
   graduationYear: "سنة التخرج المتوقعة",
   status:         "حالة الطالب",
-  role:           "نوع الحساب",
   uid:            "معرف المستخدم",
-  createdAt:      "تاريخ التسجيل",
   updatedAt:      "تاريخ آخر تحديث",
   address:        "العنوان",
   city:           "المدينة",
@@ -97,19 +99,20 @@ const fieldLabels = {
 
 const hiddenFields = [
   "_uid", "password", "token", "fcmToken", "pushToken",
-  "deviceId", "emailVerified"
+  "deviceId", "emailVerified", "role", "createdAt"
 ];
 
 const statusLabel = {
   new:          "جديد",
-  pending:      "معلق",
   under_review: "قيد المراجعة",
   approved:     "مقبول",
   rejected:     "مرفوض"
 };
 
 const reqTypeLabel   = { add: "اضافة", drop: "حذف", edit: "تعديل شعبة", remove: "حذف", change: "تعديل شعبة" };
+const reqTypeClass   = { add: "b-add", drop: "b-drop", edit: "b-edit", remove: "b-drop", change: "b-edit" };
 const visitTypeLabel = { internal: "داخلية", external: "خارجية" };
+const examTypeLabel  = { midterm1: "اختبار فصلي أول", midterm2: "اختبار فصلي ثاني", final: "اختبار نهائي" };
 const levelLabel     = {
   "1": "المستوى الأول", "2": "المستوى الثاني", "3": "المستوى الثالث",
   "4": "المستوى الرابع", "5": "المستوى الخامس", "6": "المستوى السادس",
@@ -132,9 +135,14 @@ const REJECT_REASONS = [
 
 // ==================== حالة "جديد" ====================
 
+// حالة "جديد" = طلب pending ما عنده موظف معالج
+// حالة "قيد المراجعة" = طلب pending وله موظف معالج (دمج معلق مع قيد المراجعة)
 function getEffectiveStatus(item) {
-  if (item.status === "pending" && !item.assignedEmployee) return "new";
-  return item.status || "pending";
+  if (item.status === "new") return "new";
+  if (item.status === "pending" || !item.status) {
+    return item.assignedEmployee ? "under_review" : "new";
+  }
+  return item.status;
 }
 
 // ==================== جلب البيانات ====================
@@ -185,62 +193,73 @@ async function getEmployeeName(uid) {
   return employeesCache[uid];
 }
 
-// ==================== تحميل البيانات ====================
+// ==================== تحميل البيانات (excuse + visit) ====================
 
-async function loadAllData() {
-  const loadingEl   = document.getElementById("loadingState");
-  const tableWrapEl = document.getElementById("tableWrap");
-
-  if (loadingEl)   loadingEl.style.display  = "";
-  if (tableWrapEl) tableWrapEl.style.display = "none";
-
+async function loadExcuseAndVisit() {
   try {
-    const types = ["add", "drop", "edit", "remove", "change"];
-
-    const reqQuery = isAffairs
-      ? query(collection(db, "requests"), where("requestType", "in", types))
-      : query(collection(db, "requests"), where("requestType", "in", types),
-              where("assignedDepartment", "==", currentEmployee.department));
-
     const excQuery = isAffairs
       ? query(collection(db, "excuses"))
       : query(collection(db, "excuses"),
               where("assignedDepartment", "==", currentEmployee.department));
 
-    const [reqSnap, excSnap, visSnap] = await Promise.all([
-      getDocs(reqQuery),
+    const [excSnap, visSnap] = await Promise.all([
       getDocs(excQuery),
       getDocs(collection(db, "visitRequests"))
     ]);
 
-    tabData.addDrop = reqSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-    tabData.excuse  = excSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-    tabData.visit   = visSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    tabData.excuse = excSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    tabData.visit  = visSnap.docs.map(d => ({ id: d.id, ...d.data() }));
 
     updateBadges();
   } catch(err) {
-    console.error("loadAllData error:", err);
-  } finally {
-    if (loadingEl)   loadingEl.style.display  = "none";
-    if (tableWrapEl) tableWrapEl.style.display = "";
+    console.error("loadExcuseAndVisit error:", err);
   }
+}
 
-  await renderTab();
+// ==================== onSnapshot للحذف والإضافة ====================
+
+let unsubscribeAddDrop = null;
+
+function subscribeAddDrop() {
+  if (unsubscribeAddDrop) unsubscribeAddDrop();
+
+  const types = ["add", "drop", "edit", "remove", "change"];
+const q = isAffairs
+  ? query(
+      collection(db, "requests"),
+      where("assignedDepartment", "==", "شؤون الطالبات")
+    )
+  : query(
+      collection(db, "requests"),
+      where("requestType", "in", types),
+      where("major", "==", currentEmployee.department)
+    );
+
+  unsubscribeAddDrop = onSnapshot(q, async (snap) => {
+    tabData.addDrop = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    updateBadges();
+    if (currentTab === "addDrop") {
+      await renderTab();
+      if (activeRequest && activeRequest.tab === "addDrop") {
+        const updated = tabData.addDrop.find(it => it.id === activeRequest.item.id);
+        if (updated) openSidePanel("addDrop", updated);
+      }
+    }
+  });
 }
 
 function updateBadges() {
   const el = (id) => document.getElementById(id);
-  if (el("badge-addDrop")) el("badge-addDrop").textContent = tabData.addDrop.filter(r => r.status === "pending").length;
-  if (el("badge-excuse"))  el("badge-excuse").textContent  = tabData.excuse.filter(r => r.status === "pending").length;
-  if (el("badge-visit"))   el("badge-visit").textContent   = tabData.visit.filter(r => r.status === "pending").length;
+  if (el("badge-addDrop")) el("badge-addDrop").textContent = tabData.addDrop.filter(r => getEffectiveStatus(r) === "new").length;
+  if (el("badge-excuse"))  el("badge-excuse").textContent  = tabData.excuse.filter(r => getEffectiveStatus(r) === "new").length;
+  if (el("badge-visit"))   el("badge-visit").textContent   = tabData.visit.filter(r => getEffectiveStatus(r) === "new").length;
 }
 
 function updateStatCards() {
   const items = tabData[currentTab];
   const counts = {
     new:          items.filter(r => getEffectiveStatus(r) === "new").length,
-    pending:      items.filter(r => getEffectiveStatus(r) === "pending").length,
-    under_review: items.filter(r => r.status === "under_review").length,
+    under_review: items.filter(r => getEffectiveStatus(r) === "under_review").length,
     approved:     items.filter(r => r.status === "approved").length,
     rejected:     items.filter(r => r.status === "rejected").length,
     all:          items.length
@@ -255,15 +274,25 @@ function updateStatCards() {
 
 async function renderTab() {
   const cfg   = tabConfig[currentTab];
-  const items = tabData[currentTab];
 
-  const uniqueStudentUids = [...new Set(items.map(it => it[cfg.studentField]).filter(Boolean))];
+  const loadingEl   = document.getElementById("loadingState");
+  const tableWrapEl = document.getElementById("tableWrap");
+
+  if (loadingEl)   loadingEl.style.display  = "";
+  if (tableWrapEl) tableWrapEl.style.display = "none";
+
+  // لو excuse أو visit نجلب من Firestore
+  if (currentTab !== "addDrop") {
+    await loadExcuseAndVisit();
+  }
+
+  const uniqueStudentUids = [...new Set(tabData[currentTab].map(it => it[cfg.studentField]).filter(Boolean))];
   await Promise.all(uniqueStudentUids.map(uid => getStudent(uid)));
 
-  const uniqueEmpUids = [...new Set(items.map(it => it.assignedEmployee).filter(Boolean))];
+  const uniqueEmpUids = [...new Set(tabData[currentTab].map(it => it.assignedEmployee).filter(Boolean))];
   await Promise.all(uniqueEmpUids.map(uid => getEmployeeName(uid)));
 
-  let filtered = [...items];
+  let filtered = [...tabData[currentTab]];
 
   if (currentStatusFilter !== "all") {
     filtered = filtered.filter(it => getEffectiveStatus(it) === currentStatusFilter);
@@ -288,16 +317,29 @@ async function renderTab() {
     if (!byStudent[uid]) byStudent[uid] = [];
     byStudent[uid].push(it);
   });
+  // ترتيب طلبات كل طالب: الأحدث أولاً
+  Object.keys(byStudent).forEach(uid => {
+    byStudent[uid].sort((a, b) => {
+      const aTime = a.updatedAt?.toMillis?.() ?? a.createdAt?.toMillis?.() ?? 0;
+      const bTime = b.updatedAt?.toMillis?.() ?? b.createdAt?.toMillis?.() ?? 0;
+      return bTime - aTime;
+    });
+  });
 
-  const priority = { new: 0, pending: 1, under_review: 2, approved: 3, rejected: 3 };
+  // ترتيب الطلاب: الحالة الأسوأ أولاً (جديد > قيد المراجعة > مقبول/مرفوض)، ثم الأحدث أولاً
+  const priority = { new: 0, under_review: 1, approved: 2, rejected: 2 };
   const sortedUids = Object.keys(byStudent).sort((a, b) => {
     const worstA = Math.min(...byStudent[a].map(r => priority[getEffectiveStatus(r)] ?? 4));
     const worstB = Math.min(...byStudent[b].map(r => priority[getEffectiveStatus(r)] ?? 4));
     if (worstA !== worstB) return worstA - worstB;
-    const ta = byStudent[a][0].createdAt?.toMillis?.() ?? 0;
-    const tb = byStudent[b][0].createdAt?.toMillis?.() ?? 0;
-    return ta - tb;
+
+    const latestA = Math.max(...byStudent[a].map(r => r.updatedAt?.toMillis?.() ?? r.createdAt?.toMillis?.() ?? 0));
+    const latestB = Math.max(...byStudent[b].map(r => r.updatedAt?.toMillis?.() ?? r.createdAt?.toMillis?.() ?? 0));
+    return latestB - latestA;
   });
+
+  if (loadingEl)   loadingEl.style.display  = "none";
+  if (tableWrapEl) tableWrapEl.style.display = "";
 
   const tbody      = document.getElementById("mainTbody");
   const emptyState = document.getElementById("emptyState");
@@ -330,26 +372,13 @@ function buildRow(tab, studentUid, requests) {
   tr.dataset.uid = studentUid;
 
   const initials = (student.fullName || "??").slice(0, 2);
-  const dept     = requests[0]?.assignedDepartment || student.major || "-";
 
-  const priority = { new: 0, pending: 1, under_review: 2, approved: 3, rejected: 3 };
+  const priority = { new: 0, under_review: 1, approved: 2, rejected: 2 };
   const worstItem = requests.reduce((prev, cur) => {
     const ps = getEffectiveStatus(prev);
     const cs = getEffectiveStatus(cur);
     return (priority[cs] ?? 4) < (priority[ps] ?? 4) ? cur : prev;
   });
-  const statusKey = getEffectiveStatus(worstItem);
-
-  const assignedItems = requests.filter(r => r.assignedEmployee);
-  const tsMillis = ts => ts?.toMillis?.() ?? 0;
-  const lastAssignedItem = assignedItems.length
-    ? assignedItems.reduce((latest, cur) => {
-        const lt = tsMillis(latest.updatedAt) || tsMillis(latest.createdAt);
-        const ct = tsMillis(cur.updatedAt)    || tsMillis(cur.createdAt);
-        return ct >= lt ? cur : latest;
-      })
-    : null;
-  const empName = lastAssignedItem ? employeesCache[lastAssignedItem.assignedEmployee] : null;
 
   tr.innerHTML = `
     <td>
@@ -362,12 +391,7 @@ function buildRow(tab, studentUid, requests) {
       </div>
     </td>
     <td class="uid-cell">${esc(student.studentId || student.universityId || "-")}</td>
-    <td><span class="dept-chip">${esc(dept)}</span></td>
     <td><span class="req-count-badge">${requests.length}</span></td>
-    <td><span class="status-badge s-${statusKey}">${statusLabel[statusKey] || statusKey}</span></td>
-    <td>${empName
-      ? `<span class="emp-chip"><i class="ti ti-user"></i> ${esc(empName)}</span>`
-      : '<span class="no-emp">لم يُعيّن بعد</span>'}</td>
     <td><button class="detail-btn">عرض <i class="ti ti-chevron-left detail-chevron"></i></button></td>
   `;
 
@@ -407,8 +431,8 @@ function buildDetailRows(tab, item) {
       <tr><td class="sp-detail-label">نوع الطلب</td><td>${reqTypeLabel[item.requestType] || item.requestType || "-"}</td></tr>
       <tr><td class="sp-detail-label">المقرر</td><td>${esc(item.courseName || "-")} (${esc(item.courseCode || "-")})</td></tr>
     `;
-    if (item.requestType === "edit" || item.requestType === "change") {
-      rows += `<tr><td class="sp-detail-label">الشعبة المطلوبة</td><td>${esc(item.requestedSection || "-")}</td></tr>`;
+    if (item.requestedSection) {
+      rows += `<tr><td class="sp-detail-label">الشعبة المطلوبة</td><td>${esc(item.requestedSection)}</td></tr>`;
     }
     rows += `
       <tr><td class="sp-detail-label">ملاحظات الطالب</td><td>${esc(item.notes || "-")}</td></tr>
@@ -426,7 +450,8 @@ function buildDetailRows(tab, item) {
       : "لا يوجد";
     return `
       <tr><td class="sp-detail-label">رمز المقرر</td><td>${esc(item.courseCode || "-")}</td></tr>
-      <tr><td class="sp-detail-label">تاريخ الغياب</td><td>${esc(item.absenceDate || item.examDate || "-")}</td></tr>
+      <tr><td class="sp-detail-label">نوع الاختبار</td><td><strong>${examTypeLabel[item.examType] || esc(item.examType || "-")}</strong></td></tr>
+      <tr><td class="sp-detail-label">تاريخ الاختبار</td><td>${esc(item.examDate || item.absenceDate || "-")}</td></tr>
       <tr><td class="sp-detail-label">سبب الغياب</td><td>${esc(item.reason || item.notes || "-")}</td></tr>
       <tr><td class="sp-detail-label">المرفق</td><td>${attach}</td></tr>
       <tr><td class="sp-detail-label">تاريخ الطلب</td><td>${formatDate(item.createdAt)}</td></tr>
@@ -455,9 +480,17 @@ function buildDetailRows(tab, item) {
 
 function buildOtherRequestsTable(tab, item) {
   const cfg    = tabConfig[tab];
-  const others = tabData[tab].filter(
-    it => it.id !== item.id && it[cfg.studentField] === item[cfg.studentField]
-  );
+ const others = tabData[tab]
+  .filter(
+    it => it.id !== item.id &&
+    it[cfg.studentField] === item[cfg.studentField]
+  )
+  .sort((a, b) => {
+    const aTime = a.createdAt?.toMillis?.() ?? 0;
+    const bTime = b.createdAt?.toMillis?.() ?? 0;
+
+    return bTime - aTime;
+  });
   if (!others.length) return "";
 
   const rows = others.map(o => {
@@ -465,13 +498,13 @@ function buildOtherRequestsTable(tab, item) {
     if (tab === "addDrop")
       label = `${reqTypeLabel[o.requestType] || o.requestType || "-"} — ${esc(o.courseName || o.courseCode || "")}`;
     else if (tab === "excuse")
-      label = esc(o.courseCode || "-");
+      label = `${esc(o.courseCode || "-")} — ${examTypeLabel[o.examType] || esc(o.examType || "-")}`;
     else
       label = visitTypeLabel[o.visitType] || o.visitType || "-";
 
     const sk = getEffectiveStatus(o);
     return `
-      <tr class="sp-other-row sp-other-clickable" data-id="${o.id}" style="cursor:pointer;" title="انقر لعرض تفاصيل هذا الطلب">
+      <tr class="sp-other-row sp-other-clickable" data-id="${o.id}" style="cursor:pointer;">
         <td>${label}</td>
         <td><span class="status-badge s-${sk}">${statusLabel[sk] || sk}</span></td>
         <td>${formatDate(o.createdAt)}</td>
@@ -506,6 +539,12 @@ function openSidePanel(tab, item) {
   const cfg     = tabConfig[tab];
   const student = studentsCache[item[cfg.studentField]] || {};
   const sk      = getEffectiveStatus(item);
+  const isSharedCourse =
+  item.assignedDepartment?.trim() ===
+  "شؤون الطالبات";
+
+const canApproveReject =
+  !isSharedCourse;
 
   document.getElementById("spTitle").textContent = student.fullName || "تفاصيل الطالب";
   document.getElementById("spSub").textContent   = cfg.title;
@@ -531,17 +570,53 @@ function openSidePanel(tab, item) {
       <table class="sp-detail-table">${buildDetailRows(tab, item)}</table>
     </div>
 
-    <div class="sp-actions">
-      <button class="sp-action-btn sp-approve" data-action="approved" ${sk === "approved" ? "disabled" : ""}>
-        <i class="ti ti-circle-check"></i> قبول
-      </button>
-      <button class="sp-action-btn sp-review" data-action="under_review" ${sk === "under_review" ? "disabled" : ""}>
-        <i class="ti ti-loader-2"></i> قيد المراجعة
-      </button>
-      <button class="sp-action-btn sp-reject" data-action="rejected" ${sk === "rejected" ? "disabled" : ""}>
-        <i class="ti ti-circle-x"></i> رفض
-      </button>
-    </div>
+
+${(sk === "approved" || sk === "rejected") ? `
+
+<div class="sp-status-final">
+  <span class="status-badge s-${sk}">
+    ${statusLabel[sk]}
+  </span>
+</div>
+
+` : canApproveReject ? `
+
+<button class="sp-action-btn sp-approve"
+        data-action="approved">
+  <i class="ti ti-circle-check"></i>
+  قبول
+</button>
+
+<button class="sp-action-btn sp-review"
+        data-action="under_review"
+        ${sk === "under_review" ? "disabled" : ""}>
+  <i class="ti ti-loader-2"></i>
+  قيد المراجعة
+</button>
+
+<button class="sp-action-btn sp-reject"
+        data-action="rejected">
+  <i class="ti ti-circle-x"></i>
+  رفض
+</button>
+
+` : `
+
+<button class="sp-action-btn sp-review"
+        data-action="under_review"
+        ${sk === "under_review" ? "disabled" : ""}>
+  <i class="ti ti-loader-2"></i>
+  قيد المراجعة
+</button>
+
+<div style="
+margin-top:10px;
+font-size:.85rem;
+color:#888;">
+هذه المادة تابعة لشؤون الطالبات
+</div>
+
+`}
 
     ${buildOtherRequestsTable(tab, item)}
   `;
@@ -572,6 +647,19 @@ function closeSidePanel() {
 }
 
 async function updateRequestStatus(tab, item, newStatus, rejectReason) {
+  const isSharedCourse =
+  item.assignedDepartment?.trim() ===
+  "شؤون الطالبات";
+
+if (
+  isSharedCourse &&
+  newStatus !== "under_review"
+){
+  alert(
+    "لا يمكن اعتماد أو رفض مواد شؤون الطالبات"
+  );
+  return;
+}
   const cfg     = tabConfig[tab];
   const buttons = document.querySelectorAll("#spBody .sp-action-btn");
   buttons.forEach(b => b.disabled = true);
@@ -587,6 +675,7 @@ async function updateRequestStatus(tab, item, newStatus, rejectReason) {
 
     await updateDoc(doc(db, cfg.collectionName, item.id), updateData);
 
+    // تحديث الكاش المحلي فوراً
     item.status               = newStatus;
     item.assignedEmployee     = currentEmployee.uid;
     item.assignedEmployeeName = currentEmployee.fullName || "-";
@@ -594,9 +683,15 @@ async function updateRequestStatus(tab, item, newStatus, rejectReason) {
 
     employeesCache[currentEmployee.uid] = currentEmployee.fullName || "-";
 
-    updateBadges();
-    await renderTab();
-    openSidePanel(tab, item);
+    // للأعذار والزيارة: نحدث يدوياً لأنها ليست onSnapshot
+    if (tab !== "addDrop") {
+      const idx = tabData[tab].findIndex(it => it.id === item.id);
+      if (idx !== -1) tabData[tab][idx] = { ...tabData[tab][idx], ...item };
+      updateBadges();
+      await renderTab();
+      openSidePanel(tab, item);
+    }
+    // للحذف والإضافة: onSnapshot سيتكفل بالتحديث تلقائياً
   } catch(err) {
     console.error(err);
     alert("حدث خطأ: " + err.message);
@@ -696,22 +791,23 @@ function printActiveStudent() {
       return `<tr>
         <td>${reqTypeLabel[r.requestType] || r.requestType || "-"}</td>
         <td>${esc(r.courseName || "")} (${esc(r.courseCode || "")})</td>
-        <td>${(r.requestType === "edit" || r.requestType === "change") ? esc(r.requestedSection || "-") : "-"}</td>
+        <td>${r.requestedSection ? esc(r.requestedSection) : "-"}</td>
         <td>${esc(r.notes || "-")}</td>
-        <td>${statusLabel[r.status] || r.status}${rejectNote}</td>
+        <td>${statusLabel[getEffectiveStatus(r)] || getEffectiveStatus(r)}${rejectNote}</td>
         <td>${esc(en)}</td>
         <td>${formatDate(r.createdAt)}</td>
       </tr>`;
     }).join("");
   } else if (tab === "excuse") {
-    headerCols = "<th>رمز المقرر</th><th>تاريخ الغياب</th><th>سبب الغياب</th><th>الحالة</th><th>الموظف المعالج</th><th>التاريخ</th>";
+    headerCols = "<th>رمز المقرر</th><th>نوع الاختبار</th><th>تاريخ الاختبار</th><th>سبب الغياب</th><th>الحالة</th><th>الموظف المعالج</th><th>التاريخ</th>";
     rows = items.map(r => {
       const en = r.assignedEmployeeName || (r.assignedEmployee ? (employeesCache[r.assignedEmployee] || "-") : "-");
       return `<tr>
         <td>${esc(r.courseCode || "-")}</td>
-        <td>${esc(r.absenceDate || r.examDate || "-")}</td>
+        <td><strong>${examTypeLabel[r.examType] || esc(r.examType || "-")}</strong></td>
+        <td>${esc(r.examDate || r.absenceDate || "-")}</td>
         <td>${esc(r.reason || r.notes || "-")}</td>
-        <td>${statusLabel[r.status] || r.status}</td>
+        <td>${statusLabel[getEffectiveStatus(r)] || getEffectiveStatus(r)}</td>
         <td>${esc(en)}</td>
         <td>${formatDate(r.createdAt)}</td>
       </tr>`;
@@ -726,7 +822,7 @@ function printActiveStudent() {
         <td>${esc(r.visitPlace || "-")}</td>
         <td>${esc(r.reason || "-")}</td>
         <td>${(r.courses || []).map(c => `${esc(c.courseName || "-")} (${esc(c.courseCode || "-")}) - ${esc(c.section || "-")}`).join("<br>") || "-"}</td>
-        <td>${statusLabel[r.status] || r.status}</td>
+        <td>${statusLabel[getEffectiveStatus(r)] || getEffectiveStatus(r)}</td>
         <td>${esc(en)}</td>
         <td>${formatDate(r.createdAt)}</td>
       </tr>`;
@@ -771,6 +867,110 @@ function printActiveStudent() {
   win.print();
 }
 
+// ==================== رفع/عرض نموذج الزيارة (PDF) — متاح فقط لموظفات قسم "شؤون الطالبات" وعند فتح تبويب الزيارة ====================
+
+const VISIT_FORM_STORAGE_PATH = "visitForms/visit_form.pdf";
+const visitFormDocRef = () => doc(db, "settings", "visitForm");
+
+async function loadVisitFormInfo() {
+  const nameEl = document.getElementById("uploadedFileName");
+  if (!nameEl) return;
+
+  nameEl.innerHTML = `<span style="color:#888;font-size:0.85rem;">جاري التحقق من الملف...</span>`;
+
+  try {
+    const snap = await getDoc(visitFormDocRef());
+    if (snap.exists()) {
+      const data = snap.data();
+      nameEl.innerHTML = `
+        <span style="display:inline-flex;align-items:center;gap:6px;background:#eef3ff;color:#1a3a6b;border:1px solid #c7d6f5;border-radius:8px;padding:5px 10px;font-size:0.85rem;">
+          <i class="ti ti-file-type-pdf" style="color:#c0392b;"></i>
+          <span>${esc(data.fileName || "نموذج_الزيارة.pdf")}</span>
+          <button type="button" id="removeVisitFileBtn" title="حذف الملف" style="border:none;background:transparent;color:#c0392b;cursor:pointer;display:flex;align-items:center;padding:0;margin-right:2px;">
+            <i class="ti ti-trash"></i>
+          </button>
+        </span>
+      `;
+      const removeBtn = document.getElementById("removeVisitFileBtn");
+      if (removeBtn) removeBtn.addEventListener("click", removeVisitForm);
+    } else {
+      nameEl.innerHTML = `<span style="color:#888;font-size:0.85rem;">لا يوجد ملف مرفوع حالياً</span>`;
+    }
+  } catch (err) {
+    console.error("loadVisitFormInfo error:", err);
+    nameEl.innerHTML = `<span style="color:#c0392b;font-size:0.85rem;">تعذر تحميل بيانات الملف</span>`;
+  }
+}
+
+async function uploadVisitForm(file) {
+  // حماية إضافية على مستوى الواجهة: غير موظفات شؤون الطالبات لا يصل هذا الكود لهن أصلاً
+  // (الزر مخفي عنهن)، لكن نتحقق هنا أيضاً كطبقة احتياطية
+  if (!isAffairs) {
+    alert("هذه الميزة متاحة فقط لموظفات قسم شؤون الطالبات");
+    return;
+  }
+
+  const nameEl = document.getElementById("uploadedFileName");
+
+  if (file.type !== "application/pdf") {
+    alert("يجب أن يكون الملف بصيغة PDF فقط");
+    return;
+  }
+
+  const maxSizeMB = 10;
+  if (file.size > maxSizeMB * 1024 * 1024) {
+    alert(`حجم الملف يجب ألا يتجاوز ${maxSizeMB} ميجابايت`);
+    return;
+  }
+
+  if (nameEl) nameEl.innerHTML = `<span style="color:#1a3a6b;font-size:0.85rem;">جاري رفع الملف...</span>`;
+
+  try {
+    const storageRef = ref(storage, VISIT_FORM_STORAGE_PATH);
+    await uploadBytes(storageRef, file);
+    const fileUrl = await getDownloadURL(storageRef);
+
+    await setDoc(visitFormDocRef(), {
+      fileUrl,
+      fileName:   file.name,
+      uploadedAt: serverTimestamp(),
+      uploadedBy: currentEmployee?.fullName || "موظفة شؤون الطالبات"
+    });
+
+    await loadVisitFormInfo();
+  } catch (err) {
+    console.error("uploadVisitForm error:", err);
+    alert("حدث خطأ أثناء رفع الملف: " + err.message);
+    await loadVisitFormInfo();
+  }
+}
+
+async function removeVisitForm() {
+  if (!isAffairs) return;
+  if (!confirm("هل تريدين حذف نموذج الزيارة الحالي؟ الطالبات لن يتمكنّ من تحميله بعد الحذف.")) return;
+  try {
+    await deleteObject(ref(storage, VISIT_FORM_STORAGE_PATH)).catch(() => {});
+    await deleteDoc(visitFormDocRef());
+    await loadVisitFormInfo();
+  } catch (err) {
+    console.error("removeVisitForm error:", err);
+    alert("حدث خطأ أثناء حذف الملف: " + err.message);
+  }
+}
+
+const uploadVisitFileBtnEl = document.getElementById("uploadVisitFileBtn");
+const visitFileInputEl     = document.getElementById("visitFileInput");
+
+if (uploadVisitFileBtnEl && visitFileInputEl) {
+  uploadVisitFileBtnEl.addEventListener("click", () => visitFileInputEl.click());
+
+  visitFileInputEl.addEventListener("change", (e) => {
+    const file = e.target.files[0];
+    if (file) uploadVisitForm(file);
+    e.target.value = "";
+  });
+}
+
 // ==================== أحداث الواجهة ====================
 
 // تبديل التابات (السايدبار)
@@ -785,6 +985,18 @@ document.querySelectorAll(".emp-tab-btn").forEach(btn => {
     document.querySelectorAll(".admin-stat-card").forEach(c => c.classList.remove("active"));
     const allCard = document.getElementById("card-all");
     if (allCard) allCard.classList.add("active");
+
+    // إظهار منطقة رفع نموذج الزيارة فقط لموظفات شؤون الطالبات وفقط داخل تبويب "طلبات الزيارة"
+    const visitUploadAreaEl = document.getElementById("visitUploadArea");
+    if (visitUploadAreaEl) {
+      if (currentTab === "visit" && isAffairs) {
+        visitUploadAreaEl.style.display = "";
+        loadVisitFormInfo();
+      } else {
+        visitUploadAreaEl.style.display = "none";
+      }
+    }
+
     renderTab();
   });
 });
@@ -793,7 +1005,10 @@ document.querySelectorAll(".emp-tab-btn").forEach(btn => {
 document.querySelectorAll(".admin-stat-card").forEach(card => {
   card.addEventListener("click", () => {
     currentStatusFilter = card.dataset.filter;
-    document.querySelectorAll(".admin-stat-card").forEach(c => c.classList.remove("active"));
+    const sf = document.getElementById("statusFilter");
+    if (sf) sf.value = ["new","under_review","approved","rejected"].includes(currentStatusFilter)
+      ? currentStatusFilter : "all";
+    document.querySelectorAll(".admin-stat-card, .emp-stat-card").forEach(c => c.classList.remove("active"));
     card.classList.add("active");
     renderTab();
   });
@@ -863,7 +1078,12 @@ auth.authStateReady().then(() => {
 
       setDates();
       injectRejectModal();
-      await loadAllData();
+
+      // تحميل الأعذار والزيارات مرة واحدة
+      await loadExcuseAndVisit();
+
+      // الاشتراك في onSnapshot للحذف والإضافة
+      subscribeAddDrop();
 
     } catch(err) {
       console.error("Auth error:", err);

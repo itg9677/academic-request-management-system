@@ -99,11 +99,6 @@
           <div class="stat-num" id="cnt-new">0</div>
           <div class="stat-label">جديد</div>
         </div>
-        <div class="admin-stat-card emp-stat-card stat-pending" data-filter="pending" id="card-pending">
-          <div class="stat-icon"><i class="ti ti-clock"></i></div>
-          <div class="stat-num" id="cnt-pending">0</div>
-          <div class="stat-label">معلق</div>
-        </div>
         <div class="admin-stat-card emp-stat-card stat-review" data-filter="under_review" id="card-under_review">
           <div class="stat-icon"><i class="ti ti-loader-2"></i></div>
           <div class="stat-num" id="cnt-under_review">0</div>
@@ -158,7 +153,6 @@
           <select class="admin-filter-select" id="statusFilter" style="display:none">
             <option value="all">كل الحالات</option>
             <option value="new">جديد</option>
-            <option value="pending">معلق</option>
             <option value="under_review">قيد المراجعة</option>
             <option value="approved">مقبول</option>
             <option value="rejected">مرفوض</option>
@@ -179,8 +173,6 @@
                 <th>الرقم الجامعي</th>
                 <th>القسم</th>
                 <th>عدد الطلبات</th>
-                <th>حالة الطلب</th>
-                <th>الموظف المعالج</th>
                 <th>التفاصيل</th>
               </tr>
             </thead>
