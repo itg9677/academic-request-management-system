@@ -579,6 +579,7 @@ ${(sk === "approved" || sk === "rejected") ? `
 
 ` : canApproveReject ? `
 
+<div style="display:flex;flex-direction:row-reverse;gap:8px;flex-wrap:wrap;margin-top:12px;">
 <button class="sp-action-btn sp-approve"
         data-action="approved">
   <i class="ti ti-circle-check"></i>
@@ -597,15 +598,18 @@ ${(sk === "approved" || sk === "rejected") ? `
   <i class="ti ti-circle-x"></i>
   رفض
 </button>
+</div>
 
 ` : `
 
+<div style="display:flex;flex-direction:row-reverse;gap:8px;flex-wrap:wrap;margin-top:12px;">
 <button class="sp-action-btn sp-review"
         data-action="under_review"
         ${sk === "under_review" ? "disabled" : ""}>
   <i class="ti ti-loader-2"></i>
   قيد المراجعة
 </button>
+</div>
 
 <div style="
 margin-top:10px;
@@ -824,43 +828,79 @@ function printActiveStudent() {
       </tr>`;
     }).join("");
   }
-
   const styleBlock = `
-    body{font-family:Arial,sans-serif;padding:30px;direction:rtl;}
-    h2{color:#1a2d5a;border-bottom:3px solid #c9a84c;padding-bottom:8px;}
-    h3{color:#1a2d5a;margin-top:24px;}
-    .info-table{width:100%;border-collapse:collapse;margin-top:10px;font-size:14px;}
-    .info-table td{padding:7px 12px;border-bottom:1px solid #e0e0e0;}
-    .label-col{width:35%;color:#555;font-weight:bold;}
-    table.req-table{width:100%;border-collapse:collapse;margin-top:20px;font-size:13px;}
-    th{background:#1a2d5a;color:white;padding:9px 12px;text-align:right;}
-    td{padding:9px 12px;border-bottom:1px solid #e0e0e0;}
-    tr:last-child td{border-bottom:none;}
-    .footer{margin-top:30px;font-size:12px;color:#888;}
-  `;
+  body{font-family:Arial,sans-serif;padding:30px;direction:rtl;}
+  h2{color:#1a2d5a;border-bottom:3px solid #c9a84c;padding-bottom:8px;}
+  h3{color:#1a2d5a;margin-top:24px;}
+  .info-table{width:100%;border-collapse:collapse;margin-top:10px;font-size:14px;}
+  .info-table td{padding:7px 12px;border-bottom:1px solid #e0e0e0;}
+  .label-col{width:35%;color:#555;font-weight:bold;}
+  table.req-table{width:100%;border-collapse:collapse;margin-top:20px;font-size:13px;}
+  th{background:#1a2d5a;color:white;padding:9px 12px;text-align:right;}
+  td{padding:9px 12px;border-bottom:1px solid #e0e0e0;}
+  tr:last-child td{border-bottom:none;}
+  .footer{margin-top:30px;font-size:12px;color:#888;}
+`;
 
-  const win = window.open("", "_blank");
-  win.document.write(`
-    <html dir="rtl" lang="ar">
-    <head><meta charset="UTF-8"/><title>طباعة بيانات الطالب</title>
-    <style>${styleBlock}</style></head>
-    <body>
-      <h2>بيانات الطالب — نظام الخدمات الطلابية</h2>
-      <h3>معلومات الطالب</h3>
-      <table class="info-table"><tbody>${studentInfoRows}</tbody></table>
-      <h3>الطلبات المقدمة</h3>
-      <table class="req-table">
-        <thead><tr>${headerCols}</tr></thead>
-        <tbody>${rows}</tbody>
-      </table>
-      <div class="footer">
-        طُبع بواسطة: ${esc(currentEmployee.fullName || "-")} — ${esc(currentEmployee.department || "-")}
-        &nbsp;|&nbsp; ${new Date().toLocaleDateString("ar-SA")}
-      </div>
-    </body></html>
-  `);
-  win.document.close();
-  win.print();
+  const printContent = `
+<html dir="rtl" lang="ar">
+<head>
+  <meta charset="UTF-8"/>
+  <title>طباعة بيانات الطالب</title>
+  <style>${styleBlock}</style>
+</head>
+<body>
+
+  <h2>بيانات الطالب — نظام الخدمات الطلابية</h2>
+
+  <h3>معلومات الطالب</h3>
+  <table class="info-table">
+    <tbody>
+      ${studentInfoRows}
+    </tbody>
+  </table>
+
+  <h3>الطلبات المقدمة</h3>
+  <table class="req-table">
+    <thead>
+      <tr>${headerCols}</tr>
+    </thead>
+    <tbody>
+      ${rows}
+    </tbody>
+  </table>
+
+  <div class="footer">
+    طُبع بواسطة:
+    ${esc(currentEmployee.fullName || "-")}
+    —
+    ${esc(currentEmployee.department || "-")}
+    &nbsp;|&nbsp;
+    ${new Date().toLocaleDateString("ar-SA")}
+  </div>
+
+</body>
+</html>
+`;
+
+  let iframe = document.getElementById("printIframe");
+  if (!iframe) {
+    iframe = document.createElement("iframe");
+    iframe.id = "printIframe";
+    iframe.style.cssText = "position:fixed;top:-9999px;left:-9999px;width:1px;height:1px;border:none;";
+    document.body.appendChild(iframe);
+  }
+
+  iframe.onload = () => {
+    try {
+      iframe.contentWindow.focus();
+      iframe.contentWindow.print();
+    } catch(e) {
+      console.error("Print error:", e);
+    }
+  };
+
+  iframe.srcdoc = printContent;
 }
 
 // ==================== أحداث الواجهة ====================
