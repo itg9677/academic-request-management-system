@@ -1,13 +1,10 @@
-import { auth, db, storage } from "./firebase.js";
+import { auth, db } from "./firebase.js";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import {
-  doc, getDoc, setDoc, deleteDoc, collection, query, where, getDocs,
+  doc, getDoc, collection, query, where, getDocs,
   updateDoc, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-import {
-  ref, uploadBytes, getDownloadURL, deleteObject
-} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
 
 let currentEmployee = null;
 let isAffairs = false;
@@ -112,7 +109,6 @@ const statusLabel = {
 const reqTypeLabel   = { add: "اضافة", drop: "حذف", edit: "تعديل شعبة", remove: "حذف", change: "تعديل شعبة" };
 const reqTypeClass   = { add: "b-add", drop: "b-drop", edit: "b-edit", remove: "b-drop", change: "b-edit" };
 const visitTypeLabel = { internal: "داخلية", external: "خارجية" };
-const examTypeLabel  = { midterm1: "اختبار فصلي أول", midterm2: "اختبار فصلي ثاني", final: "اختبار نهائي" };
 const levelLabel     = {
   "1": "المستوى الأول", "2": "المستوى الثاني", "3": "المستوى الثالث",
   "4": "المستوى الرابع", "5": "المستوى الخامس", "6": "المستوى السادس",
@@ -126,11 +122,11 @@ const tabConfig = {
 };
 
 const REJECT_REASONS = [
-  { value: "section_closed", label: "الشعبة مغلقة"         },
-  { value: "system_closed",  label: "تم اقفال النظام"      },
-  { value: "no_contact",     label: "عدم تواصل الطالبة"    },
-  { value: "conflict",       label: "وجود تعارض"            },
-  { value: "other",          label: "أخرى"                  }
+  { value: "section_closed", label: "الشعبة مغلقة"      },
+  { value: "system_closed",  label: "تم اقفال النظام"   },
+  { value: "no_contact",     label: "عدم تواصل الطالبة" },
+  { value: "conflict",       label: "وجود تعارض"         },
+  { value: "other",          label: "أخرى"               }
 ];
 
 // ==================== حالة "جديد" ====================
@@ -138,7 +134,6 @@ const REJECT_REASONS = [
 // حالة "جديد" = طلب pending ما عنده موظف معالج
 // حالة "قيد المراجعة" = طلب pending وله موظف معالج (دمج معلق مع قيد المراجعة)
 function getEffectiveStatus(item) {
-  if (item.status === "new") return "new";
   if (item.status === "pending" || !item.status) {
     return item.assignedEmployee ? "under_review" : "new";
   }
@@ -198,8 +193,10 @@ async function getEmployeeName(uid) {
 async function loadExcuseAndVisit() {
   try {
     const excQuery = isAffairs
-      ? query(collection(db, "excuses"), where("assignedEmployees", "array-contains", currentEmployee.uid))
-      : query(collection(db, "excuses"), where("assignedEmployees", "array-contains", currentEmployee.uid));
+      ? query(collection(db, "excuses"))
+      : query(collection(db, "excuses"),
+              where("assignedDepartment", "==", currentEmployee.department));
+
 
     const [excSnap, visSnap] = await Promise.all([
       getDocs(excQuery),
@@ -224,10 +221,7 @@ function subscribeAddDrop() {
 
   const types = ["add", "drop", "edit", "remove", "change"];
 const q = isAffairs
-  ? query(
-      collection(db, "requests"),
-      where("assignedDepartment", "==", "شؤون الطالبات")
-    )
+  ? query(collection(db, "requests"))
   : query(
       collection(db, "requests"),
       where("requestType", "in", types),
@@ -235,6 +229,9 @@ const q = isAffairs
     );
 
   unsubscribeAddDrop = onSnapshot(q, async (snap) => {
+    // موظفة شؤون الطالبات تشوف كل طلبات كل الطالبات من كل الأقسام
+    // (تماماً مثل موظفة القسم اللي تشوف كل طلبات طالبتها، تخصص ومشترك)
+    // وصلاحية القبول/الرفض تتحدد لاحقاً حسب نوع المادة
     tabData.addDrop = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     updateBadges();
     if (currentTab === "addDrop") {
@@ -269,11 +266,10 @@ function updateStatCards() {
   });
 }
 
-// ==================== عرض الجدول الرئيسي ====================
+// ==================== عرض الجدول ====================
 
 async function renderTab() {
   const cfg   = tabConfig[currentTab];
-  const items = tabData[currentTab];
 
   const loadingEl   = document.getElementById("loadingState");
   const tableWrapEl = document.getElementById("tableWrap");
@@ -366,7 +362,6 @@ async function renderTab() {
 }
 
 function buildRow(tab, studentUid, requests) {
-  const cfg     = tabConfig[tab];
   const student = studentsCache[studentUid] || {};
   const tr      = document.createElement("tr");
   tr.dataset.tab = tab;
@@ -451,8 +446,7 @@ function buildDetailRows(tab, item) {
       : "لا يوجد";
     return `
       <tr><td class="sp-detail-label">رمز المقرر</td><td>${esc(item.courseCode || "-")}</td></tr>
-      <tr><td class="sp-detail-label">نوع الاختبار</td><td><strong>${examTypeLabel[item.examType] || esc(item.examType || "-")}</strong></td></tr>
-      <tr><td class="sp-detail-label">تاريخ الاختبار</td><td>${esc(item.examDate || item.absenceDate || "-")}</td></tr>
+      <tr><td class="sp-detail-label">تاريخ الغياب</td><td>${esc(item.absenceDate || item.examDate || "-")}</td></tr>
       <tr><td class="sp-detail-label">سبب الغياب</td><td>${esc(item.reason || item.notes || "-")}</td></tr>
       <tr><td class="sp-detail-label">المرفق</td><td>${attach}</td></tr>
       <tr><td class="sp-detail-label">تاريخ الطلب</td><td>${formatDate(item.createdAt)}</td></tr>
@@ -462,7 +456,6 @@ function buildDetailRows(tab, item) {
     `;
   }
 
-  // visit
   const courses = (item.courses || [])
     .map(c => `${esc(c.courseName || "-")} (${esc(c.courseCode || "-")}) — الشعبة: ${esc(c.section || "-")}`)
     .join("<br>") || "-";
@@ -500,7 +493,7 @@ function buildOtherRequestsTable(tab, item) {
     if (tab === "addDrop")
       label = `${reqTypeLabel[o.requestType] || o.requestType || "-"} — ${esc(o.courseName || o.courseCode || "")}`;
     else if (tab === "excuse")
-      label = `${esc(o.courseCode || "-")} — ${examTypeLabel[o.examType] || esc(o.examType || "-")}`;
+      label = esc(o.courseCode || "-");
     else
       label = visitTypeLabel[o.visitType] || o.visitType || "-";
 
@@ -510,7 +503,7 @@ function buildOtherRequestsTable(tab, item) {
         <td>${label}</td>
         <td><span class="status-badge s-${sk}">${statusLabel[sk] || sk}</span></td>
         <td>${formatDate(o.createdAt)}</td>
-        <td style="color:#1a3a6b;font-size:0.85rem;">عرض ←</td>
+        <td style="color:var(--navy);font-size:0.85rem;">عرض ←</td>
       </tr>
     `;
   }).join("");
@@ -541,12 +534,15 @@ function openSidePanel(tab, item) {
   const cfg     = tabConfig[tab];
   const student = studentsCache[item[cfg.studentField]] || {};
   const sk      = getEffectiveStatus(item);
-  const isSharedCourse =
-  item.assignedDepartment?.trim() ===
-  "شؤون الطالبات";
+  const isSharedCourse = item.assignedDepartment?.trim() === "شؤون الطالبات";
+  const hasDeptField   = typeof item.assignedDepartment === "string";
 
-const canApproveReject =
-  !isSharedCourse;
+  // لو الطلب ما فيه معلومة قسم (أعذار/زيارات) تبقى الصلاحية كاملة كالسابق.
+  // ولو فيه (طلبات حذف/إضافة): موظفة الشؤون تتصرف بالمواد المشتركة فقط،
+  // وموظفة القسم تتصرف بمواد قسمها فقط (غير المشتركة).
+  const canApproveReject = hasDeptField
+    ? (isAffairs ? isSharedCourse : !isSharedCourse)
+    : true;
 
   document.getElementById("spTitle").textContent = student.fullName || "تفاصيل الطالب";
   document.getElementById("spSub").textContent   = cfg.title;
@@ -615,7 +611,7 @@ ${(sk === "approved" || sk === "rejected") ? `
 margin-top:10px;
 font-size:.85rem;
 color:#888;">
-هذه المادة تابعة لشؤون الطالبات
+${isAffairs ? "هذه المادة تابعة لقسم آخر، وليست من مواد شؤون الطالبات" : "هذه المادة تابعة لشؤون الطالبات"}
 </div>
 
 `}
@@ -640,32 +636,27 @@ color:#888;">
 
   document.getElementById("sidePanel").classList.add("open");
   document.getElementById("spOverlay").classList.add("show");
-  const mainEl = document.querySelector(".admin-main") || document.querySelector(".emp-main");
-  if (mainEl) mainEl.classList.add("panel-open");
 }
 
 function closeSidePanel() {
   document.getElementById("sidePanel").classList.remove("open");
   document.getElementById("spOverlay").classList.remove("show");
-  const mainEl = document.querySelector(".admin-main") || document.querySelector(".emp-main");
-  if (mainEl) mainEl.classList.remove("panel-open");
   activeRequest = null;
 }
 
 async function updateRequestStatus(tab, item, newStatus, rejectReason) {
-  const isSharedCourse =
-  item.assignedDepartment?.trim() ===
-  "شؤون الطالبات";
+  const isSharedCourse = item.assignedDepartment?.trim() === "شؤون الطالبات";
+  const hasDeptField   = typeof item.assignedDepartment === "string";
+  const canApproveReject = hasDeptField
+    ? (isAffairs ? isSharedCourse : !isSharedCourse)
+    : true;
 
-if (
-  isSharedCourse &&
-  newStatus !== "under_review"
-){
-  alert(
-    "لا يمكن اعتماد أو رفض مواد شؤون الطالبات"
-  );
-  return;
-}
+  if (!canApproveReject && newStatus !== "under_review") {
+    alert(isAffairs
+      ? "ليس لديك صلاحية اعتماد أو رفض مواد الأقسام الأخرى"
+      : "لا يمكن اعتماد أو رفض مواد شؤون الطالبات");
+    return;
+  }
   const cfg     = tabConfig[tab];
   const buttons = document.querySelectorAll("#spBody .sp-action-btn");
   buttons.forEach(b => b.disabled = true);
@@ -705,7 +696,7 @@ if (
   }
 }
 
-// ==================== مودال سبب الرفض ====================
+// ==================== مودال الرفض ====================
 
 function injectRejectModal() {
   if (document.getElementById("rejectModal")) return;
@@ -714,11 +705,11 @@ function injectRejectModal() {
   modal.style.cssText = "display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;align-items:center;justify-content:center;";
   modal.innerHTML = `
     <div style="background:#fff;border-radius:14px;padding:28px 24px;min-width:320px;max-width:420px;width:90%;direction:rtl;box-shadow:0 8px 32px rgba(0,0,0,.18);">
-      <div style="font-size:1.1rem;font-weight:700;color:#1a3a6b;margin-bottom:18px;">سبب الرفض</div>
+      <div style="font-size:1.1rem;font-weight:700;color:#1a2d5a;margin-bottom:18px;">سبب الرفض</div>
       <div id="rejectReasonList" style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px;">
         ${REJECT_REASONS.map(r => `
           <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:0.95rem;">
-            <input type="radio" name="rejectReason" value="${r.value}" style="accent-color:#c8972b;width:16px;height:16px;">
+            <input type="radio" name="rejectReason" value="${r.value}" style="accent-color:#c9a84c;width:16px;height:16px;">
             ${r.label}
           </label>`).join("")}
       </div>
@@ -727,8 +718,8 @@ function injectRejectModal() {
           style="width:100%;border:1px solid #ddd;border-radius:8px;padding:8px 10px;font-family:inherit;font-size:0.9rem;resize:vertical;box-sizing:border-box;"></textarea>
       </div>
       <div style="display:flex;gap:10px;justify-content:flex-end;">
-        <button id="rejectCancelBtn" style="padding:8px 20px;border:1px solid #ddd;border-radius:8px;background:#f5f5f5;cursor:pointer;font-family:inherit;">إلغاء</button>
-        <button id="rejectConfirmBtn" style="padding:8px 20px;border:none;border-radius:8px;background:#c0392b;color:#fff;cursor:pointer;font-weight:700;font-family:inherit;">تأكيد الرفض</button>
+        <button id="rejectCancelBtn"  style="padding:8px 20px;border:1px solid #ddd;border-radius:8px;background:#f5f5f5;cursor:pointer;font-family:inherit;">إلغاء</button>
+        <button id="rejectConfirmBtn" style="padding:8px 20px;border:none;border-radius:8px;background:#dc2626;color:#fff;cursor:pointer;font-weight:700;font-family:inherit;">تأكيد الرفض</button>
       </div>
     </div>
   `;
@@ -789,11 +780,11 @@ function printActiveStudent() {
   let rows       = "";
 
   if (tab === "addDrop") {
-    headerCols = "<th>نوع الطلب</th><th>المقرر</th><th>الشعبة المطلوبة</th><th>ملاحظات الطالب</th><th>الحالة</th><th>الموظف المعالج</th><th>التاريخ</th>";
+    headerCols = "<th>نوع الطلب</th><th>المقرر</th><th>الشعبة المطلوبة</th><th>ملاحظات</th><th>الحالة</th><th>الموظف المعالج</th><th>التاريخ</th>";
     rows = items.map(r => {
       const en = r.assignedEmployeeName || (r.assignedEmployee ? (employeesCache[r.assignedEmployee] || "-") : "-");
       const rejectNote = (r.status === "rejected" && r.rejectReason)
-        ? `<br><small style="color:#c0392b;">«${r.rejectReason}»</small>` : "";
+        ? `<br><small style="color:#dc2626;">«${r.rejectReason}»</small>` : "";
       return `<tr>
         <td>${reqTypeLabel[r.requestType] || r.requestType || "-"}</td>
         <td>${esc(r.courseName || "")} (${esc(r.courseCode || "")})</td>
@@ -805,13 +796,12 @@ function printActiveStudent() {
       </tr>`;
     }).join("");
   } else if (tab === "excuse") {
-    headerCols = "<th>رمز المقرر</th><th>نوع الاختبار</th><th>تاريخ الاختبار</th><th>سبب الغياب</th><th>الحالة</th><th>الموظف المعالج</th><th>التاريخ</th>";
+    headerCols = "<th>رمز المقرر</th><th>تاريخ الغياب</th><th>سبب الغياب</th><th>الحالة</th><th>الموظف المعالج</th><th>التاريخ</th>";
     rows = items.map(r => {
       const en = r.assignedEmployeeName || (r.assignedEmployee ? (employeesCache[r.assignedEmployee] || "-") : "-");
       return `<tr>
         <td>${esc(r.courseCode || "-")}</td>
-        <td><strong>${examTypeLabel[r.examType] || esc(r.examType || "-")}</strong></td>
-        <td>${esc(r.examDate || r.absenceDate || "-")}</td>
+        <td>${esc(r.absenceDate || r.examDate || "-")}</td>
         <td>${esc(r.reason || r.notes || "-")}</td>
         <td>${statusLabel[getEffectiveStatus(r)] || getEffectiveStatus(r)}</td>
         <td>${esc(en)}</td>
@@ -819,7 +809,7 @@ function printActiveStudent() {
       </tr>`;
     }).join("");
   } else {
-    headerCols = "<th>نوع الزيارة</th><th>المستوى</th><th>المقر</th><th>سبب الزيارة</th><th>المقررات</th><th>الحالة</th><th>الموظف المعالج</th><th>التاريخ</th>";
+    headerCols = "<th>نوع الزيارة</th><th>المستوى</th><th>المقر</th><th>السبب</th><th>المقررات</th><th>الحالة</th><th>الموظف</th><th>التاريخ</th>";
     rows = items.map(r => {
       const en = r.assignedEmployeeName || (r.assignedEmployee ? (employeesCache[r.assignedEmployee] || "-") : "-");
       return `<tr>
@@ -837,13 +827,13 @@ function printActiveStudent() {
 
   const styleBlock = `
     body{font-family:Arial,sans-serif;padding:30px;direction:rtl;}
-    h2{color:#1a3a6b;border-bottom:3px solid #c8972b;padding-bottom:8px;}
-    h3{color:#1a3a6b;margin-top:24px;}
+    h2{color:#1a2d5a;border-bottom:3px solid #c9a84c;padding-bottom:8px;}
+    h3{color:#1a2d5a;margin-top:24px;}
     .info-table{width:100%;border-collapse:collapse;margin-top:10px;font-size:14px;}
     .info-table td{padding:7px 12px;border-bottom:1px solid #e0e0e0;}
     .label-col{width:35%;color:#555;font-weight:bold;}
     table.req-table{width:100%;border-collapse:collapse;margin-top:20px;font-size:13px;}
-    th{background:#1a3a6b;color:white;padding:9px 12px;text-align:right;}
+    th{background:#1a2d5a;color:white;padding:9px 12px;text-align:right;}
     td{padding:9px 12px;border-bottom:1px solid #e0e0e0;}
     tr:last-child td{border-bottom:none;}
     .footer{margin-top:30px;font-size:12px;color:#888;}
@@ -873,142 +863,26 @@ function printActiveStudent() {
   win.print();
 }
 
-// ==================== رفع/عرض نموذج الزيارة (PDF) — متاح فقط لموظفات قسم "شؤون الطالبات" وعند فتح تبويب الزيارة ====================
-
-const VISIT_FORM_STORAGE_PATH = "visitForms/visit_form.pdf";
-const visitFormDocRef = () => doc(db, "settings", "visitForm");
-
-async function loadVisitFormInfo() {
-  const nameEl = document.getElementById("uploadedFileName");
-  if (!nameEl) return;
-
-  nameEl.innerHTML = `<span style="color:#888;font-size:0.85rem;">جاري التحقق من الملف...</span>`;
-
-  try {
-    const snap = await getDoc(visitFormDocRef());
-    if (snap.exists()) {
-      const data = snap.data();
-      nameEl.innerHTML = `
-        <span style="display:inline-flex;align-items:center;gap:6px;background:#eef3ff;color:#1a3a6b;border:1px solid #c7d6f5;border-radius:8px;padding:5px 10px;font-size:0.85rem;">
-          <i class="ti ti-file-type-pdf" style="color:#c0392b;"></i>
-          <span>${esc(data.fileName || "نموذج_الزيارة.pdf")}</span>
-          <button type="button" id="removeVisitFileBtn" title="حذف الملف" style="border:none;background:transparent;color:#c0392b;cursor:pointer;display:flex;align-items:center;padding:0;margin-right:2px;">
-            <i class="ti ti-trash"></i>
-          </button>
-        </span>
-      `;
-      const removeBtn = document.getElementById("removeVisitFileBtn");
-      if (removeBtn) removeBtn.addEventListener("click", removeVisitForm);
-    } else {
-      nameEl.innerHTML = `<span style="color:#888;font-size:0.85rem;">لا يوجد ملف مرفوع حالياً</span>`;
-    }
-  } catch (err) {
-    console.error("loadVisitFormInfo error:", err);
-    nameEl.innerHTML = `<span style="color:#c0392b;font-size:0.85rem;">تعذر تحميل بيانات الملف</span>`;
-  }
-}
-
-async function uploadVisitForm(file) {
-  // حماية إضافية على مستوى الواجهة: غير موظفات شؤون الطالبات لا يصل هذا الكود لهن أصلاً
-  // (الزر مخفي عنهن)، لكن نتحقق هنا أيضاً كطبقة احتياطية
-  if (!isAffairs) {
-    alert("هذه الميزة متاحة فقط لموظفات قسم شؤون الطالبات");
-    return;
-  }
-
-  const nameEl = document.getElementById("uploadedFileName");
-
-  if (file.type !== "application/pdf") {
-    alert("يجب أن يكون الملف بصيغة PDF فقط");
-    return;
-  }
-
-  const maxSizeMB = 10;
-  if (file.size > maxSizeMB * 1024 * 1024) {
-    alert(`حجم الملف يجب ألا يتجاوز ${maxSizeMB} ميجابايت`);
-    return;
-  }
-
-  if (nameEl) nameEl.innerHTML = `<span style="color:#1a3a6b;font-size:0.85rem;">جاري رفع الملف...</span>`;
-
-  try {
-    const storageRef = ref(storage, VISIT_FORM_STORAGE_PATH);
-    await uploadBytes(storageRef, file);
-    const fileUrl = await getDownloadURL(storageRef);
-
-    await setDoc(visitFormDocRef(), {
-      fileUrl,
-      fileName:   file.name,
-      uploadedAt: serverTimestamp(),
-      uploadedBy: currentEmployee?.fullName || "موظفة شؤون الطالبات"
-    });
-
-    await loadVisitFormInfo();
-  } catch (err) {
-    console.error("uploadVisitForm error:", err);
-    alert("حدث خطأ أثناء رفع الملف: " + err.message);
-    await loadVisitFormInfo();
-  }
-}
-
-async function removeVisitForm() {
-  if (!isAffairs) return;
-  if (!confirm("هل تريدين حذف نموذج الزيارة الحالي؟ الطالبات لن يتمكنّ من تحميله بعد الحذف.")) return;
-  try {
-    await deleteObject(ref(storage, VISIT_FORM_STORAGE_PATH)).catch(() => {});
-    await deleteDoc(visitFormDocRef());
-    await loadVisitFormInfo();
-  } catch (err) {
-    console.error("removeVisitForm error:", err);
-    alert("حدث خطأ أثناء حذف الملف: " + err.message);
-  }
-}
-
-const uploadVisitFileBtnEl = document.getElementById("uploadVisitFileBtn");
-const visitFileInputEl     = document.getElementById("visitFileInput");
-
-if (uploadVisitFileBtnEl && visitFileInputEl) {
-  uploadVisitFileBtnEl.addEventListener("click", () => visitFileInputEl.click());
-
-  visitFileInputEl.addEventListener("change", (e) => {
-    const file = e.target.files[0];
-    if (file) uploadVisitForm(file);
-    e.target.value = "";
-  });
-}
-
 // ==================== أحداث الواجهة ====================
 
-document.querySelectorAll(".admin-tab, .emp-tab-btn").forEach(btn => {
+// تبديل التابات (السايدبار)
+document.querySelectorAll(".emp-tab-btn").forEach(btn => {
   btn.addEventListener("click", () => {
     currentTab = btn.dataset.tab;
-    document.querySelectorAll(".admin-tab, .emp-tab-btn").forEach(t => t.classList.remove("active"));
+    document.querySelectorAll(".emp-tab-btn").forEach(t => t.classList.remove("active"));
     btn.classList.add("active");
     currentStatusFilter = "all";
-    const sf = document.getElementById("statusFilter");
-    if (sf) sf.value = "all";
     const pageTitleEl = document.getElementById("pageTitle");
     if (pageTitleEl) pageTitleEl.textContent = tabConfig[currentTab].title;
-    document.querySelectorAll(".admin-stat-card, .emp-stat-card").forEach(c => c.classList.remove("active"));
+    document.querySelectorAll(".admin-stat-card").forEach(c => c.classList.remove("active"));
     const allCard = document.getElementById("card-all");
     if (allCard) allCard.classList.add("active");
-
-    // إظهار منطقة رفع نموذج الزيارة فقط لموظفات شؤون الطالبات وفقط داخل تبويب "طلبات الزيارة"
-    const visitUploadAreaEl = document.getElementById("visitUploadArea");
-    if (visitUploadAreaEl) {
-      if (currentTab === "visit" && isAffairs) {
-        visitUploadAreaEl.style.display = "";
-        loadVisitFormInfo();
-      } else {
-        visitUploadAreaEl.style.display = "none";
-      }
-    }
-
     renderTab();
   });
 });
 
-document.querySelectorAll(".admin-stat-card, .emp-stat-card").forEach(card => {
+// فلترة بالبطاقات
+document.querySelectorAll(".admin-stat-card").forEach(card => {
   card.addEventListener("click", () => {
     currentStatusFilter = card.dataset.filter;
     const sf = document.getElementById("statusFilter");
@@ -1020,17 +894,7 @@ document.querySelectorAll(".admin-stat-card, .emp-stat-card").forEach(card => {
   });
 });
 
-const statusFilterEl = document.getElementById("statusFilter");
-if (statusFilterEl) {
-  statusFilterEl.addEventListener("change", e => {
-    currentStatusFilter = e.target.value;
-    document.querySelectorAll(".admin-stat-card, .emp-stat-card").forEach(c => c.classList.remove("active"));
-    const matchCard = document.getElementById("card-" + currentStatusFilter);
-    if (matchCard) matchCard.classList.add("active");
-    renderTab();
-  });
-}
-
+// البحث
 const searchInputEl = document.getElementById("searchInput");
 if (searchInputEl) {
   let searchDebounce = null;
@@ -1041,10 +905,12 @@ if (searchInputEl) {
   });
 }
 
+// إغلاق اللوحة الجانبية
 document.getElementById("spCloseBtn")?.addEventListener("click", closeSidePanel);
 document.getElementById("spOverlay")?.addEventListener("click", closeSidePanel);
 document.getElementById("spPrintBtn")?.addEventListener("click", printActiveStudent);
 
+// تسجيل الخروج
 document.getElementById("logoutBtn")?.addEventListener("click", async () => {
   await signOut(auth);
   window.location.href = "EmployeeLogin.html";
@@ -1064,17 +930,43 @@ auth.authStateReady().then(() => {
       if (empData.role !== "employee") { window.location.replace("EmployeeLogin.html"); return; }
 
       currentEmployee = { uid: user.uid, ...empData };
-      isAffairs       = empData.department === "شؤون الطالبات";
+      isAffairs       = (empData.department || "").trim() === "شؤون الطالبات";
+      isAffairs = (empData.department || "").trim() === "شؤون الطالبات";
+
+// إخفاء تبويب الزيارة لغير موظفات شؤون الطالبات
+const visitTabBtn = document.querySelector('.emp-tab-btn[data-tab="visit"]');
+
+if (!isAffairs && visitTabBtn) {
+  visitTabBtn.style.display = "none";
+
+  // منع البقاء على تبويب الزيارة إذا كان مخفياً
+  if (currentTab === "visit") {
+    currentTab = "addDrop";
+  }
+}
 
       employeesCache[user.uid] = empData.fullName || "-";
 
-      const empNameEl  = document.getElementById("empName");
-      const empDeptEl  = document.getElementById("empDept");
-      const empEmailEl = document.getElementById("empEmail");
+      // تحديث الواجهة
+      const empName    = empData.fullName   || "-";
+      const empDept    = empData.department || "-";
+      const empEmail   = empData.email || user.email || "-";
+
+      // السايدبار
+      const elName  = document.getElementById("empName");
+      const elDept  = document.getElementById("empDept");
+      const elEmail = document.getElementById("empEmail");
+      if (elName)  elName.textContent  = empName;
+      if (elDept)  elDept.textContent  = empDept;
+      if (elEmail) elEmail.textContent = empEmail;
+
+      // قسم الترحيب
+      const elWelcomeName = document.getElementById("empNameWelcome");
+      const elWelcomeDept = document.getElementById("empDeptWelcome");
+      if (elWelcomeName) elWelcomeName.textContent = empName;
+      if (elWelcomeDept) elWelcomeDept.textContent = `كلية العلوم - ${empDept}`;
+
       const pageTitleEl = document.getElementById("pageTitle");
-      if (empNameEl)  empNameEl.textContent  = empData.fullName   || "-";
-      if (empDeptEl)  empDeptEl.textContent  = empData.department || "-";
-      if (empEmailEl) empEmailEl.textContent = empData.email || user.email || "-";
       if (pageTitleEl) pageTitleEl.textContent = tabConfig[currentTab].title;
 
       setDates();

@@ -893,6 +893,9 @@ auth.authStateReady().then(() => {
       const adminNameEl = document.getElementById("adminName");
       if (adminNameEl) adminNameEl.textContent = data.fullName || "الأدمن";
 
+      const adminNameWelcomeEl = document.getElementById("adminNameWelcome");
+      if (adminNameWelcomeEl) adminNameWelcomeEl.textContent = data.fullName || "الأدمن";
+
       const adminEmailEl = document.getElementById("adminEmail");
       if (adminEmailEl) adminEmailEl.textContent = data.email || user.email || "-";
 

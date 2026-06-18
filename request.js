@@ -32,7 +32,7 @@ async function loadCourses(user) {
         .map(d => d.data())
         .filter(c =>
             c.department === student.major ||
-            c.department === "شؤون الطالبات "
+            c.department?.trim() === "شؤون الطالبات"
         );
 }
 
