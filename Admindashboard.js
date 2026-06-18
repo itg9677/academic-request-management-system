@@ -77,7 +77,7 @@ const visitTypeLabel = { internal: "داخلية", external: "خارجية" };
 
 const tabConfig = {
   addDrop: { collectionName: "requests",     studentField: "studentUid", title: "طلبات الحذف والإضافة" },
-  excuse:  { collectionName: "excuses",      studentField: "studentUid", title: "طلبات رفع الأعذار" },
+  excuse:  { collectionName: "excuses",      studentField: "uid", title: "طلبات رفع الأعذار" },
   visit:   { collectionName: "visitRequests", studentField: "uid",       title: "طلبات الزيارة" }
 };
 
@@ -296,7 +296,7 @@ function buildDetailRows(tab, item) {
     return `
       <tr><td class="sp-detail-label">رمز المقرر</td><td>${esc(item.courseCode || "-")}</td></tr>
       <tr><td class="sp-detail-label">تاريخ الاختبار</td><td>${esc(item.examDate || "-")}</td></tr>
-      <tr><td class="sp-detail-label">الملاحظات</td><td>${esc(item.notes || "-")}</td></tr>
+      <tr><td class="sp-detail-label">الملاحظات</td><td>${esc(item.reason || "-")}</td></tr>
       <tr><td class="sp-detail-label">المرفق</td><td>${attach}</td></tr>
       <tr><td class="sp-detail-label">تاريخ الطلب</td><td>${formatDate(item.createdAt)}</td></tr>
       <tr><td class="sp-detail-label">الحالة</td><td>${statusHtml}</td></tr>
@@ -464,7 +464,7 @@ function printActiveStudent() {
       <tr>
         <td>${esc(r.courseCode || "-")}</td>
         <td>${esc(r.examDate || "-")}</td>
-        <td>${esc(r.notes || "-")}</td>
+        <td>${esc(r.reason || "-")}</td>
         <td>${statusLabel[r.status] || r.status}</td>
         <td>${formatDate(r.createdAt)}</td>
       </tr>
