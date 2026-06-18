@@ -103,6 +103,8 @@ onAuthStateChanged(auth, async (user) => {
         return;
     }
 
+    loadVisitFormDownload();
+
     const studentSnap = await getDoc(doc(db, "students", user.uid));
 
     if (studentSnap.exists()) {
