@@ -8,6 +8,8 @@ import {
   ref, uploadBytes, getDownloadURL, deleteObject
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
 
+console.log("FILE LOADED");
+
 // ==================== State ====================
 
 let currentAdminData = null;
@@ -181,6 +183,7 @@ async function loadAllData() {
   tableWrapEl.style.display = "none";
 
   try {
+ 
     const reqQuery = query(
       collection(db, "requests"),
       where("requestType", "in", ["add", "drop", "edit"])
@@ -852,8 +855,10 @@ document.getElementById("logoutBtn").addEventListener("click", async () => {
 
 // authStateReady() تنتظر حتى يتحقق Firebase من الجلسة المحفوظة
 // قبل ما نشغّل onAuthStateChanged — هذا يمنع التوجيه الخاطئ للـ login
+console.log("BEFORE AUTH");
 auth.authStateReady().then(() => {
   onAuthStateChanged(auth, async (user) => {
+    console.log("AUTH USER:", user?.email);
     try {
       if (!user) {
         window.location.replace("EmployeeLogin.html");
