@@ -78,6 +78,40 @@ window.addEventListener("load", () => {
 });
 
 /* ==========================
+   عرض رابط تحميل نموذج الزيارة (يرفعه الأدمن من لوحة التحكم)
+========================== */
+
+async function loadVisitFormDownload() {
+    const container = document.getElementById("visitFormDownload");
+    if (!container) return;
+
+    try {
+        const snap = await getDoc(doc(db, "settings", "visitForm"));
+
+        if (snap.exists()) {
+            const data = snap.data();
+
+            container.innerHTML = `
+                <a href="${data.fileUrl}"
+                   target="_blank"
+                   rel="noopener"
+                   class="download-form-link"
+                   download="${data.fileName || "نموذج_الزيارة.pdf"}">
+                    <span class="download-icon">⬇</span> تحميل نموذج الزيارة
+                </a>
+            `;
+        } else {
+            container.innerHTML =
+                `<span class="no-form-msg">لم يتم رفع نموذج الزيارة بعد</span>`;
+        }
+    } catch (error) {
+        console.error("loadVisitFormDownload error:", error);
+        container.innerHTML =
+            `<span class="no-form-msg">تعذر تحميل النموذج، حاولي لاحقاً</span>`;
+    }
+}
+
+/* ==========================
    بيانات الطالبة
 ========================== */
 
@@ -87,6 +121,8 @@ onAuthStateChanged(auth, async (user) => {
         window.location.href = "loginPage.html";
         return;
     }
+
+    loadVisitFormDownload();
 
     const studentSnap = await getDoc(
         doc(db, "students", user.uid)

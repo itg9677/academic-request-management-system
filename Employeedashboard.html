@@ -103,6 +103,15 @@
       <!-- Main Table Card -->
       <div class="admin-table-card">
 
+        <!-- زر رفع نموذج الزيارة — يظهر فقط لموظفات قسم شؤون الطالبات وعند فتح تبويب الزيارة -->
+        <div class="visit-upload-area" id="visitUploadArea" style="display:none; padding:14px 20px; border-bottom:1px solid #f1f5f9;">
+          <button class="upload-pdf-btn" id="uploadVisitFileBtn">
+            <i class="ti ti-upload"></i> رفع نموذج الزيارة (PDF)
+          </button>
+          <span class="uploaded-file-name" id="uploadedFileName"></span>
+          <input type="file" id="visitFileInput" accept="application/pdf" style="display:none" />
+        </div>
+
         <!-- Search -->
         <div class="admin-search-row">
           <div class="admin-search-bar">
