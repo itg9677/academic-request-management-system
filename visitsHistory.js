@@ -72,10 +72,20 @@ onAuthStateChanged(auth, async (user) => {
                 statusText = "مرفوض";
             }
 
+            let visitTypeText = "-";
+
+            if (data.visitType === "internal") {
+                visitTypeText = "داخلي";
+            } else if (data.visitType === "external") {
+                visitTypeText = "خارجي";
+            } else if (data.visitType) {
+                visitTypeText = data.visitType;
+            }
+
             visitsTableBody.innerHTML += `
                 <tr>
                     <td>${count++}</td>
-                    <td>${data.visitType || "-"}</td>
+                    <td>${visitTypeText}</td>
                     <td>${data.visitPlace || "-"}</td>
                     <td>${statusText}</td>
                 </tr>
