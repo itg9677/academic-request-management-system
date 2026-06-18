@@ -20,14 +20,17 @@
 
         <!-- رمز المقرر -->
         <div class="form-group">
-            <label>رمز المقرر</label>
-            <input type="text" id="courseCode" placeholder="أدخل رمز المقرر" required>
-        </div>
+    <label>رمز المقرر</label>
+
+    <select id="courseSelect" required>
+        <option value="">اختر المقرر</option>
+    </select>
+</div>
 
         <!-- تاريخ الاختبار -->
         <div class="form-group">
             <label>تاريخ الاختبار</label>
-            <input type="date" id="absenceDate" required>
+            <input type="date" id="examDate" required>
         </div>
 
         <!-- نوع الاختبار -->
@@ -62,5 +65,7 @@
 </div>
 
 <script type="module" src="absence.js"></script>
+
+
 </body>
 </html>

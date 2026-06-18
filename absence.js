@@ -1,4 +1,4 @@
-import { auth, db } from "./firebase.js";
+import { auth, db, storage } from "./firebase.js";
 
 import {
     onAuthStateChanged
@@ -16,40 +16,89 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 import {
-    getStorage,
     ref,
     uploadBytes,
     getDownloadURL
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
 
+
 const form = document.getElementById("excuseForm");
 
-// جيب المستخدم الحالي بشكل مضمون
-function getCurrentUser() {
-    return new Promise((resolve) => {
-        const unsub = onAuthStateChanged(auth, (user) => {
-            unsub();
-            resolve(user);
+let currentUser = null;
+let studentData  = null;
+
+/* =========================
+   تحميل المقررات في القائمة
+========================= */
+async function loadCourses(user) {
+    try {
+        // جلب بيانات الطالب
+        const studentSnap = await getDoc(doc(db, "students", user.uid));
+
+        if (!studentSnap.exists()) {
+            console.warn("بيانات الطالب غير موجودة");
+            return;
+        }
+
+        studentData = studentSnap.data();
+
+        // جلب المقررات المطابقة لتخصص الطالب أو شؤون الطالبات
+        const coursesSnap = await getDocs(collection(db, "courses"));
+
+        const courseSelect = document.getElementById("courseSelect");
+        courseSelect.innerHTML = '<option value="">اختر المقرر</option>';
+
+        const matched = coursesSnap.docs
+            .map(d => d.data())
+            .filter(c => {
+                const dept = (c.department || "").trim();
+                return (
+                    dept === (studentData.major || "").trim() ||
+                    dept === "شؤون الطالبات"
+                );
+            });
+
+        if (matched.length === 0) {
+            const opt = document.createElement("option");
+            opt.disabled = true;
+            opt.textContent = "لا توجد مقررات مسجّلة لتخصصك";
+            courseSelect.appendChild(opt);
+            return;
+        }
+
+        matched.forEach(course => {
+            const option = document.createElement("option");
+            option.value       = course.courseCode;
+            option.textContent = `${course.courseCode} - ${course.courseName}`;
+            courseSelect.appendChild(option);
         });
-    });
+
+    } catch (error) {
+        console.error("خطأ في تحميل المقررات:", error);
+    }
 }
 
-/*
-  منطق التوزيع:
-  - فصلي أول / فصلي ثاني  → موظفو قسم الطالب  (department === student.major)
-  - نهائي                 → موظفو شؤون الطالبات (department === "شؤون الطالبات")
-  ترجع الدالة مصفوفة UIDs للموظفين المؤهلين
-*/
+/* =========================
+   مراقبة حالة تسجيل الدخول
+========================= */
+onAuthStateChanged(auth, async (user) => {
+    if (!user) {
+        window.location.href = "loginPage.html";
+        return;
+    }
+
+    currentUser = user;
+    await loadCourses(user);
+});
+
+/* =========================
+   منطق توزيع الطلب على الموظفين
+========================= */
 async function getTargetEmployeeIds(examType, studentMajor) {
 
-    let targetDept;
-
-    if (examType === "final") {
-        targetDept = "شؤون الطالبات";
-    } else {
-        // midterm1 أو midterm2 → قسم الطالب
-        targetDept = studentMajor;
-    }
+    const targetDept = examType === "final"
+        ? "شؤون الطالبات"
+        : studentMajor;
 
     const empQuery = query(
         collection(db, "employees"),
@@ -58,39 +107,29 @@ async function getTargetEmployeeIds(examType, studentMajor) {
     );
 
     const snap = await getDocs(empQuery);
-
-    return snap.docs.map(d => d.id); // UIDs الموظفين
+    return snap.docs.map(d => d.id);
 }
 
+/* =========================
+   إرسال الطلب
+========================= */
 form.addEventListener("submit", async (e) => {
+
     e.preventDefault();
 
+    if (!currentUser || !studentData) {
+        alert("حدث خطأ في بيانات المستخدم، يرجى تحديث الصفحة");
+        return;
+    }
+
     try {
-        const user = await getCurrentUser();
+        const courseCode = document.getElementById("courseSelect").value;
+        const examDate   = document.getElementById("examDate").value;
+        const examType   = document.getElementById("examType").value;
+        const reason     = document.getElementById("reason").value.trim();
+        const file       = document.getElementById("fileInput").files[0];
 
-        if (!user) {
-            alert("يجب تسجيل الدخول أولاً");
-            window.location.href = "login.html";
-            return;
-        }
-
-        // جيب بيانات الطالب
-        const studentSnap = await getDoc(doc(db, "students", user.uid));
-
-        if (!studentSnap.exists()) {
-            alert("لم يتم العثور على بيانات الطالب");
-            return;
-        }
-
-        const student = studentSnap.data();
-
-        const courseCode  = document.getElementById("courseCode").value.trim();
-        const absenceDate = document.getElementById("absenceDate").value;
-        const examType    = document.getElementById("examType").value;
-        const reason      = document.getElementById("reason").value.trim();
-        const file        = document.getElementById("fileInput").files[0];
-
-        if (!courseCode || !absenceDate || !examType || !reason) {
+        if (!courseCode || !examDate || !examType || !reason) {
             alert("يرجى تعبئة جميع الحقول");
             return;
         }
@@ -100,18 +139,17 @@ form.addEventListener("submit", async (e) => {
         let attachmentName = "";
 
         if (file) {
-            const storage    = getStorage();
             const storageRef = ref(
                 storage,
-                `excuses/${user.uid}/${Date.now()}_${file.name}`
+                `excuses/${currentUser.uid}/${Date.now()}_${file.name}`
             );
             await uploadBytes(storageRef, file);
             attachmentUrl  = await getDownloadURL(storageRef);
             attachmentName = file.name;
         }
 
-        // حدّد الموظفين المستهدفين
-        const targetEmployeeIds = await getTargetEmployeeIds(examType, student.major);
+        // تحديد الموظفين المستهدفين
+        const targetEmployeeIds = await getTargetEmployeeIds(examType, studentData.major);
 
         if (targetEmployeeIds.length === 0) {
             alert("لم يتم العثور على موظفين مختصين. تواصل مع الإدارة.");
@@ -119,23 +157,21 @@ form.addEventListener("submit", async (e) => {
         }
 
         // حفظ الطلب في Firestore
-        // assignedEmployees: مصفوفة UIDs لكل الموظفين المستهدفين
-        // كل موظف في قسمه سيرى الطلبات التي تحتوي uid الخاص به في assignedEmployees
         await addDoc(collection(db, "excuses"), {
-            uid:              user.uid,
-            studentName:      student.fullName      || "",
-            universityId:     student.universityId  || "",
-            major:            student.major         || "",
+            uid:               currentUser.uid,
+            studentName:       studentData.fullName     || "",
+            universityId:      studentData.universityId || "",
+            major:             studentData.major        || "",
             courseCode,
-            examDate:         absenceDate,
+            examDate,
             examType,
             reason,
             attachmentUrl,
             attachmentName,
-            assignedEmployees: targetEmployeeIds,  // مصفوفة UIDs
-            status:           "new",
-            createdAt:        serverTimestamp(),
-            updatedAt:        serverTimestamp()
+            assignedEmployees: targetEmployeeIds,
+            status:            "new",
+            createdAt:         serverTimestamp(),
+            updatedAt:         serverTimestamp()
         });
 
         alert("تم إرسال الطلب بنجاح ✅");

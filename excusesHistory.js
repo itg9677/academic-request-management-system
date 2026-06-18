@@ -5,27 +5,31 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
 import {
-    doc,
-    getDoc,
     collection,
     query,
     where,
-    getDocs
+    getDocs,
+    doc,
+    getDoc
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const studentName = document.getElementById("studentName");
-const excusesTableBody = document.getElementById("excusesTableBody");
+const excusesContainer = document.getElementById("excusesTableBody");
 
 onAuthStateChanged(auth, async (user) => {
 
     if (!user) {
-        window.location.href = "login.html";
+        window.location.href = "loginPage.html";
         return;
     }
 
+    console.log("USER UID:", user.uid);
+
     try {
 
-        // جلب اسم الطالب
+        /* =========================
+           جلب اسم الطالب
+        ========================= */
         const studentSnap = await getDoc(
             doc(db, "students", user.uid)
         );
@@ -35,67 +39,61 @@ onAuthStateChanged(auth, async (user) => {
                 studentSnap.data().fullName || "الطالب";
         }
 
-        // جلب الأعذار
+        /* =========================
+           جلب طلبات الأعذار
+        ========================= */
         const excusesQuery = query(
             collection(db, "excuses"),
-            where("studentUid", "==", user.uid)
+            where("uid", "==", user.uid)
         );
 
-        const excusesSnap = await getDocs(excusesQuery);
+        const snapshot = await getDocs(excusesQuery);
 
-        excusesTableBody.innerHTML = "";
+        excusesContainer.innerHTML = "";
 
-        if (excusesSnap.empty) {
-
-            excusesTableBody.innerHTML = `
+        if (snapshot.empty) {
+            excusesContainer.innerHTML = `
                 <tr>
-                    <td colspan="3">
-                        لا توجد أعذار سابقة
-                    </td>
+                    <td colspan="3">لا توجد طلبات سابقة</td>
                 </tr>
             `;
-
             return;
         }
 
-        let count = 1;
+        snapshot.forEach((docItem) => {
 
-        excusesSnap.forEach((excuseDoc) => {
-
-            const data = excuseDoc.data();
+            const data = docItem.data();
 
             let statusText = "قيد المراجعة";
-            let statusClass = "status-review";
 
             if (data.status === "approved") {
                 statusText = "مقبول";
-                statusClass = "status-approved";
             }
 
             if (data.status === "rejected") {
                 statusText = "مرفوض";
-                statusClass = "status-rejected";
             }
 
-            excusesTableBody.innerHTML += `
-                <tr>
-                    <td>${count++}</td>
+            const row = document.createElement("tr");
 
-                    <td>
-                        ${data.excuseType || "عذر"}
-                    </td>
-
-                    <td>
-                        <span class="${statusClass}">
-                            ${statusText}
-                        </span>
-                    </td>
-                </tr>
+            row.innerHTML = `
+                <td>${docItem.id}</td>
+                <td>${data.examType || "-"}</td>
+                <td>${statusText}</td>
             `;
+
+            excusesContainer.appendChild(row);
         });
 
     } catch (error) {
-        console.error("Error loading excuses:", error);
-    }
+        console.error("Error:", error);
 
+        excusesContainer.innerHTML = `
+            <tr>
+                <td colspan="3">
+                    حدث خطأ أثناء تحميل الطلبات
+                </td>
+            </tr>
+        `;
+    }
 });
