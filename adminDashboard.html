@@ -120,12 +120,25 @@
       <div class="admin-table-card">
 
         <!-- زر رفع نموذج الزيارة -->
-        <div class="visit-upload-area" id="visitUploadArea" style="display:none">
+     <div class="visit-upload-area" id="visitUploadArea" style="display:none">
+
+    <select id="visitDeptSelect" class="admin-filter-select">
+        <option value="">اختر القسم</option>
+        <option value="physics">فيزياء</option>
+        <option value="chemistry">كيمياء</option>
+        <option value="statistics">إحصاء</option>
+        <option value="math">رياضيات</option>
+        <option value="biology">أحياء</option>
+    </select>
+<div id="visitUploadArea">
+
           <button class="upload-pdf-btn" id="uploadVisitFileBtn">
             <i class="ti ti-upload"></i> رفع نموذج الزيارة (PDF)
           </button>
           <span class="uploaded-file-name" id="uploadedFileName"></span>
           <input type="file" id="visitFileInput" accept="application/pdf" style="display:none" />
+</div>
+   
         </div>
 
         <!-- Search + filters -->

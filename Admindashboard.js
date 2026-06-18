@@ -690,89 +690,201 @@ function printActiveStudent() {
 
 // ==================== رفع/عرض نموذج الزيارة (PDF) - متاح فقط داخل تبويب الزيارة ====================
 
-const VISIT_FORM_STORAGE_PATH = "visitForms/visit_form.pdf";
+function getVisitDepartmentInfo(dept) {
+
+  const map = {
+    physics: {
+      docId: "visitForm_physics",
+      path: "visitForms/physics.pdf",
+      name: "فيزياء"
+    },
+
+    chemistry: {
+      docId: "visitForm_chemistry",
+      path: "visitForms/chemistry.pdf",
+      name: "كيمياء"
+    },
+
+    statistics: {
+      docId: "visitForm_statistics",
+      path: "visitForms/statistics.pdf",
+      name: "إحصاء"
+    },
+
+    math: {
+      docId: "visitForm_math",
+      path: "visitForms/math.pdf",
+      name: "رياضيات"
+    },
+
+    biology: {
+      docId: "visitForm_biology",
+      path: "visitForms/biology.pdf",
+      name: "أحياء"
+    }
+  };
+
+  return map[dept];
+}
 const visitFormDocRef = () => doc(db, "settings", "visitForm");
 
 async function loadVisitFormInfo() {
-  const nameEl = document.getElementById("uploadedFileName");
-  if (!nameEl) return;
 
-  nameEl.innerHTML = `<span style="color:#888;font-size:0.85rem;">جاري التحقق من الملف...</span>`;
+  const deptSelect = document.getElementById("visitDeptSelect");
+  const nameEl = document.getElementById("uploadedFileName");
+
+  if (!deptSelect || !nameEl) return;
+
+  const dept = deptSelect.value;
+
+  if (!dept) {
+    nameEl.innerHTML =
+      `<span style="color:#888">اختاري القسم أولاً</span>`;
+    return;
+  }
+
+  const info = getVisitDepartmentInfo(dept);
 
   try {
-    const snap = await getDoc(visitFormDocRef());
+
+    const snap = await getDoc(
+      doc(db, "settings", info.docId)
+    );
+
     if (snap.exists()) {
+
       const data = snap.data();
+
       nameEl.innerHTML = `
-        <span style="display:inline-flex;align-items:center;gap:6px;background:#eef3ff;color:#1a3a6b;border:1px solid #c7d6f5;border-radius:8px;padding:5px 10px;font-size:0.85rem;">
-          <i class="ti ti-file-type-pdf" style="color:#c0392b;"></i>
-          <span>${esc(data.fileName || "نموذج_الزيارة.pdf")}</span>
-          <button type="button" id="removeVisitFileBtn" title="حذف الملف" style="border:none;background:transparent;color:#c0392b;cursor:pointer;display:flex;align-items:center;padding:0;margin-right:2px;">
-            <i class="ti ti-trash"></i>
+        <span style="
+          display:inline-flex;
+          align-items:center;
+          gap:6px;
+          background:#eef3ff;
+          border-radius:8px;
+          padding:5px 10px;
+        ">
+          📄 ${data.fileName}
+
+          <button
+            id="removeVisitFileBtn"
+            style="
+              border:none;
+              background:none;
+              cursor:pointer;
+              color:red;
+            ">
+            🗑
           </button>
         </span>
       `;
-      const removeBtn = document.getElementById("removeVisitFileBtn");
-      if (removeBtn) removeBtn.addEventListener("click", removeVisitForm);
+
+      document
+        .getElementById("removeVisitFileBtn")
+        ?.addEventListener("click", () =>
+          removeVisitForm(dept)
+        );
+
     } else {
-      nameEl.innerHTML = `<span style="color:#888;font-size:0.85rem;">لا يوجد ملف مرفوع حالياً</span>`;
+
+      nameEl.innerHTML =
+        `<span style="color:#888">لا يوجد ملف مرفوع لهذا القسم</span>`;
     }
+
   } catch (err) {
-    console.error("loadVisitFormInfo error:", err);
-    nameEl.innerHTML = `<span style="color:#c0392b;font-size:0.85rem;">تعذر تحميل بيانات الملف</span>`;
+
+    console.error(err);
+
+    nameEl.innerHTML =
+      `<span style="color:red">تعذر تحميل الملف</span>`;
   }
 }
 
 async function uploadVisitForm(file) {
-  const nameEl = document.getElementById("uploadedFileName");
+
+  const dept =
+    document.getElementById("visitDeptSelect").value;
+
+  if (!dept) {
+    alert("اختاري القسم أولاً");
+    return;
+  }
 
   if (file.type !== "application/pdf") {
-    alert("يجب أن يكون الملف بصيغة PDF فقط");
+    alert("يسمح بملفات PDF فقط");
     return;
   }
 
-  const maxSizeMB = 10;
-  if (file.size > maxSizeMB * 1024 * 1024) {
-    alert(`حجم الملف يجب ألا يتجاوز ${maxSizeMB} ميجابايت`);
-    return;
-  }
-
-  if (nameEl) nameEl.innerHTML = `<span style="color:#1a3a6b;font-size:0.85rem;">جاري رفع الملف...</span>`;
+  const info = getVisitDepartmentInfo(dept);
 
   try {
-    const storageRef = ref(storage, VISIT_FORM_STORAGE_PATH);
+
+    const storageRef =
+      ref(storage, info.path);
+
     await uploadBytes(storageRef, file);
-    const fileUrl = await getDownloadURL(storageRef);
 
-    await setDoc(visitFormDocRef(), {
-      fileUrl,
-      fileName:   file.name,
-      uploadedAt: serverTimestamp(),
-      uploadedBy: currentAdminData?.fullName || "الأدمن"
-    });
+    const fileUrl =
+      await getDownloadURL(storageRef);
 
-    await loadVisitFormInfo();
+    await setDoc(
+      doc(db, "settings", info.docId),
+      {
+        department: dept,
+        fileName: file.name,
+        fileUrl,
+        uploadedAt: serverTimestamp(),
+        uploadedBy:
+          currentAdminData?.fullName || "الأدمن"
+      }
+    );
+
+    alert(`تم رفع نموذج ${info.name} بنجاح`);
+
+    loadVisitFormInfo();
+
   } catch (err) {
-    console.error("uploadVisitForm error:", err);
-    alert("حدث خطأ أثناء رفع الملف: " + err.message);
-    await loadVisitFormInfo();
+
+    console.error(err);
+
+    alert("فشل رفع الملف");
   }
 }
 
-async function removeVisitForm() {
-  if (!confirm("هل تريدين حذف نموذج الزيارة الحالي؟ الطالبات لن يتمكنّ من تحميله بعد الحذف.")) return;
+async function removeVisitForm(dept) {
+
+  if (!confirm("هل تريدين حذف الملف؟"))
+    return;
+
+  const info = getVisitDepartmentInfo(dept);
+
   try {
-    await deleteObject(ref(storage, VISIT_FORM_STORAGE_PATH)).catch(() => {});
-    await deleteDoc(visitFormDocRef());
-    await loadVisitFormInfo();
+
+    await deleteObject(
+      ref(storage, info.path)
+    ).catch(() => {});
+
+    await deleteDoc(
+      doc(db, "settings", info.docId)
+    );
+
+    loadVisitFormInfo();
+
   } catch (err) {
-    console.error("removeVisitForm error:", err);
-    alert("حدث خطأ أثناء حذف الملف: " + err.message);
+
+    console.error(err);
+
+    alert("تعذر حذف الملف");
   }
 }
 
 const uploadVisitFileBtnEl = document.getElementById("uploadVisitFileBtn");
 const visitFileInputEl     = document.getElementById("visitFileInput");
+document
+  .getElementById("visitDeptSelect")
+  ?.addEventListener("change", () => {
+      loadVisitFormInfo();
+  });
 
 if (uploadVisitFileBtnEl && visitFileInputEl) {
   uploadVisitFileBtnEl.addEventListener("click", () => visitFileInputEl.click());

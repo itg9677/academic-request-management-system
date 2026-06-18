@@ -83,38 +83,122 @@ onAuthStateChanged(auth, async (user) => {
 });
 
 /* ==========================
-   عرض رابط تحميل نموذج الزيارة (يرفعه الأدمن من لوحة التحكم)
+   عرض رابط تحميل نموذج الزيارة
 ========================== */
-async function loadVisitFormDownload() {
+async function loadVisitFormDownload(visitFormDoc) {
+
     const container = document.getElementById("visitFormDownload");
-    if (!container) return;
+
+    if (!container || !visitFormDoc) return;
 
     try {
-        const snap = await getDoc(doc(db, "settings", "visitForm"));
 
-        if (snap.exists() && snap.data().fileUrl) {
+        const snap = await getDoc(
+            doc(db, "settings", visitFormDoc)
+        );
+
+        if (snap.exists()) {
+
             const data = snap.data();
+
             container.innerHTML = `
                 <a href="${data.fileUrl}"
                    target="_blank"
                    rel="noopener"
                    class="download-form-link"
                    download="${data.fileName || "نموذج_الزيارة.pdf"}">
-                    <span class="download-icon">⬇</span> تحميل نموذج الزيارة
+
+                    <span class="download-icon">⬇</span>
+                    تحميل نموذج الزيارة
+
                 </a>
             `;
+
         } else {
+
             container.innerHTML =
-                `<span class="no-form-msg">لم يتم رفع نموذج الزيارة بعد</span>`;
+                `<span class="no-form-msg">لا يوجد نموذج مرفوع لهذا القسم</span>`;
         }
+
     } catch (error) {
-        console.error("loadVisitFormDownload error:", error);
+
+        console.error(error);
+
         container.innerHTML =
-            `<span class="no-form-msg">تعذر تحميل النموذج، حاولي لاحقاً</span>`;
+            `<span class="no-form-msg">تعذر تحميل النموذج</span>`;
     }
 }
 
 /* ==========================
+   بيانات الطالبة
+========================== */
+onAuthStateChanged(auth, async (user) => {
+
+    if (!user) {
+        window.location.href = "loginPage.html";
+        return;
+    }
+
+    const studentSnap = await getDoc(
+        doc(db, "students", user.uid)
+    );
+
+    if (studentSnap.exists()) {
+
+        const data = studentSnap.data();
+
+        document.getElementById("fullName").value =
+            data.fullName || "";
+
+        document.getElementById("universityId").value =
+            data.universityId || "";
+
+        document.getElementById("major").value =
+            data.major || "";
+
+        document.getElementById("phone").value =
+            data.phoneNumber || "";
+
+        let visitFormDoc = "";
+
+        switch (data.major) {
+
+            case "فيزياء":
+                visitFormDoc = "visitForm_physics";
+                break;
+
+            case "كيمياء":
+                visitFormDoc = "visitForm_chemistry";
+                break;
+
+            case "إحصاء":
+                visitFormDoc = "visitForm_statistics";
+                break;
+
+            case "رياضيات":
+                visitFormDoc = "visitForm_math";
+                break;
+
+            case "أحياء":
+                visitFormDoc = "visitForm_biology";
+                break;
+        }
+
+        await loadVisitFormDownload(visitFormDoc);
+    }
+});
+await loadVisitFormDownload(visitFormDoc);
+        document.getElementById("fullName").value    = data.fullName    || "";
+        document.getElementById("universityId").value = data.universityId || "";
+        document.getElementById("major").value        = data.major        || "";
+        document.getElementById("phone").value         = data.phoneNumber  || "";
+    
+
+await loadVisitFormDownload(visitFormDoc);
+    // جلب نموذج الزيارة إذا موجود
+
+/* ==========================
+>>>>>>> Stashed changes
    إرسال الطلب
 ========================== */
 document.getElementById("submitBtn")
