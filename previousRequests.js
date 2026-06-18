@@ -41,18 +41,33 @@ where("studentUid", "==", user.uid)    );
 
     const snapshot = await getDocs(q);
 
-    tableBody.innerHTML = "";
+tableBody.innerHTML = "";
 
-    if (snapshot.empty) {
-      tableBody.innerHTML = `<tr><td colspan="6">لا توجد طلبات مرسلة</td></tr>`;
-      return;
-    }
+if (snapshot.empty) {
+  tableBody.innerHTML = `<tr><td colspan="6">لا توجد طلبات مرسلة</td></tr>`;
+  return;
+}
 
-    let count = 1;
 
-    snapshot.forEach((doc) => {
+// ترتيب الأحدث أولاً
+const requests = snapshot.docs.map(doc => ({
+  id: doc.id,
+  ...doc.data()
+}));
 
-      const data = doc.data();
+requests.sort((a, b) => {
+
+  const aTime = a.createdAt?.toMillis?.() || 0;
+  const bTime = b.createdAt?.toMillis?.() || 0;
+
+  return bTime - aTime;
+
+});
+
+
+let count = 1;
+
+requests.forEach((data) => {
 
       let statusText = "قيد المراجعة";
       let statusClass = "status-review";
@@ -82,7 +97,13 @@ where("studentUid", "==", user.uid)    );
               ${statusText}
             </span>
           </td>
-          <td>-</td>
+        <td>
+ ${
+   data.status === "rejected"
+     ? (data.rejectReason || "-")
+     : "-"
+ }
+</td>
         </tr>
       `;
     });

@@ -1,11 +1,14 @@
 import { auth, db } from "./firebase.js";
 
-import { onAuthStateChanged } 
+import { onAuthStateChanged }
 from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
-import { doc, getDoc } 
+import {
+  doc,
+  getDoc,
+  updateDoc
+}
 from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-
 
 onAuthStateChanged(auth, async (user) => {
 
@@ -24,9 +27,73 @@ onAuthStateChanged(auth, async (user) => {
 
   const data = snap.data();
 
-  document.getElementById("fullName").textContent = data.fullName || "-";
-  document.getElementById("universityId").textContent = data.universityId || "-";
-  document.getElementById("major").textContent = data.major || "-";
-  document.getElementById("phoneNumber").textContent = data.phoneNumber || "-";
+  document.getElementById("fullName").textContent =
+    data.fullName || "-";
+
+  document.getElementById("universityId").textContent =
+    data.universityId || "-";
+
+  document.getElementById("major").textContent =
+    data.major || "-";
+
+  document.getElementById("phoneNumber").textContent =
+    data.phoneNumber || "-";
+
+  const editBtn = document.getElementById("editProfileBtn");
+  const modal = document.getElementById("editModal");
+
+  editBtn.addEventListener("click", () => {
+
+    document.getElementById("editMajor").value =
+      data.major || "";
+
+    document.getElementById("editPhone").value =
+      data.phoneNumber || "";
+
+    modal.style.display = "block";
+  });
+
+  document.getElementById("closeModalBtn")
+    .addEventListener("click", () => {
+      modal.style.display = "none";
+    });
+
+  document.getElementById("saveProfileBtn")
+    .addEventListener("click", async () => {
+
+      const newMajor =
+        document.getElementById("editMajor").value.trim();
+
+      const newPhone =
+        document.getElementById("editPhone").value.trim();
+
+      try {
+
+        await updateDoc(docRef, {
+          major: newMajor,
+          phoneNumber: newPhone
+        });
+
+        document.getElementById("major").textContent =
+          newMajor;
+
+        document.getElementById("phoneNumber").textContent =
+          newPhone;
+
+        data.major = newMajor;
+        data.phoneNumber = newPhone;
+
+        modal.style.display = "none";
+
+        alert("تم تحديث البيانات بنجاح");
+
+      } catch (error) {
+
+        console.error(error);
+        alert("حدث خطأ أثناء التحديث");
+
+      }
+
+    });
 
 });

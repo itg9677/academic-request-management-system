@@ -18,7 +18,7 @@
 
     <form id="excuseForm">
 
-        <!-- اسم المادة -->
+        <!-- رمز المقرر -->
         <div class="form-group">
     <label>رمز المقرر</label>
 
@@ -27,7 +27,7 @@
     </select>
 </div>
 
-        <!-- تاريخ الغياب -->
+        <!-- تاريخ الاختبار -->
         <div class="form-group">
             <label>تاريخ الاختبار</label>
             <input type="date" id="examDate" required>
@@ -38,9 +38,9 @@
             <label>نوع الاختبار</label>
             <select id="examType" required>
                 <option value="" disabled selected>اختر نوع الاختبار</option>
-                <option value="midterm1">اختبار منتصف الفصل الأول (midterm1)</option>
-                <option value="midterm2">اختبار منتصف الفصل الثاني (midterm2)</option>
-                <option value="final">الاختبار النهائي (final)</option>
+                <option value="midterm1">اختبار فصلي أول</option>
+                <option value="midterm2">اختبار فصلي ثاني</option>
+                <option value="final">اختبار نهائي</option>
             </select>
         </div>
 
@@ -52,7 +52,7 @@
 
         <!-- رفع ملف -->
         <div class="form-group">
-            <label>إرفاق ملف</label>
+            <label>إرفاق ملف (PDF أو صورة)</label>
             <input type="file" id="fileInput" accept=".pdf,.png,.jpg,.jpeg" required>
         </div>
 
@@ -62,10 +62,10 @@
         <button type="button" class="btn-track" onclick="window.location.href='ExcusesHistory.html'">متابعة طلب سابق</button>
 
     </form>
-
 </div>
 
 <script type="module" src="absence.js"></script>
+
 
 </body>
 </html>

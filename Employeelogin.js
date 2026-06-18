@@ -2,7 +2,10 @@ import { auth, db } from "./firebase.js";
 
 import {
     signInWithEmailAndPassword,
-    signOut
+    signOut,
+    onAuthStateChanged,
+    browserLocalPersistence,
+    setPersistence
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
 import {
@@ -20,7 +23,7 @@ form.addEventListener("submit", async (e) => {
     e.preventDefault();
 
     const employeeId = document.getElementById("employeeId").value.trim();
-    const password = document.getElementById("password").value;
+    const password   = document.getElementById("password").value;
 
     try {
 
@@ -40,8 +43,11 @@ form.addEventListener("submit", async (e) => {
         let employeeData;
         snapshot.forEach(doc => employeeData = doc.data());
 
-        const email = employeeData.email;
-        const isAdmin = employeeData.isAdmin; // ✅ هنا المكان الصح
+        const email   = employeeData.email;
+        const isAdmin = employeeData.isAdmin;
+
+        // ✅ تأكيد حفظ الجلسة في localStorage قبل تسجيل الدخول
+        await setPersistence(auth, browserLocalPersistence);
 
         // 🔐 تسجيل الدخول
         const userCredential = await signInWithEmailAndPassword(auth, email, password);
@@ -55,7 +61,17 @@ form.addEventListener("submit", async (e) => {
             await signOut(auth);
             return;
         }
-  
+
+        // ✅ انتظر Firebase يثبّت الجلسة قبل التوجيه
+        await new Promise((resolve, reject) => {
+            const unsub = onAuthStateChanged(auth, (firebaseUser) => {
+                if (firebaseUser) {
+                    unsub();
+                    resolve();
+                }
+            }, reject);
+        });
+
         // 🚀 التوجيه حسب الصلاحية
         if (isAdmin === true) {
             window.location.href = "adminDashboard.html";
