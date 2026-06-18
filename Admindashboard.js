@@ -1,9 +1,12 @@
-import { auth, db } from "./firebase.js";
+import { auth, db, storage } from "./firebase.js";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import {
-  doc, getDoc, collection, query, where, getDocs,
+  doc, getDoc, setDoc, deleteDoc, collection, query, where, getDocs,
   updateDoc, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import {
+  ref, uploadBytes, getDownloadURL, deleteObject
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
 
 // ==================== State ====================
 
@@ -682,6 +685,102 @@ function printActiveStudent() {
   win.print();
 }
 
+// ==================== رفع/عرض نموذج الزيارة (PDF) - متاح فقط داخل تبويب الزيارة ====================
+
+const VISIT_FORM_STORAGE_PATH = "visitForms/visit_form.pdf";
+const visitFormDocRef = () => doc(db, "settings", "visitForm");
+
+async function loadVisitFormInfo() {
+  const nameEl = document.getElementById("uploadedFileName");
+  if (!nameEl) return;
+
+  nameEl.innerHTML = `<span style="color:#888;font-size:0.85rem;">جاري التحقق من الملف...</span>`;
+
+  try {
+    const snap = await getDoc(visitFormDocRef());
+    if (snap.exists()) {
+      const data = snap.data();
+      nameEl.innerHTML = `
+        <span style="display:inline-flex;align-items:center;gap:6px;background:#eef3ff;color:#1a3a6b;border:1px solid #c7d6f5;border-radius:8px;padding:5px 10px;font-size:0.85rem;">
+          <i class="ti ti-file-type-pdf" style="color:#c0392b;"></i>
+          <span>${esc(data.fileName || "نموذج_الزيارة.pdf")}</span>
+          <button type="button" id="removeVisitFileBtn" title="حذف الملف" style="border:none;background:transparent;color:#c0392b;cursor:pointer;display:flex;align-items:center;padding:0;margin-right:2px;">
+            <i class="ti ti-trash"></i>
+          </button>
+        </span>
+      `;
+      const removeBtn = document.getElementById("removeVisitFileBtn");
+      if (removeBtn) removeBtn.addEventListener("click", removeVisitForm);
+    } else {
+      nameEl.innerHTML = `<span style="color:#888;font-size:0.85rem;">لا يوجد ملف مرفوع حالياً</span>`;
+    }
+  } catch (err) {
+    console.error("loadVisitFormInfo error:", err);
+    nameEl.innerHTML = `<span style="color:#c0392b;font-size:0.85rem;">تعذر تحميل بيانات الملف</span>`;
+  }
+}
+
+async function uploadVisitForm(file) {
+  const nameEl = document.getElementById("uploadedFileName");
+
+  if (file.type !== "application/pdf") {
+    alert("يجب أن يكون الملف بصيغة PDF فقط");
+    return;
+  }
+
+  const maxSizeMB = 10;
+  if (file.size > maxSizeMB * 1024 * 1024) {
+    alert(`حجم الملف يجب ألا يتجاوز ${maxSizeMB} ميجابايت`);
+    return;
+  }
+
+  if (nameEl) nameEl.innerHTML = `<span style="color:#1a3a6b;font-size:0.85rem;">جاري رفع الملف...</span>`;
+
+  try {
+    const storageRef = ref(storage, VISIT_FORM_STORAGE_PATH);
+    await uploadBytes(storageRef, file);
+    const fileUrl = await getDownloadURL(storageRef);
+
+    await setDoc(visitFormDocRef(), {
+      fileUrl,
+      fileName:   file.name,
+      uploadedAt: serverTimestamp(),
+      uploadedBy: currentAdminData?.fullName || "الأدمن"
+    });
+
+    await loadVisitFormInfo();
+  } catch (err) {
+    console.error("uploadVisitForm error:", err);
+    alert("حدث خطأ أثناء رفع الملف: " + err.message);
+    await loadVisitFormInfo();
+  }
+}
+
+async function removeVisitForm() {
+  if (!confirm("هل تريدين حذف نموذج الزيارة الحالي؟ الطالبات لن يتمكنّ من تحميله بعد الحذف.")) return;
+  try {
+    await deleteObject(ref(storage, VISIT_FORM_STORAGE_PATH)).catch(() => {});
+    await deleteDoc(visitFormDocRef());
+    await loadVisitFormInfo();
+  } catch (err) {
+    console.error("removeVisitForm error:", err);
+    alert("حدث خطأ أثناء حذف الملف: " + err.message);
+  }
+}
+
+const uploadVisitFileBtnEl = document.getElementById("uploadVisitFileBtn");
+const visitFileInputEl     = document.getElementById("visitFileInput");
+
+if (uploadVisitFileBtnEl && visitFileInputEl) {
+  uploadVisitFileBtnEl.addEventListener("click", () => visitFileInputEl.click());
+
+  visitFileInputEl.addEventListener("change", (e) => {
+    const file = e.target.files[0];
+    if (file) uploadVisitForm(file);
+    e.target.value = "";
+  });
+}
+
 // ==================== أحداث الواجهة ====================
 
 document.querySelectorAll(".admin-tab").forEach((btn) => {
@@ -693,6 +792,18 @@ document.querySelectorAll(".admin-tab").forEach((btn) => {
     document.getElementById("statusFilter").value = "all";
     document.querySelectorAll(".admin-stat-card").forEach((c) => c.classList.remove("active"));
     document.getElementById("card-all").classList.add("active");
+
+    // إظهار منطقة رفع نموذج الزيارة فقط داخل تبويب "طلبات الزيارة"
+    const visitUploadAreaEl = document.getElementById("visitUploadArea");
+    if (visitUploadAreaEl) {
+      if (currentTab === "visit") {
+        visitUploadAreaEl.style.display = "";
+        loadVisitFormInfo();
+      } else {
+        visitUploadAreaEl.style.display = "none";
+      }
+    }
+
     renderTab();
   });
 });
@@ -769,6 +880,15 @@ auth.authStateReady().then(() => {
 
       currentAdminData = { docId: adminDoc.id, uid: user.uid, ...data };
       employeesCache[adminDoc.id] = data.fullName || "الأدمن";
+
+      // مزامنة uid هذا الأدمن في مجموعة مخصصة (adminUids) تُستخدم فقط من
+      // قواعد الأمان (Security Rules) للتحقق من صلاحية الأدمن عند الكتابة
+      // المباشرة لقاعدة البيانات/التخزين (رفع/حذف نموذج الزيارة)
+      try {
+        await setDoc(doc(db, "adminUids", user.uid), { isAdmin: true, email: user.email }, { merge: true });
+      } catch (syncErr) {
+        console.error("adminUids sync error:", syncErr);
+      }
 
       const adminNameEl = document.getElementById("adminName");
       if (adminNameEl) adminNameEl.textContent = data.fullName || "الأدمن";
