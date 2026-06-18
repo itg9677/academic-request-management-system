@@ -789,3 +789,103 @@ mark {
   .admin-main { padding: 12px; }
   .upload-pdf-btn { width: 100%; justify-content: center; }
 }
+/* ============================================
+   إضافات لوحة الأدمن — تصميم جديد
+   ============================================ */
+
+/* إلغاء max-width لاستخدام كامل العرض */
+.sidebar-layout .admin-main {
+  max-width: 100%;
+  padding: 0;
+}
+
+/* إصلاح ألوان السايدبار — تعارض مع adminStyle */
+.sidebar-layout .sb-nav-item {
+  color: rgba(255,255,255,0.65) !important;
+  background: transparent !important;
+}
+
+.sidebar-layout .sb-nav-item:hover {
+  background: rgba(255,255,255,0.08) !important;
+  color: #fff !important;
+}
+
+.sidebar-layout .sb-nav-item.active {
+  background: #c8972b !important;
+  color: #1e2d50 !important;
+  font-weight: 700 !important;
+}
+
+.sidebar-layout .sb-nav-item.active .sb-badge {
+  background: rgba(30,45,80,0.25) !important;
+  color: #1e2d50 !important;
+}
+
+.sidebar-layout .sb-nav-item span {
+  color: inherit !important;
+}
+
+/* فلتر الأقسام */
+.dept-filter-pill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #f4f6fa;
+  border: 1px solid #e8edf5;
+  border-radius: 10px;
+  padding: 8px 14px;
+  color: #6b7280;
+  font-size: 13px;
+}
+
+.dept-filter-pill i { color: #c8972b; font-size: 15px; }
+
+.dept-filter-pill select {
+  border: none;
+  background: none;
+  font-size: 13px;
+  color: #1f2937;
+  outline: none;
+  cursor: pointer;
+  font-family: inherit;
+  padding: 0;
+  width: auto;
+}
+
+/* منطقة رفع نموذج الزيارة */
+.visit-upload-area {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 20px;
+  border-bottom: 1px solid #e8edf5;
+  background: #fffbeb;
+}
+
+.upload-pdf-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: #1a3a6b;
+  color: #fff;
+  border: none;
+  border-radius: 9px;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background .2s;
+}
+
+.upload-pdf-btn:hover { background: #c8972b; }
+
+.uploaded-file-name {
+  font-size: 12px;
+  color: #059669;
+  font-weight: 600;
+}
+
+/* إلغاء panel-open padding */
+.sidebar-layout .admin-main.panel-open {
+  padding-left: 0;
+}

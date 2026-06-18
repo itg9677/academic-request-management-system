@@ -705,9 +705,33 @@ document.querySelectorAll(".admin-tab").forEach((btn) => {
     document.getElementById("statusFilter").value = "all";
     document.querySelectorAll(".admin-stat-card").forEach((c) => c.classList.remove("active"));
     document.getElementById("card-all").classList.add("active");
+
+    // إظهار زر رفع نموذج الزيارة فقط عند تبويب الزيارة
+    const visitUploadArea = document.getElementById("visitUploadArea");
+    if (visitUploadArea) {
+      visitUploadArea.style.display = currentTab === "visit" ? "flex" : "none";
+    }
+
     renderTab();
   });
 });
+
+// رفع ملف الزيارة
+const uploadVisitFileBtn = document.getElementById("uploadVisitFileBtn");
+const visitFileInput     = document.getElementById("visitFileInput");
+const uploadedFileName   = document.getElementById("uploadedFileName");
+
+if (uploadVisitFileBtn && visitFileInput) {
+  uploadVisitFileBtn.addEventListener("click", () => visitFileInput.click());
+
+  visitFileInput.addEventListener("change", () => {
+    const file = visitFileInput.files[0];
+    if (file) {
+      if (uploadedFileName) uploadedFileName.textContent = "✓ " + file.name;
+      // هنا تضيف كود الرفع لـ Firebase Storage إذا احتجت
+    }
+  });
+}
 
 document.querySelectorAll(".admin-stat-card").forEach((card) => {
   card.addEventListener("click", () => {
@@ -784,6 +808,9 @@ auth.authStateReady().then(() => {
 
       const adminNameEl = document.getElementById("adminName");
       if (adminNameEl) adminNameEl.textContent = data.fullName || "الأدمن";
+
+      const adminNameWelcomeEl = document.getElementById("adminNameWelcome");
+      if (adminNameWelcomeEl) adminNameWelcomeEl.textContent = data.fullName || "الأدمن";
 
       const adminEmailEl = document.getElementById("adminEmail");
       if (adminEmailEl) adminEmailEl.textContent = data.email || user.email || "-";

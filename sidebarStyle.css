@@ -15,12 +15,14 @@
 .sb-sidebar {
   width: 240px;
   min-width: 240px;
-  background: #1e2d50;       /* dark navy — matches screenshot */
+  background: #1e2d50;
   display: flex;
   flex-direction: column;
   height: 100vh;
-  position: sticky;
+  position: fixed;
   top: 0;
+  right: 0;
+  bottom: 0;
   overflow-y: auto;
   z-index: 100;
   padding-bottom: 12px;
@@ -97,9 +99,9 @@
 }
 
 .sb-nav-item.active {
-  background: rgba(255,255,255,0.12);
-  color: #fff;
-  font-weight: 600;
+  background: #c8972b;
+  color: #1e2d50;
+  font-weight: 700;
 }
 
 /* Badge on sidebar link */
@@ -175,10 +177,10 @@
 .sb-main {
   flex: 1;
   min-width: 0;
-  padding: 0 20px 32px;
+  margin-right: 240px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  background: #f4f6fa;
 }
 
 /* ──── Top bar ──── */
@@ -215,10 +217,18 @@
   color: #94a3b8;
 }
 
-/* ──── Stats grid override (5 cols for admin, 4 for emp) ──── */
+/* ──── Stats grid — full width ──── */
 .sidebar-layout .admin-stats-grid {
-  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  grid-template-columns: repeat(6, 1fr);
   margin-bottom: 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.sidebar-layout .admin-main {
+  padding: 0;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 /* ──── Hide old header ──── */
@@ -227,23 +237,107 @@
 
 /* ──── Responsive ──── */
 @media (max-width: 768px) {
-  .sidebar-layout { flex-direction: column-reverse; }
-
   .sb-sidebar {
     width: 100%;
     height: auto;
-    position: relative;
+    position: fixed;
+    top: auto;
+    bottom: 0;
+    right: 0;
+    left: 0;
     flex-direction: row;
     padding-bottom: 0;
     overflow-x: auto;
+    z-index: 100;
   }
 
+  .sb-main { margin-right: 0; padding-bottom: 70px; }
+
   .sb-brand   { display: none; }
-  .sb-nav     { flex-direction: row; padding: 8px; gap: 4px; overflow-x: auto; }
+  .sb-nav     { flex-direction: row; padding: 6px; gap: 4px; overflow-x: auto; }
   .sb-nav-item span:not(.sb-badge) { display: none; }
   .sb-nav-item { padding: 10px; border-radius: 8px; }
   .sb-user, .sb-logout-btn { display: none; }
 
-  .sb-main { padding: 12px 12px 24px; }
-  .sb-topbar-title { font-size: 16px; }
+  .sb-topbar-title { font-size: 15px; }
+}
+
+/* ============================================
+   إضافات التصميم الجديد — employee dashboard
+   ============================================ */
+
+/* Topbar — logo + title + dates */
+.sb-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 24px;
+  background: #fff;
+  border-bottom: 1px solid #e8edf5;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+}
+
+.sb-topbar-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #1a3a6b;
+}
+
+.sb-topbar-logo {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.sb-topbar-logo img {
+  height: 54px;
+  object-fit: contain;
+}
+
+.sb-topbar-college {
+  font-size: 12px;
+  color: #94a3b8;
+  letter-spacing: 1px;
+}
+
+.sb-topbar-dates {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+.sb-date-hijri {
+  font-size: 13px;
+  color: #1a3a6b;
+  font-weight: 600;
+}
+
+.sb-date-greg {
+  font-size: 11px;
+  color: #94a3b8;
+}
+
+/* Main wrapper beside sidebar */
+.sb-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  background: #f4f6fa;
+}
+
+/* Nav item active gold */
+.sb-nav-item.active {
+  background: #c8972b !important;
+  color: #1e2d50 !important;
+  font-weight: 700;
+}
+
+.sb-nav-item.active .sb-badge {
+  background: rgba(30,45,80,0.2);
+  color: #1e2d50;
 }
