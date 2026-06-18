@@ -115,51 +115,6 @@ async function loadVisitFormDownload() {
 }
 
 /* ==========================
-<<<<<<< HEAD
-=======
-   بيانات الطالبة
-========================== */
-onAuthStateChanged(auth, async (user) => {
-
-    if (!user) {
-        window.location.href = "loginPage.html";
-        return;
-    }
-
-    loadVisitFormDownload();
-
-    const studentSnap = await getDoc(doc(db, "students", user.uid));
-
-    if (studentSnap.exists()) {
-        const data = studentSnap.data();
-        document.getElementById("fullName").value    = data.fullName    || "";
-        document.getElementById("universityId").value = data.universityId || "";
-        document.getElementById("major").value        = data.major        || "";
-        document.getElementById("phone").value         = data.phoneNumber  || "";
-    }
-
-    // جلب نموذج الزيارة إذا موجود
-    try {
-        const settingsSnap = await getDoc(doc(db, "settings", "visitForm"));
-        const downloadArea  = document.getElementById("visitFormDownload");
-
-        if (settingsSnap.exists() && settingsSnap.data().fileUrl) {
-            const url = settingsSnap.data().fileUrl;
-            downloadArea.innerHTML = `
-                <a href="${url}" target="_blank" class="download-form-btn">
-                    <i>📄</i> تحميل نموذج الزيارة
-                </a>`;
-        } else {
-            downloadArea.innerHTML = `<span class="no-form-msg">لا يوجد نموذج مرفوع حالياً</span>`;
-        }
-    } catch (_) {
-        document.getElementById("visitFormDownload").innerHTML =
-            `<span class="no-form-msg">لا يوجد نموذج مرفوع حالياً</span>`;
-    }
-});
-
-/* ==========================
->>>>>>> 0cdc7ccb2e2897075f9b0d782da9328889191327
    إرسال الطلب
 ========================== */
 document.getElementById("submitBtn")
