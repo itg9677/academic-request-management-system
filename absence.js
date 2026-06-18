@@ -159,6 +159,7 @@ form.addEventListener("submit", async (e) => {
         // حفظ الطلب في Firestore
         await addDoc(collection(db, "excuses"), {
             uid:               currentUser.uid,
+            studentUid:               currentUser.uid,
             studentName:       studentData.fullName     || "",
             universityId:      studentData.universityId || "",
             major:             studentData.major        || "",
