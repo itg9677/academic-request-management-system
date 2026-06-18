@@ -1,13 +1,10 @@
-import { auth, db, storage } from "./firebase.js";
+import { auth, db } from "./firebase.js";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import {
-  doc, getDoc, setDoc, deleteDoc, collection, query, where, getDocs,
+  doc, getDoc, collection, query, where, getDocs,
   updateDoc, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-import {
-  ref, uploadBytes, getDownloadURL, deleteObject
-} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
 
 let currentEmployee = null;
 let isAffairs = false;
@@ -112,7 +109,6 @@ const statusLabel = {
 const reqTypeLabel   = { add: "اضافة", drop: "حذف", edit: "تعديل شعبة", remove: "حذف", change: "تعديل شعبة" };
 const reqTypeClass   = { add: "b-add", drop: "b-drop", edit: "b-edit", remove: "b-drop", change: "b-edit" };
 const visitTypeLabel = { internal: "داخلية", external: "خارجية" };
-const examTypeLabel  = { midterm1: "اختبار فصلي أول", midterm2: "اختبار فصلي ثاني", final: "اختبار نهائي" };
 const levelLabel     = {
   "1": "المستوى الأول", "2": "المستوى الثاني", "3": "المستوى الثالث",
   "4": "المستوى الرابع", "5": "المستوى الخامس", "6": "المستوى السادس",
@@ -138,7 +134,6 @@ const REJECT_REASONS = [
 // حالة "جديد" = طلب pending ما عنده موظف معالج
 // حالة "قيد المراجعة" = طلب pending وله موظف معالج (دمج معلق مع قيد المراجعة)
 function getEffectiveStatus(item) {
-  if (item.status === "new") return "new";
   if (item.status === "pending" || !item.status) {
     return item.assignedEmployee ? "under_review" : "new";
   }
@@ -202,6 +197,7 @@ async function loadExcuseAndVisit() {
       : query(collection(db, "excuses"),
               where("assignedDepartment", "==", currentEmployee.department));
 
+
     const [excSnap, visSnap] = await Promise.all([
       getDocs(excQuery),
       getDocs(collection(db, "visitRequests"))
@@ -225,10 +221,7 @@ function subscribeAddDrop() {
 
   const types = ["add", "drop", "edit", "remove", "change"];
 const q = isAffairs
-  ? query(
-      collection(db, "requests"),
-      where("assignedDepartment", "==", "شؤون الطالبات")
-    )
+  ? query(collection(db, "requests"))
   : query(
       collection(db, "requests"),
       where("requestType", "in", types),
@@ -236,6 +229,9 @@ const q = isAffairs
     );
 
   unsubscribeAddDrop = onSnapshot(q, async (snap) => {
+    // موظفة شؤون الطالبات تشوف كل طلبات كل الطالبات من كل الأقسام
+    // (تماماً مثل موظفة القسم اللي تشوف كل طلبات طالبتها، تخصص ومشترك)
+    // وصلاحية القبول/الرفض تتحدد لاحقاً حسب نوع المادة
     tabData.addDrop = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     updateBadges();
     if (currentTab === "addDrop") {
@@ -450,8 +446,7 @@ function buildDetailRows(tab, item) {
       : "لا يوجد";
     return `
       <tr><td class="sp-detail-label">رمز المقرر</td><td>${esc(item.courseCode || "-")}</td></tr>
-      <tr><td class="sp-detail-label">نوع الاختبار</td><td><strong>${examTypeLabel[item.examType] || esc(item.examType || "-")}</strong></td></tr>
-      <tr><td class="sp-detail-label">تاريخ الاختبار</td><td>${esc(item.examDate || item.absenceDate || "-")}</td></tr>
+      <tr><td class="sp-detail-label">تاريخ الغياب</td><td>${esc(item.absenceDate || item.examDate || "-")}</td></tr>
       <tr><td class="sp-detail-label">سبب الغياب</td><td>${esc(item.reason || item.notes || "-")}</td></tr>
       <tr><td class="sp-detail-label">المرفق</td><td>${attach}</td></tr>
       <tr><td class="sp-detail-label">تاريخ الطلب</td><td>${formatDate(item.createdAt)}</td></tr>
@@ -498,7 +493,7 @@ function buildOtherRequestsTable(tab, item) {
     if (tab === "addDrop")
       label = `${reqTypeLabel[o.requestType] || o.requestType || "-"} — ${esc(o.courseName || o.courseCode || "")}`;
     else if (tab === "excuse")
-      label = `${esc(o.courseCode || "-")} — ${examTypeLabel[o.examType] || esc(o.examType || "-")}`;
+      label = esc(o.courseCode || "-");
     else
       label = visitTypeLabel[o.visitType] || o.visitType || "-";
 
@@ -539,12 +534,15 @@ function openSidePanel(tab, item) {
   const cfg     = tabConfig[tab];
   const student = studentsCache[item[cfg.studentField]] || {};
   const sk      = getEffectiveStatus(item);
-  const isSharedCourse =
-  item.assignedDepartment?.trim() ===
-  "شؤون الطالبات";
+  const isSharedCourse = item.assignedDepartment?.trim() === "شؤون الطالبات";
+  const hasDeptField   = typeof item.assignedDepartment === "string";
 
-const canApproveReject =
-  !isSharedCourse;
+  // لو الطلب ما فيه معلومة قسم (أعذار/زيارات) تبقى الصلاحية كاملة كالسابق.
+  // ولو فيه (طلبات حذف/إضافة): موظفة الشؤون تتصرف بالمواد المشتركة فقط،
+  // وموظفة القسم تتصرف بمواد قسمها فقط (غير المشتركة).
+  const canApproveReject = hasDeptField
+    ? (isAffairs ? isSharedCourse : !isSharedCourse)
+    : true;
 
   document.getElementById("spTitle").textContent = student.fullName || "تفاصيل الطالب";
   document.getElementById("spSub").textContent   = cfg.title;
@@ -613,7 +611,7 @@ ${(sk === "approved" || sk === "rejected") ? `
 margin-top:10px;
 font-size:.85rem;
 color:#888;">
-هذه المادة تابعة لشؤون الطالبات
+${isAffairs ? "هذه المادة تابعة لقسم آخر، وليست من مواد شؤون الطالبات" : "هذه المادة تابعة لشؤون الطالبات"}
 </div>
 
 `}
@@ -647,19 +645,18 @@ function closeSidePanel() {
 }
 
 async function updateRequestStatus(tab, item, newStatus, rejectReason) {
-  const isSharedCourse =
-  item.assignedDepartment?.trim() ===
-  "شؤون الطالبات";
+  const isSharedCourse = item.assignedDepartment?.trim() === "شؤون الطالبات";
+  const hasDeptField   = typeof item.assignedDepartment === "string";
+  const canApproveReject = hasDeptField
+    ? (isAffairs ? isSharedCourse : !isSharedCourse)
+    : true;
 
-if (
-  isSharedCourse &&
-  newStatus !== "under_review"
-){
-  alert(
-    "لا يمكن اعتماد أو رفض مواد شؤون الطالبات"
-  );
-  return;
-}
+  if (!canApproveReject && newStatus !== "under_review") {
+    alert(isAffairs
+      ? "ليس لديك صلاحية اعتماد أو رفض مواد الأقسام الأخرى"
+      : "لا يمكن اعتماد أو رفض مواد شؤون الطالبات");
+    return;
+  }
   const cfg     = tabConfig[tab];
   const buttons = document.querySelectorAll("#spBody .sp-action-btn");
   buttons.forEach(b => b.disabled = true);
@@ -799,13 +796,12 @@ function printActiveStudent() {
       </tr>`;
     }).join("");
   } else if (tab === "excuse") {
-    headerCols = "<th>رمز المقرر</th><th>نوع الاختبار</th><th>تاريخ الاختبار</th><th>سبب الغياب</th><th>الحالة</th><th>الموظف المعالج</th><th>التاريخ</th>";
+    headerCols = "<th>رمز المقرر</th><th>تاريخ الغياب</th><th>سبب الغياب</th><th>الحالة</th><th>الموظف المعالج</th><th>التاريخ</th>";
     rows = items.map(r => {
       const en = r.assignedEmployeeName || (r.assignedEmployee ? (employeesCache[r.assignedEmployee] || "-") : "-");
       return `<tr>
         <td>${esc(r.courseCode || "-")}</td>
-        <td><strong>${examTypeLabel[r.examType] || esc(r.examType || "-")}</strong></td>
-        <td>${esc(r.examDate || r.absenceDate || "-")}</td>
+        <td>${esc(r.absenceDate || r.examDate || "-")}</td>
         <td>${esc(r.reason || r.notes || "-")}</td>
         <td>${statusLabel[getEffectiveStatus(r)] || getEffectiveStatus(r)}</td>
         <td>${esc(en)}</td>
@@ -867,110 +863,6 @@ function printActiveStudent() {
   win.print();
 }
 
-// ==================== رفع/عرض نموذج الزيارة (PDF) — متاح فقط لموظفات قسم "شؤون الطالبات" وعند فتح تبويب الزيارة ====================
-
-const VISIT_FORM_STORAGE_PATH = "visitForms/visit_form.pdf";
-const visitFormDocRef = () => doc(db, "settings", "visitForm");
-
-async function loadVisitFormInfo() {
-  const nameEl = document.getElementById("uploadedFileName");
-  if (!nameEl) return;
-
-  nameEl.innerHTML = `<span style="color:#888;font-size:0.85rem;">جاري التحقق من الملف...</span>`;
-
-  try {
-    const snap = await getDoc(visitFormDocRef());
-    if (snap.exists()) {
-      const data = snap.data();
-      nameEl.innerHTML = `
-        <span style="display:inline-flex;align-items:center;gap:6px;background:#eef3ff;color:#1a3a6b;border:1px solid #c7d6f5;border-radius:8px;padding:5px 10px;font-size:0.85rem;">
-          <i class="ti ti-file-type-pdf" style="color:#c0392b;"></i>
-          <span>${esc(data.fileName || "نموذج_الزيارة.pdf")}</span>
-          <button type="button" id="removeVisitFileBtn" title="حذف الملف" style="border:none;background:transparent;color:#c0392b;cursor:pointer;display:flex;align-items:center;padding:0;margin-right:2px;">
-            <i class="ti ti-trash"></i>
-          </button>
-        </span>
-      `;
-      const removeBtn = document.getElementById("removeVisitFileBtn");
-      if (removeBtn) removeBtn.addEventListener("click", removeVisitForm);
-    } else {
-      nameEl.innerHTML = `<span style="color:#888;font-size:0.85rem;">لا يوجد ملف مرفوع حالياً</span>`;
-    }
-  } catch (err) {
-    console.error("loadVisitFormInfo error:", err);
-    nameEl.innerHTML = `<span style="color:#c0392b;font-size:0.85rem;">تعذر تحميل بيانات الملف</span>`;
-  }
-}
-
-async function uploadVisitForm(file) {
-  // حماية إضافية على مستوى الواجهة: غير موظفات شؤون الطالبات لا يصل هذا الكود لهن أصلاً
-  // (الزر مخفي عنهن)، لكن نتحقق هنا أيضاً كطبقة احتياطية
-  if (!isAffairs) {
-    alert("هذه الميزة متاحة فقط لموظفات قسم شؤون الطالبات");
-    return;
-  }
-
-  const nameEl = document.getElementById("uploadedFileName");
-
-  if (file.type !== "application/pdf") {
-    alert("يجب أن يكون الملف بصيغة PDF فقط");
-    return;
-  }
-
-  const maxSizeMB = 10;
-  if (file.size > maxSizeMB * 1024 * 1024) {
-    alert(`حجم الملف يجب ألا يتجاوز ${maxSizeMB} ميجابايت`);
-    return;
-  }
-
-  if (nameEl) nameEl.innerHTML = `<span style="color:#1a3a6b;font-size:0.85rem;">جاري رفع الملف...</span>`;
-
-  try {
-    const storageRef = ref(storage, VISIT_FORM_STORAGE_PATH);
-    await uploadBytes(storageRef, file);
-    const fileUrl = await getDownloadURL(storageRef);
-
-    await setDoc(visitFormDocRef(), {
-      fileUrl,
-      fileName:   file.name,
-      uploadedAt: serverTimestamp(),
-      uploadedBy: currentEmployee?.fullName || "موظفة شؤون الطالبات"
-    });
-
-    await loadVisitFormInfo();
-  } catch (err) {
-    console.error("uploadVisitForm error:", err);
-    alert("حدث خطأ أثناء رفع الملف: " + err.message);
-    await loadVisitFormInfo();
-  }
-}
-
-async function removeVisitForm() {
-  if (!isAffairs) return;
-  if (!confirm("هل تريدين حذف نموذج الزيارة الحالي؟ الطالبات لن يتمكنّ من تحميله بعد الحذف.")) return;
-  try {
-    await deleteObject(ref(storage, VISIT_FORM_STORAGE_PATH)).catch(() => {});
-    await deleteDoc(visitFormDocRef());
-    await loadVisitFormInfo();
-  } catch (err) {
-    console.error("removeVisitForm error:", err);
-    alert("حدث خطأ أثناء حذف الملف: " + err.message);
-  }
-}
-
-const uploadVisitFileBtnEl = document.getElementById("uploadVisitFileBtn");
-const visitFileInputEl     = document.getElementById("visitFileInput");
-
-if (uploadVisitFileBtnEl && visitFileInputEl) {
-  uploadVisitFileBtnEl.addEventListener("click", () => visitFileInputEl.click());
-
-  visitFileInputEl.addEventListener("change", (e) => {
-    const file = e.target.files[0];
-    if (file) uploadVisitForm(file);
-    e.target.value = "";
-  });
-}
-
 // ==================== أحداث الواجهة ====================
 
 // تبديل التابات (السايدبار)
@@ -985,18 +877,6 @@ document.querySelectorAll(".emp-tab-btn").forEach(btn => {
     document.querySelectorAll(".admin-stat-card").forEach(c => c.classList.remove("active"));
     const allCard = document.getElementById("card-all");
     if (allCard) allCard.classList.add("active");
-
-    // إظهار منطقة رفع نموذج الزيارة فقط لموظفات شؤون الطالبات وفقط داخل تبويب "طلبات الزيارة"
-    const visitUploadAreaEl = document.getElementById("visitUploadArea");
-    if (visitUploadAreaEl) {
-      if (currentTab === "visit" && isAffairs) {
-        visitUploadAreaEl.style.display = "";
-        loadVisitFormInfo();
-      } else {
-        visitUploadAreaEl.style.display = "none";
-      }
-    }
-
     renderTab();
   });
 });
@@ -1050,7 +930,7 @@ auth.authStateReady().then(() => {
       if (empData.role !== "employee") { window.location.replace("EmployeeLogin.html"); return; }
 
       currentEmployee = { uid: user.uid, ...empData };
-      isAffairs       = empData.department === "شؤون الطالبات";
+      isAffairs       = (empData.department || "").trim() === "شؤون الطالبات";
 
       employeesCache[user.uid] = empData.fullName || "-";
 
