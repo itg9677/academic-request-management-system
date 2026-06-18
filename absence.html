@@ -10,56 +10,57 @@
 
 <div class="container">
     <div class="logo-container">
-    <img src="images/Qassim_University_logo.svg.png" alt="شعار الجامعة" class="logo">
-
-    <img src="images/pattern.png" alt="" class="header-pattern">
-</div>
+        <img src="images/Qassim_University_logo.svg.png" alt="شعار الجامعة" class="logo">
+        <img src="images/pattern.png" alt="" class="header-pattern">
+    </div>
 
     <h2>رفع عذر الغياب</h2>
-<form>
 
-    <!-- اسم المادة -->
-    <div class="form-group">
-        <label>رمز المقرر</label>
-        <input type="text" placeholder="أدخل رمز المقرر" required>
-    </div>
+    <form id="excuseForm">
 
-    <!-- تاريخ الغياب -->
-    <div class="form-group">
-        <label>تاريخ الغياب</label>
-        <input type="date" required>
-    </div>
+        <!-- رمز المقرر -->
+        <div class="form-group">
+            <label>رمز المقرر</label>
+            <input type="text" id="courseCode" placeholder="أدخل رمز المقرر" required>
+        </div>
 
-    <!-- نوع الاختبار -->
-    <div class="form-group">
-        <label>نوع الاختبار</label>
-        <select required>
-            <option value="" disabled selected>اختر نوع الاختبار</option>
-            <option value="midterm1">اختبار منتصف الفصل الأول (mid1)</option>
-            <option value="midterm2">اختبار منتصف الفصل الثاني (mid2)</option>
-            <option value="final">الاختبار النهائي (final)</option>
-        </select>
-    </div>
+        <!-- تاريخ الاختبار -->
+        <div class="form-group">
+            <label>تاريخ الاختبار</label>
+            <input type="date" id="absenceDate" required>
+        </div>
 
-    <!-- سبب الغياب -->
-    <div class="form-group">
-        <label>سبب الغياب</label>
-        <textarea placeholder="اكتب سبب الغياب" rows="4" required></textarea>
-    </div>
+        <!-- نوع الاختبار -->
+        <div class="form-group">
+            <label>نوع الاختبار</label>
+            <select id="examType" required>
+                <option value="" disabled selected>اختر نوع الاختبار</option>
+                <option value="midterm1">اختبار فصلي أول</option>
+                <option value="midterm2">اختبار فصلي ثاني</option>
+                <option value="final">اختبار نهائي</option>
+            </select>
+        </div>
 
-    <!-- رفع ملف -->
-    <div class="form-group">
-        <label>إرفاق ملف</label>
-        <input type="file" accept=".pdf,.png,.jpg,.jpeg" required>
-    </div>
+        <!-- سبب الغياب -->
+        <div class="form-group">
+            <label>سبب الغياب</label>
+            <textarea id="reason" placeholder="اكتب سبب الغياب" rows="4" required></textarea>
+        </div>
 
-    <!-- زر الإرسال -->
-    <button type="submit">إرسال الطلب</button>
-    <br><br>
-    <button type="button" class="btn-track" onclick="window.location.href='ExcusesHistory.html'">متابعة طلب سابق</button>
+        <!-- رفع ملف -->
+        <div class="form-group">
+            <label>إرفاق ملف (PDF أو صورة)</label>
+            <input type="file" id="fileInput" accept=".pdf,.png,.jpg,.jpeg" required>
+        </div>
 
-</form>
+        <!-- زر الإرسال -->
+        <button type="submit">إرسال الطلب</button>
+        <br><br>
+        <button type="button" class="btn-track" onclick="window.location.href='ExcusesHistory.html'">متابعة طلب سابق</button>
+
+    </form>
 </div>
 
+<script type="module" src="absence.js"></script>
 </body>
 </html>

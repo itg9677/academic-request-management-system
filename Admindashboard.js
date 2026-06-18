@@ -108,6 +108,7 @@ const statusLabel = {
 
 const reqTypeLabel   = { add: "اضافة", drop: "حذف", edit: "تعديل شعبة" };
 const visitTypeLabel = { internal: "داخلية", external: "خارجية" };
+const examTypeLabel  = { midterm1: "اختبار فصلي أول", midterm2: "اختبار فصلي ثاني", final: "اختبار نهائي" };
 const levelLabel     = {
   "1": "المستوى الأول", "2": "المستوى الثاني", "3": "المستوى الثالث", "4": "المستوى الرابع",
   "5": "المستوى الخامس", "6": "المستوى السادس", "7": "المستوى السابع", "8": "المستوى الثامن"
@@ -234,6 +235,7 @@ function updateStatCards() {
 // حالة "جديد" = طلب pending ما عنده assignedEmployee بعد
 // حالة "قيد المراجعة" = طلب pending وله موظف معالج (دمج معلق مع قيد المراجعة)
 function getEffectiveStatus(item) {
+  if (item.status === "new") return "new";
   if (item.status === "pending" || !item.status) {
     return item.assignedEmployee ? "under_review" : "new";
   }
@@ -392,8 +394,9 @@ function buildDetailRows(tab, item) {
       ? `<tr><td class="sp-detail-label">سبب الرفض</td><td><span class="sp-reject-reason">${esc(item.rejectReason)}</span></td></tr>` : "";
     return `
       <tr><td class="sp-detail-label">رمز المقرر</td><td>${esc(item.courseCode || "-")}</td></tr>
+      <tr><td class="sp-detail-label">نوع الاختبار</td><td><strong>${examTypeLabel[item.examType] || esc(item.examType || "-")}</strong></td></tr>
       <tr><td class="sp-detail-label">تاريخ الاختبار</td><td>${esc(item.examDate || "-")}</td></tr>
-      <tr><td class="sp-detail-label">الملاحظات</td><td>${esc(item.notes || "-")}</td></tr>
+      <tr><td class="sp-detail-label">سبب الغياب</td><td>${esc(item.reason || item.notes || "-")}</td></tr>
       <tr><td class="sp-detail-label">المرفق</td><td>${attach}</td></tr>
       <tr><td class="sp-detail-label">تاريخ الطلب</td><td>${formatDate(item.createdAt)}</td></tr>
       <tr><td class="sp-detail-label">الحالة</td><td>${statusHtml}</td></tr>
@@ -434,7 +437,7 @@ function buildOtherRequestsTable(tab, item) {
   const rows = others.map((o) => {
     let label = "-";
     if (tab === "addDrop") label = `${reqTypeLabel[o.requestType] || o.requestType || "-"} — ${esc(o.courseName || o.courseCode || "")}`;
-    else if (tab === "excuse") label = esc(o.courseCode || "-");
+    else if (tab === "excuse") label = `${esc(o.courseCode || "-")} — ${examTypeLabel[o.examType] || esc(o.examType || "-")}`;
     else label = visitTypeLabel[o.visitType] || o.visitType || "-";
 
     const statusKey = getEffectiveStatus(o);
@@ -607,12 +610,13 @@ function printActiveStudent() {
       `;
     }).join("");
   } else if (tab === "excuse") {
-    headerCols = "<th>رمز المقرر</th><th>تاريخ الاختبار</th><th>الملاحظات</th><th>الحالة</th><th>التاريخ</th>";
+    headerCols = "<th>رمز المقرر</th><th>نوع الاختبار</th><th>تاريخ الاختبار</th><th>سبب الغياب</th><th>الحالة</th><th>التاريخ</th>";
     rows = items.map((r) => `
       <tr>
         <td>${esc(r.courseCode || "-")}</td>
+        <td><strong>${examTypeLabel[r.examType] || esc(r.examType || "-")}</strong></td>
         <td>${esc(r.examDate || "-")}</td>
-        <td>${esc(r.notes || "-")}</td>
+        <td>${esc(r.reason || r.notes || "-")}</td>
         <td>${statusLabel[getEffectiveStatus(r)] || getEffectiveStatus(r)}</td>
         <td>${formatDate(r.createdAt)}</td>
       </tr>
