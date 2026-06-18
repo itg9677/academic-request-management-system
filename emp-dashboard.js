@@ -971,6 +971,19 @@ auth.authStateReady().then(() => {
 
       currentEmployee = { uid: user.uid, ...empData };
       isAffairs       = (empData.department || "").trim() === "شؤون الطالبات";
+      isAffairs = (empData.department || "").trim() === "شؤون الطالبات";
+
+// إخفاء تبويب الزيارة لغير موظفات شؤون الطالبات
+const visitTabBtn = document.querySelector('.emp-tab-btn[data-tab="visit"]');
+
+if (!isAffairs && visitTabBtn) {
+  visitTabBtn.style.display = "none";
+
+  // منع البقاء على تبويب الزيارة إذا كان مخفياً
+  if (currentTab === "visit") {
+    currentTab = "addDrop";
+  }
+}
 
       employeesCache[user.uid] = empData.fullName || "-";
 

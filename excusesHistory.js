@@ -64,6 +64,9 @@ onAuthStateChanged(auth, async (user) => {
 
             const data = docItem.data();
 
+            /* =========================
+               تحويل الحالة للعربي
+            ========================= */
             let statusText = "قيد المراجعة";
 
             if (data.status === "approved") {
@@ -74,11 +77,34 @@ onAuthStateChanged(auth, async (user) => {
                 statusText = "مرفوض";
             }
 
+            /* =========================
+               تحويل نوع الاختبار للعربي
+            ========================= */
+            let examTypeArabic = "-";
+
+            switch (data.examType) {
+
+                case "final":
+                    examTypeArabic = "اختبار نهائي";
+                    break;
+
+                case "midterm1":
+                    examTypeArabic = "اختبار فصلي أول";
+                    break;
+
+                case "midterm2":
+                    examTypeArabic = "اختبار فصلي ثاني";
+                    break;
+
+                default:
+                    examTypeArabic = data.examType || "-";
+            }
+
             const row = document.createElement("tr");
 
             row.innerHTML = `
-                <td>${docItem.id}</td>
-                <td>${data.examType || "-"}</td>
+                <td>${data.courseCode || "-"}</td>
+                <td>${examTypeArabic}</td>
                 <td>${statusText}</td>
             `;
 
@@ -86,6 +112,7 @@ onAuthStateChanged(auth, async (user) => {
         });
 
     } catch (error) {
+
         console.error("Error:", error);
 
         excusesContainer.innerHTML = `

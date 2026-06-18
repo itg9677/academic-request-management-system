@@ -1,19 +1,20 @@
 import { auth, db } from "./firebase.js";
 
-import { onAuthStateChanged }
-from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { 
+  onAuthStateChanged, 
+  signOut 
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
 import {
   doc,
   getDoc,
   updateDoc
-}
-from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 onAuthStateChanged(auth, async (user) => {
 
   if (!user) {
-    window.location.href = "login.html";
+    window.location.href = "loginPage.html";
     return;
   }
 
@@ -27,73 +28,63 @@ onAuthStateChanged(auth, async (user) => {
 
   const data = snap.data();
 
-  document.getElementById("fullName").textContent =
-    data.fullName || "-";
-
-  document.getElementById("universityId").textContent =
-    data.universityId || "-";
-
-  document.getElementById("major").textContent =
-    data.major || "-";
-
-  document.getElementById("phoneNumber").textContent =
-    data.phoneNumber || "-";
+  document.getElementById("fullName").textContent = data.fullName || "-";
+  document.getElementById("universityId").textContent = data.universityId || "-";
+  document.getElementById("major").textContent = data.major || "-";
+  document.getElementById("phoneNumber").textContent = data.phoneNumber || "-";
 
   const editBtn = document.getElementById("editProfileBtn");
   const modal = document.getElementById("editModal");
 
   editBtn.addEventListener("click", () => {
-
-    document.getElementById("editMajor").value =
-      data.major || "";
-
-    document.getElementById("editPhone").value =
-      data.phoneNumber || "";
-
+    document.getElementById("editMajor").value = data.major || "";
+    document.getElementById("editPhone").value = data.phoneNumber || "";
     modal.style.display = "block";
   });
 
-  document.getElementById("closeModalBtn")
-    .addEventListener("click", () => {
+  document.getElementById("closeModalBtn").addEventListener("click", () => {
+    modal.style.display = "none";
+  });
+
+  document.getElementById("saveProfileBtn").addEventListener("click", async () => {
+
+    const newMajor = document.getElementById("editMajor").value.trim();
+    const newPhone = document.getElementById("editPhone").value.trim();
+
+    try {
+      await updateDoc(docRef, {
+        major: newMajor,
+        phoneNumber: newPhone
+      });
+
+      document.getElementById("major").textContent = newMajor;
+      document.getElementById("phoneNumber").textContent = newPhone;
+
+      data.major = newMajor;
+      data.phoneNumber = newPhone;
+
       modal.style.display = "none";
-    });
 
-  document.getElementById("saveProfileBtn")
-    .addEventListener("click", async () => {
+      alert("تم تحديث البيانات بنجاح");
 
-      const newMajor =
-        document.getElementById("editMajor").value.trim();
+    } catch (error) {
+      console.error(error);
+      alert("حدث خطأ أثناء التحديث");
+    }
 
-      const newPhone =
-        document.getElementById("editPhone").value.trim();
+  });
 
-      try {
+});
 
-        await updateDoc(docRef, {
-          major: newMajor,
-          phoneNumber: newPhone
-        });
+// زر تسجيل الخروج
+const logoutBtn = document.getElementById("logoutBtn");
 
-        document.getElementById("major").textContent =
-          newMajor;
-
-        document.getElementById("phoneNumber").textContent =
-          newPhone;
-
-        data.major = newMajor;
-        data.phoneNumber = newPhone;
-
-        modal.style.display = "none";
-
-        alert("تم تحديث البيانات بنجاح");
-
-      } catch (error) {
-
-        console.error(error);
-        alert("حدث خطأ أثناء التحديث");
-
-      }
-
-    });
-
+logoutBtn.addEventListener("click", async () => {
+  try {
+    await signOut(auth);
+    window.location.href = "loginPage.html";
+  } catch (error) {
+    console.error("خطأ أثناء تسجيل الخروج:", error);
+    alert("حدث خطأ أثناء تسجيل الخروج");
+  }
 });
