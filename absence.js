@@ -94,11 +94,15 @@ onAuthStateChanged(auth, async (user) => {
 /* =========================
    منطق توزيع الطلب على الموظفين
 ========================= */
-async function getTargetEmployeeIds(examType, studentMajor) {
-
-    const targetDept = examType === "final"
+function getTargetDepartment(examType, studentMajor) {
+    // الاختبار النهائي يروح لشؤون الطالبات
+    // الفصلي الأول والثاني يروح لقسم الطالبة (تخصصها)
+    return examType === "final"
         ? "شؤون الطالبات"
         : studentMajor;
+}
+
+async function getTargetEmployeeIds(targetDept) {
 
     const empQuery = query(
         collection(db, "employees"),
@@ -148,8 +152,11 @@ form.addEventListener("submit", async (e) => {
             attachmentName = file.name;
         }
 
-        // تحديد الموظفين المستهدفين
-        const targetEmployeeIds = await getTargetEmployeeIds(examType, studentData.major);
+        // تحديد القسم المستهدف بناءً على نوع الاختبار
+        const targetDept = getTargetDepartment(examType, studentData.major);
+
+        // تحديد الموظفين المستهدفين في ذلك القسم
+        const targetEmployeeIds = await getTargetEmployeeIds(targetDept);
 
         if (targetEmployeeIds.length === 0) {
             alert("لم يتم العثور على موظفين مختصين. تواصل مع الإدارة.");
@@ -169,10 +176,11 @@ form.addEventListener("submit", async (e) => {
             reason,
             attachmentUrl,
             attachmentName,
-            assignedEmployees: targetEmployeeIds,
-            status:            "new",
-            createdAt:         serverTimestamp(),
-            updatedAt:         serverTimestamp()
+            assignedDepartment: targetDept,
+            assignedEmployees:  targetEmployeeIds,
+            status:             "new",
+            createdAt:          serverTimestamp(),
+            updatedAt:          serverTimestamp()
         });
 
         alert("تم إرسال الطلب بنجاح ✅");

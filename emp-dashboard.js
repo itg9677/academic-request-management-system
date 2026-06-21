@@ -109,6 +109,7 @@ const statusLabel = {
 const reqTypeLabel   = { add: "اضافة", drop: "حذف", edit: "تعديل شعبة", remove: "حذف", change: "تعديل شعبة" };
 const reqTypeClass   = { add: "b-add", drop: "b-drop", edit: "b-edit", remove: "b-drop", change: "b-edit" };
 const visitTypeLabel = { internal: "داخلية", external: "خارجية" };
+const examTypeLabel  = { midterm1: "اختبار فصلي أول", midterm2: "اختبار فصلي ثاني", final: "اختبار نهائي" };
 const levelLabel     = {
   "1": "المستوى الأول", "2": "المستوى الثاني", "3": "المستوى الثالث",
   "4": "المستوى الرابع", "5": "المستوى الخامس", "6": "المستوى السادس",
@@ -446,6 +447,7 @@ function buildDetailRows(tab, item) {
       : "لا يوجد";
     return `
       <tr><td class="sp-detail-label">رمز المقرر</td><td>${esc(item.courseCode || "-")}</td></tr>
+      <tr><td class="sp-detail-label">نوع الاختبار</td><td><strong>${examTypeLabel[item.examType] || esc(item.examType || "-")}</strong></td></tr>
       <tr><td class="sp-detail-label">تاريخ الغياب</td><td>${esc(item.absenceDate || item.examDate || "-")}</td></tr>
       <tr><td class="sp-detail-label">سبب الغياب</td><td>${esc(item.reason || item.notes || "-")}</td></tr>
       <tr><td class="sp-detail-label">المرفق</td><td>${attach}</td></tr>
@@ -493,7 +495,7 @@ function buildOtherRequestsTable(tab, item) {
     if (tab === "addDrop")
       label = `${reqTypeLabel[o.requestType] || o.requestType || "-"} — ${esc(o.courseName || o.courseCode || "")}`;
     else if (tab === "excuse")
-      label = esc(o.courseCode || "-");
+      label = `${esc(o.courseCode || "-")} — ${examTypeLabel[o.examType] || esc(o.examType || "-")}`;
     else
       label = visitTypeLabel[o.visitType] || o.visitType || "-";
 
@@ -800,11 +802,12 @@ function printActiveStudent() {
       </tr>`;
     }).join("");
   } else if (tab === "excuse") {
-    headerCols = "<th>رمز المقرر</th><th>تاريخ الغياب</th><th>سبب الغياب</th><th>الحالة</th><th>الموظف المعالج</th><th>التاريخ</th>";
+    headerCols = "<th>رمز المقرر</th><th>نوع الاختبار</th><th>تاريخ الغياب</th><th>سبب الغياب</th><th>الحالة</th><th>الموظف المعالج</th><th>التاريخ</th>";
     rows = items.map(r => {
       const en = r.assignedEmployeeName || (r.assignedEmployee ? (employeesCache[r.assignedEmployee] || "-") : "-");
       return `<tr>
         <td>${esc(r.courseCode || "-")}</td>
+        <td><strong>${examTypeLabel[r.examType] || esc(r.examType || "-")}</strong></td>
         <td>${esc(r.absenceDate || r.examDate || "-")}</td>
         <td>${esc(r.reason || r.notes || "-")}</td>
         <td>${statusLabel[getEffectiveStatus(r)] || getEffectiveStatus(r)}</td>
