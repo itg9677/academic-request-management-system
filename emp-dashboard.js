@@ -193,10 +193,21 @@ async function getEmployeeName(uid) {
 
 async function loadExcuseAndVisit() {
   try {
-    const excQuery = isAffairs
-      ? query(collection(db, "excuses"))
-      : query(collection(db, "excuses"),
-              where("assignedDepartment", "==", currentEmployee.department));
+   let excQuery;
+
+if (isAffairs) {
+  // موظفة شؤون الطالبات تشوف الأعذار النهائية فقط
+  excQuery = query(
+    collection(db, "excuses"),
+    where("examType", "==", "final")
+  );
+} else {
+  // موظفة القسم تشوف الأعذار الخاصة بقسمها فقط
+  excQuery = query(
+    collection(db, "excuses"),
+    where("assignedDepartment", "==", currentEmployee.department)
+  );
+}
 
 
     const [excSnap, visSnap] = await Promise.all([
