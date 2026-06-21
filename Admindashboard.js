@@ -8,6 +8,10 @@ import {
   ref, uploadBytes, getDownloadURL, deleteObject
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
 
+// imports خاصة بميزة نقل صلاحية الأدمن (تطبيق Firebase ثانوي مؤقت)
+import { initializeApp, deleteApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getAuth, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
 console.log("FILE LOADED");
 
 // ==================== State ====================
@@ -183,7 +187,7 @@ async function loadAllData() {
   tableWrapEl.style.display = "none";
 
   try {
- 
+
     const reqQuery = query(
       collection(db, "requests"),
       where("requestType", "in", ["add", "drop", "edit"])
@@ -895,6 +899,147 @@ if (uploadVisitFileBtnEl && visitFileInputEl) {
     e.target.value = "";
   });
 }
+
+// ==================== نقل صلاحية الأدمن ====================
+// نستخدم تطبيق Firebase ثانوي (Secondary App) بنفس الكونفق، عشان إنشاء
+// حساب Auth جديد لا يؤثر على جلسة الأدمن الحالي (Firebase تلقائياً يسجّل
+// دخول بآخر حساب يتم إنشاؤه إذا استخدمنا نفس instance الأساسي).
+
+const firebaseConfigForTransfer = {
+  apiKey: "AIzaSyDg4iYMZEdc8pjJU67KtXbSvhBaqdoP0iA",
+  authDomain: "studentsreq-d9ea1.firebaseapp.com",
+  projectId: "studentsreq-d9ea1",
+  storageBucket: "studentsreq-d9ea1.firebasestorage.app",
+  messagingSenderId: "375395162945",
+  appId: "1:375395162945:web:e3edb97c48a30ab6401fc0"
+};
+
+async function createAdminAccountSafely(email, password) {
+  // اسم فريد لتجنب تعارض مع أي instance ثانوي آخر مفتوح بنفس الجلسة
+  const secondaryApp = initializeApp(firebaseConfigForTransfer, "secondary-" + Date.now());
+  const secondaryAuth = getAuth(secondaryApp);
+
+  try {
+    const cred = await createUserWithEmailAndPassword(secondaryAuth, email, password);
+    return cred.user.uid;
+  } finally {
+    // نحذف التطبيق الثانوي فوراً بعد الاستخدام (هذا لا يؤثر على المستخدم
+    // المُنشأ في Firebase Authentication، فقط ينظف الـ instance المحلي)
+    await deleteApp(secondaryApp).catch(() => {});
+  }
+}
+
+function openTransferModal() {
+  const overlayEl = document.getElementById("transferAdminOverlay");
+  const modalEl   = document.getElementById("transferAdminModal");
+  const errorEl   = document.getElementById("ta_error");
+  const formEl    = document.getElementById("transferAdminForm");
+  if (!overlayEl || !modalEl) return;
+  overlayEl.style.display = "block";
+  modalEl.style.display   = "block";
+  if (errorEl) errorEl.style.display = "none";
+  if (formEl) formEl.reset();
+}
+
+function closeTransferModal() {
+  const overlayEl = document.getElementById("transferAdminOverlay");
+  const modalEl   = document.getElementById("transferAdminModal");
+  if (overlayEl) overlayEl.style.display = "none";
+  if (modalEl)   modalEl.style.display   = "none";
+}
+
+async function handleTransferAdmin(e) {
+  e.preventDefault();
+
+  const fullName        = document.getElementById("ta_fullName").value.trim();
+  const phone            = document.getElementById("ta_phone").value.trim();
+  const employeeNumber  = document.getElementById("ta_employeeNumber").value.trim();
+  const email           = document.getElementById("ta_email").value.trim();
+  const password        = document.getElementById("ta_password").value;
+
+  const errorEl   = document.getElementById("ta_error");
+  const submitBtn = document.getElementById("ta_submitBtn");
+
+  errorEl.style.display = "none";
+  submitBtn.disabled = true;
+  submitBtn.textContent = "جارٍ التنفيذ...";
+
+  try {
+    // 1) تأكد ما يوجد موظف بنفس الإيميل أو الرقم الوظيفي مسبقاً
+    const dupEmailQ = query(collection(db, "employees"), where("email", "==", email));
+    const dupEmailSnap = await getDocs(dupEmailQ);
+    if (!dupEmailSnap.empty) {
+      throw new Error("هذا البريد الإلكتروني مستخدم لموظف آخر بالفعل");
+    }
+
+    const dupEmpNumQ = query(collection(db, "employees"), where("employeeNumber", "==", employeeNumber));
+    const dupEmpNumSnap = await getDocs(dupEmpNumQ);
+    if (!dupEmpNumSnap.empty) {
+      throw new Error("هذا الرقم الوظيفي مستخدم لموظف آخر بالفعل");
+    }
+
+    // 2) إنشاء حساب Auth جديد بدون كسر جلسة الأدمن الحالي
+    const newUid = await createAdminAccountSafely(email, password);
+
+    // 3) إنشاء سجل الموظف الجديد كأدمن
+    await setDoc(doc(db, "employees", newUid), {
+      fullName,
+      phone,
+      employeeNumber,
+      email,
+      isAdmin: true,
+      createdAt: serverTimestamp(),
+      createdVia: "transferAdmin"
+    });
+
+    // 4) مزامنة adminUids (تستخدمها قواعد الأمان)
+    await setDoc(doc(db, "adminUids", newUid), { isAdmin: true, email }, { merge: true });
+
+    // 5) سحب صلاحية الأدمن الحالي
+    if (currentAdminData?.docId) {
+      await updateDoc(doc(db, "employees", currentAdminData.docId), {
+        isAdmin: false,
+        adminRevokedAt: serverTimestamp()
+      });
+      await deleteDoc(doc(db, "adminUids", currentAdminData.uid)).catch(() => {});
+    }
+
+    // 6) تسجيل عملية النقل في سجل تاريخي
+    await setDoc(doc(collection(db, "adminTransferLogs")), {
+      fromAdminId:      currentAdminData?.docId || null,
+      fromAdminName:    currentAdminData?.fullName || null,
+      toAdminId:        newUid,
+      toAdminName:      fullName,
+      toEmployeeNumber: employeeNumber,
+      transferredAt:    serverTimestamp()
+    });
+
+    alert(`تم نقل صلاحية الأدمن إلى "${fullName}" بنجاح.\nبيانات الدخول:\nالإيميل: ${email}\nكلمة المرور المؤقتة: ${password}\n\nسلّمها له الآن، وسيتم تسجيل خروجك بعد قليل.`);
+
+    closeTransferModal();
+
+    // تسجيل خروج الأدمن الحالي بعد النقل (لأنه فقد الصلاحية)
+    await signOut(auth);
+    window.location.href = "EmployeeLogin.html";
+
+  } catch (err) {
+    console.error("Transfer admin error:", err);
+    let msg = err.message || "حدث خطأ غير متوقع";
+    if (err.code === "auth/email-already-in-use") msg = "هذا البريد الإلكتروني مستخدم مسبقاً في نظام الدخول";
+    if (err.code === "auth/weak-password")         msg = "كلمة المرور ضعيفة جداً";
+    if (err.code === "auth/invalid-email")         msg = "صيغة البريد الإلكتروني غير صحيحة";
+    errorEl.textContent = msg;
+    errorEl.style.display = "block";
+  } finally {
+    submitBtn.disabled = false;
+    submitBtn.textContent = "تأكيد ونقل الصلاحية";
+  }
+}
+
+document.getElementById("transferAdminBtn")?.addEventListener("click", openTransferModal);
+document.getElementById("ta_cancelBtn")?.addEventListener("click", closeTransferModal);
+document.getElementById("transferAdminOverlay")?.addEventListener("click", closeTransferModal);
+document.getElementById("transferAdminForm")?.addEventListener("submit", handleTransferAdmin);
 
 // ==================== أحداث الواجهة ====================
 
