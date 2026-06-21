@@ -477,47 +477,148 @@ function buildDetailRows(tab, item) {
 
 function buildOtherRequestsTable(tab, item) {
   const cfg    = tabConfig[tab];
- const others = tabData[tab]
-  .filter(
-    it => it.id !== item.id &&
-    it[cfg.studentField] === item[cfg.studentField]
-  )
-  .sort((a, b) => {
-    const aTime = a.createdAt?.toMillis?.() ?? 0;
-    const bTime = b.createdAt?.toMillis?.() ?? 0;
+  const others = tabData[tab]
+    .filter(
+      it => it.id !== item.id &&
+      it[cfg.studentField] === item[cfg.studentField]
+    )
+    .sort((a, b) => {
+      const aTime = a.createdAt?.toMillis?.() ?? 0;
+      const bTime = b.createdAt?.toMillis?.() ?? 0;
+      return bTime - aTime;
+    });
 
-    return bTime - aTime;
-  });
   if (!others.length) return "";
 
-  const rows = others.map(o => {
-    let label = "-";
-    if (tab === "addDrop")
-      label = `${reqTypeLabel[o.requestType] || o.requestType || "-"} — ${esc(o.courseName || o.courseCode || "")}`;
-    else if (tab === "excuse")
-      label = `${esc(o.courseCode || "-")} — ${examTypeLabel[o.examType] || esc(o.examType || "-")}`;
-    else
-      label = visitTypeLabel[o.visitType] || o.visitType || "-";
+  // لو مش تبويب حذف/إضافة: جدول واحد بدون تقسيم
+  if (tab !== "addDrop") {
+    const rows = others.map(o => {
+      let label = "-";
+      if (tab === "excuse")
+        label = `${esc(o.courseCode || "-")} — ${examTypeLabel[o.examType] || esc(o.examType || "-")}`;
+      else
+        label = visitTypeLabel[o.visitType] || o.visitType || "-";
 
-    const sk = getEffectiveStatus(o);
+      const sk = getEffectiveStatus(o);
+      return `
+        <tr class="sp-other-row sp-other-clickable" data-id="${o.id}" style="cursor:pointer;">
+          <td>${label}</td>
+          <td><span class="status-badge s-${sk}">${statusLabel[sk] || sk}</span></td>
+          <td>${formatDate(o.createdAt)}</td>
+          <td style="color:var(--navy);font-size:0.85rem;">عرض ←</td>
+        </tr>
+      `;
+    }).join("");
+
     return `
-      <tr class="sp-other-row sp-other-clickable" data-id="${o.id}" style="cursor:pointer;">
-        <td>${label}</td>
-        <td><span class="status-badge s-${sk}">${statusLabel[sk] || sk}</span></td>
-        <td>${formatDate(o.createdAt)}</td>
-        <td style="color:var(--navy);font-size:0.85rem;">عرض ←</td>
-      </tr>
+      <div class="sp-section-title">طلبات أخرى لنفس الطالب (${others.length})</div>
+      <div class="sp-table-wrap">
+        <table class="sp-table sp-other-table">
+          <thead><tr><th>الطلب</th><th>الحالة</th><th>التاريخ</th><th></th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
     `;
-  }).join("");
+  }
+
+  // تقسيم الطلبات: مواد تخصص vs مواد حرة/مشتركة
+  const specRequests  = others.filter(o => o.assignedDepartment?.trim() !== "شؤون الطالبات");
+  const sharedRequests = others.filter(o => o.assignedDepartment?.trim() === "شؤون الطالبات");
+
+  // اسم القسم للعرض في الـ header
+  const deptName    = currentEmployee?.department || "القسم";
+  const affairsName = "شؤون الطالبات";
+
+  // دالة مساعدة تبني صفوف جدول واحد
+  function buildRows(list) {
+    return list.map(o => {
+      const label = `${reqTypeLabel[o.requestType] || o.requestType || "-"} — ${esc(o.courseName || o.courseCode || "")}`;
+      const sk    = getEffectiveStatus(o);
+      return `
+        <tr class="sp-other-row sp-other-clickable" data-id="${o.id}" style="cursor:pointer;">
+          <td>${label}</td>
+          <td><span class="status-badge s-${sk}">${statusLabel[sk] || sk}</span></td>
+          <td>${formatDate(o.createdAt)}</td>
+          <td style="color:var(--navy);font-size:0.85rem;">عرض ←</td>
+        </tr>
+      `;
+    }).join("");
+  }
+
+  // استخرج قسم الطالب من الكاش (لعرضه في تاغ جدول التخصص عند شؤون الطالبات)
+  const studentUidForDept = item[tabConfig[tab].studentField];
+  const studentForDept    = studentsCache[studentUidForDept] || {};
+  const studentDept       = studentForDept.major || studentForDept.department || deptName;
+
+  // دالة تبني جدول كامل مع header ملون
+  // ownerLabel = null يعني لا تعرض التاغ
+  function buildTable({ list, icon, headerClass, titleClass, title, ownerLabel, ownerIcon, ownerClass, countClass }) {
+    if (!list.length) return "";
+    const ownerTagHtml = ownerLabel
+      ? `<span class="sp-other-owner-tag ${ownerClass}">
+            <i class="ti ${ownerIcon}" style="font-size:11px;"></i>
+            ${ownerLabel}
+          </span>`
+      : "";
+    return `
+      <div class="sp-other-table-block">
+        <div class="sp-other-table-header ${headerClass}">
+          <i class="ti ${icon}" aria-hidden="true"></i>
+          <span class="sp-other-table-title ${titleClass}">${title}</span>
+          <span class="sp-other-count-badge ${countClass}">${list.length}</span>
+          ${ownerTagHtml}
+        </div>
+        <div class="sp-table-wrap">
+          <table class="sp-table sp-other-table">
+            <thead><tr><th>الطلب</th><th>الحالة</th><th>التاريخ</th><th></th></tr></thead>
+            <tbody>${buildRows(list)}</tbody>
+          </table>
+        </div>
+      </div>
+    `;
+  }
+
+  const total = others.length;
+
+  // جدول التخصص — أزرق
+  // - موظف القسم: عنوان "مواد التخصص"، تاغ أخضر "اختصاصك"
+  // - شؤون الطالبات: عنوان = اسم قسم الطالب، تاغ رمادي باسم القسم
+  const specTable = buildTable({
+    list:        specRequests,
+    icon:        "ti-school",
+    headerClass: "sp-other-header-spec",
+    titleClass:  "sp-other-title-spec",
+    title:       isAffairs ? "مواد القسم" : "مواد التخصص",
+    ownerLabel:  isAffairs ? studentDept : null,
+    ownerIcon:   "ti-building",
+    ownerClass:  "sp-other-owner-other",
+    countClass:  "sp-other-count-spec",
+  });
+
+  // جدول الحرة/المشتركة — بنفسجي
+  // - شؤون الطالبات: بدون تاغ (جدولها الخاص)
+  // - موظف القسم: تاغ رمادي "شؤون الطالبات"
+  const sharedTable = buildTable({
+    list:        sharedRequests,
+    icon:        "ti-layers-intersect",
+    headerClass: "sp-other-header-free",
+    titleClass:  "sp-other-title-free",
+    title:       "المواد الحرة والمشتركة",
+    ownerLabel:  isAffairs ? null : affairsName,
+    ownerIcon:   "ti-building",
+    ownerClass:  "sp-other-owner-other",
+    countClass:  "sp-other-count-free",
+  });
+
+  // شؤون الطالبات: جدولها (الحرة) فوق، ثم التخصص تحت
+  // موظف القسم: التخصص فوق، ثم الحرة تحت
+  const orderedTables = isAffairs
+    ? `${sharedTable}${specTable}`
+    : `${specTable}${sharedTable}`;
 
   return `
-    <div class="sp-section-title">طلبات أخرى لنفس الطالب (${others.length})</div>
-    <div class="sp-table-wrap">
-      <table class="sp-table sp-other-table">
-        <thead><tr><th>الطلب</th><th>الحالة</th><th>التاريخ</th><th></th></tr></thead>
-        <tbody>${rows}</tbody>
-      </table>
-    </div>
+    <div class="sp-section-title">طلبات أخرى لنفس الطالب (${total})</div>
+    ${orderedTables}
   `;
 }
 

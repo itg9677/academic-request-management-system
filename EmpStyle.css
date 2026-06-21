@@ -835,3 +835,91 @@
   .admin-table-card { margin: 0 14px 24px; }
   .admin-side-panel { width: 100%; }
 }
+/* ===== جداول الطلبات الأخرى المقسمة حسب نوع المادة ===== */
+
+.sp-other-table-block {
+  margin-bottom: 12px;
+  border: 0.5px solid #e2e8f0;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.sp-other-table-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 14px;
+  border-bottom: 0.5px solid #e2e8f0;
+  font-size: 13px;
+}
+
+/* هيدر التخصص — أزرق */
+.sp-other-header-spec {
+  background: #EBF3FD;
+}
+.sp-other-title-spec {
+  font-weight: 600;
+  color: #0C447C;
+}
+.sp-other-header-spec > .ti {
+  color: #185FA5;
+  font-size: 15px;
+}
+
+/* هيدر الحرة/المشتركة — بنفسجي */
+.sp-other-header-free {
+  background: #EEEDFE;
+}
+.sp-other-title-free {
+  font-weight: 600;
+  color: #3C3489;
+}
+.sp-other-header-free > .ti {
+  color: #534AB7;
+  font-size: 15px;
+}
+
+/* عداد الطلبات */
+.sp-other-count-badge {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-weight: 600;
+}
+.sp-other-count-spec {
+  background: #B5D4F4;
+  color: #042C53;
+}
+.sp-other-count-free {
+  background: #CECBF6;
+  color: #26215C;
+}
+
+/* تاغ المالك (اختصاصك أو اسم الجهة الأخرى) */
+.sp-other-owner-tag {
+  margin-right: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  padding: 2px 10px;
+  border-radius: 999px;
+}
+
+/* اختصاصه = أخضر */
+.sp-other-owner-me {
+  background: #EAF3DE;
+  color: #27500A;
+}
+
+/* اختصاص الجهة الأخرى = رمادي */
+.sp-other-owner-other {
+  background: #F1EFE8;
+  color: #5F5E5A;
+}
+
+/* صفوف الجدول اللي ليست من اختصاصه */
+.sp-other-table-block:has(.sp-other-owner-other) .sp-other-row td {
+  color: #94a3b8;
+  background: #f8fafc;
+}
