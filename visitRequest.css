@@ -244,3 +244,149 @@ button:hover{
         width:220px;
     }
 }
+
+    .courses-table-wrapper {
+        margin-top: 20px;
+        overflow-x: auto;
+    }
+
+    .courses-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-family: 'Tajawal', sans-serif;
+        font-size: 0.9rem;
+    }
+
+    .courses-table th {
+        background: #1a3a6e;
+        color: white;
+        padding: 10px 12px;
+        text-align: center;
+        border: 1px solid #ccc;
+    }
+
+    .courses-table td {
+        padding: 9px 12px;
+        text-align: center;
+        border: 1px solid #ddd;
+        background: #fff;
+    }
+
+    .courses-table tr:nth-child(even) td {
+        background: #f5f7fc;
+    }
+
+    .btn-add-course {
+        margin-top: 12px;
+        background: #e8ecf8;
+        color: #0d2b6e;
+        border: 1.5px dashed #a0aed4;
+        border-radius: 8px;
+        padding: 9px 18px;
+        font-family: 'Tajawal', sans-serif;
+        font-size: 0.88rem;
+        font-weight: 600;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        transition: background 0.2s;
+    }
+
+    .btn-add-course:hover { background: #d4daf0; }
+
+    .btn-add-course .plus {
+        width: 22px; height: 22px;
+        background: #0d2b6e;
+        color: white;
+        border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 1rem;
+    }
+
+    .readonly-field {
+        background: #eef1fa !important;
+        color: #555 !important;
+        cursor: not-allowed;
+    }
+
+    .section-divider {
+        font-weight: 700;
+        color: #0d2b6e;
+        margin: 18px 0 8px;
+        font-size: 0.95rem;
+        border-right: 4px solid #0d2b6e;
+        padding-right: 8px;
+    }
+
+    .phone-form-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+        align-items: start;
+        margin-top: 4px;
+    }
+
+    @media (max-width: 600px) {
+        .phone-form-row { grid-template-columns: 1fr; }
+    }
+
+    /* منطقة تحميل نموذج الزيارة (يرفعه الأدمن) */
+    .visit-form-download-area {
+        display: flex;
+        align-items: center;
+        min-height: 44px;
+        margin-top: 4px;
+    }
+
+    .no-form-msg {
+        color: #888;
+        font-size: 0.88rem;
+    }
+
+    .download-form-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background: #1a3a6e;
+        color: #fff !important;
+        text-decoration: none;
+        padding: 10px 16px;
+        border-radius: 8px;
+        font-family: 'Tajawal', sans-serif;
+        font-size: 0.88rem;
+        font-weight: 600;
+        transition: background 0.2s;
+    }
+
+    .download-form-link:hover {
+        background: #0d2b6e;
+    }
+
+    .download-icon {
+        font-size: 1rem;
+    }
+
+    /* إخفاء قسم نموذج الزيارة قبل تحقق الشروط */
+    .hidden {
+        display: none !important;
+    }
+
+    .form-group select {
+        width: 100%;
+        padding: 12px;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        font-size: 14px;
+        box-sizing: border-box;
+        background: #fafbfd;
+        transition: .3s;
+        font-family: 'Tajawal', sans-serif;
+    }
+
+    .form-group select:focus {
+        outline: none;
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px rgba(26,58,107,.15);
+        background: white;
+    }

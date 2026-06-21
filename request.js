@@ -122,6 +122,27 @@ window.addRow = function(type){
     container.appendChild(div);
 };
 
+
+
+/* ===================== */
+function validateAddSections() {
+
+    const blocks = document.querySelectorAll("#addList .section-block");
+
+    for (let block of blocks) {
+
+        const course = block.querySelector("select")?.value;
+        const section = block.querySelector("input")?.value?.trim();
+
+        if (course && (!section || section === "")) {
+            alert("يرجى إدخال رقم الشعبة للمادة المضافة");
+            return false;
+        }
+    }
+
+    return true;
+}
+
 /* ===================== */
 function validateChangeSections() {
 
@@ -144,8 +165,11 @@ function validateChangeSections() {
 /* ===================== */
 document.getElementById("submitBtn").addEventListener("click", async () => {
 
-    const user = auth.currentUser;
-    if(!user) return;
+   const user = auth.currentUser;
+if(!user) return;
+
+if (!validateAddSections()) return;
+if (!validateChangeSections()) return;
 
     const studentRef = doc(db,"students",user.uid);
     const studentSnap = await getDoc(studentRef);
@@ -196,8 +220,7 @@ document.getElementById("submitBtn").addEventListener("click", async () => {
      requests.push({
     ...studentSnapshot,
 
-    requestType:"add",
-    courseCode:course,
+requestType:"remove",    courseCode:course,
     courseName:getCourseNameByCode(course),
     assignedDepartment: getCourseDepartmentByCode(course),
     status:"new",
@@ -217,7 +240,7 @@ document.getElementById("submitBtn").addEventListener("click", async () => {
      requests.push({
     ...studentSnapshot,
 
-    requestType:"add",
+requestType:"change",
     courseCode:course,
     courseName:getCourseNameByCode(course),
     requestedSection:section || null,
