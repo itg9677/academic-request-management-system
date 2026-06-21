@@ -53,6 +53,11 @@
         <div class="sb-user-email" id="adminEmail">...</div>
       </div>
     </div>
+
+    <!-- زر نقل صلاحية الأدمن - بنفس كلاس زر الخروج، بلون ذهبي للتمييز -->
+    <button class="sb-logout-btn" id="transferAdminBtn" style="background:#c8972b;margin-bottom:8px;">
+      <i class="ti ti-user-exchange"></i> نقل صلاحية الأدمن
+    </button>
     <button class="sb-logout-btn" id="logoutBtn">
       <i class="ti ti-logout"></i> تسجيل الخروج
     </button>
@@ -234,6 +239,93 @@
   </div>
 
   <div class="sp-overlay" id="spOverlay"></div>
+
+  <!-- ===== Modal: نقل صلاحية الأدمن ===== -->
+  <!-- نعيد استخدام نفس كلاسات اللوحة الجانبية (sp-*) لضمان نفس الستايل،
+       فقط نحوّلها لمودال في المنتصف عبر transfer-modal-box -->
+  <div class="admin-side-panel transfer-modal-box" id="transferAdminModal" style="display:none;">
+    <div class="sp-header">
+      <div>
+        <div class="sp-title">نقل صلاحية الأدمن</div>
+        <div class="sp-sub">تسجيل بيانات الأدمن الجديد</div>
+      </div>
+      <button class="sp-close-btn" id="taCloseBtn" aria-label="إغلاق">
+        <i class="ti ti-x"></i>
+      </button>
+    </div>
+
+    <div class="sp-body">
+      <form id="transferAdminForm">
+
+        <div class="sp-detail-card" style="padding:16px;">
+          <div class="ta-field">
+            <label class="sp-detail-label">الاسم الكامل *</label>
+            <input type="text" id="ta_fullName" class="ta-input" required />
+          </div>
+
+          <div class="ta-field">
+            <label class="sp-detail-label">رقم الجوال *</label>
+            <input type="tel" id="ta_phone" class="ta-input" pattern="[0-9]{10}" placeholder="05xxxxxxxx" required />
+          </div>
+
+          <div class="ta-field">
+            <label class="sp-detail-label">الرقم الوظيفي *</label>
+            <input type="text" id="ta_employeeNumber" class="ta-input" required />
+          </div>
+
+          <div class="ta-field">
+            <label class="sp-detail-label">البريد الإلكتروني (للدخول) *</label>
+            <input type="email" id="ta_email" class="ta-input" required />
+          </div>
+
+          <div class="ta-field">
+            <label class="sp-detail-label">كلمة مرور مؤقتة *</label>
+            <input type="text" id="ta_password" class="ta-input" minlength="6" placeholder="6 أحرف على الأقل" required />
+            <small style="color:#888;font-size:12px;">سلّمها للأدمن الجديد، وينصح يغيّرها بعد أول دخول</small>
+          </div>
+        </div>
+
+        <div id="ta_error" class="sp-reject-reason" style="display:none;margin-top:10px;"></div>
+      </form>
+    </div>
+
+    <div class="sp-footer" style="display:flex;gap:10px;">
+      <button class="sp-print-btn" id="ta_submitBtn" type="submit" form="transferAdminForm" style="flex:1;background:#1a3a6b;">
+        <i class="ti ti-check"></i> تأكيد ونقل الصلاحية
+      </button>
+      <button class="sp-close-btn" id="ta_cancelBtn" type="button" style="flex:0 0 auto;">
+        إلغاء
+      </button>
+    </div>
+  </div>
+
+  <div class="sp-overlay" id="transferAdminOverlay" style="display:none;"></div>
+
+  <style>
+    /* تخصيص بسيط فقط لتحويل اللوحة الجانبية لمودال في المنتصف + تنسيق حقول الفورم */
+    .transfer-modal-box {
+      right: 50% !important;
+      top: 50% !important;
+      transform: translate(50%, -50%) !important;
+      width: 440px !important;
+      max-width: 90vw !important;
+      height: auto !important;
+      max-height: 85vh;
+      border-radius: 14px;
+      overflow-y: auto;
+    }
+    .ta-field { margin-bottom: 14px; }
+    .ta-field label { display:block; margin-bottom:6px; }
+    .ta-input {
+      width: 100%;
+      padding: 9px 12px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      font-family: inherit;
+      font-size: 14px;
+    }
+    .ta-input:focus { outline: none; border-color: #1a3a6b; }
+  </style>
 
   <script type="module" src="Admindashboard.js"></script>
 </body>
