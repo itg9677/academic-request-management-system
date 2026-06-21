@@ -247,9 +247,9 @@ const q = isAffairs
 
 function updateBadges() {
   const el = (id) => document.getElementById(id);
-  if (el("badge-addDrop")) el("badge-addDrop").textContent = tabData.addDrop.filter(r => getEffectiveStatus(r) === "new").length;
-  if (el("badge-excuse"))  el("badge-excuse").textContent  = tabData.excuse.filter(r => getEffectiveStatus(r) === "new").length;
-  if (el("badge-visit"))   el("badge-visit").textContent   = tabData.visit.filter(r => getEffectiveStatus(r) === "new").length;
+  if (el("badge-addDrop")) el("badge-addDrop").textContent = tabData.addDrop.length;
+  if (el("badge-excuse"))  el("badge-excuse").textContent  = tabData.excuse.length;
+  if (el("badge-visit"))   el("badge-visit").textContent   = tabData.visit.length;
 }
 
 function updateStatCards() {

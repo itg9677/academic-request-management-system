@@ -215,9 +215,9 @@ async function loadAllData() {
 }
 
 function updateBadges() {
-  document.getElementById("badge-addDrop").textContent = tabData.addDrop.filter((r) => r.status === "pending").length;
-  document.getElementById("badge-excuse").textContent  = tabData.excuse.filter((r) => r.status === "pending").length;
-  document.getElementById("badge-visit").textContent   = tabData.visit.filter((r) => r.status === "pending").length;
+  document.getElementById("badge-addDrop").textContent = tabData.addDrop.length;
+  document.getElementById("badge-excuse").textContent  = tabData.excuse.length;
+  document.getElementById("badge-visit").textContent   = tabData.visit.length;
 }
 
 function updateStatCards() {
