@@ -912,84 +912,38 @@ if (uploadVisitFileBtnEl && visitFileInputEl) {
 // نستخدم تطبيق Firebase ثانوي (Secondary App) بنفس الكونفق، عشان إنشاء
 // حساب Auth جديد لا يؤثر على جلسة الأدمن الحالي (Firebase تلقائياً يسجّل
 // دخول بآخر حساب يتم إنشاؤه إذا استخدمنا نفس instance الأساسي).
+try {
 
-const firebaseConfigForTransfer = {
-  apiKey: "AIzaSyDg4iYMZEdc8pjJU67KtXbSvhBaqdoP0iA",
-  authDomain: "studentsreq-d9ea1.firebaseapp.com",
-  projectId: "studentsreq-d9ea1",
-  storageBucket: "studentsreq-d9ea1.firebasestorage.app",
-  messagingSenderId: "375395162945",
-  appId: "1:375395162945:web:e3edb97c48a30ab6401fc0"
-};
+  let newUid;
+  let employeeAlreadyExists = false;
 
-async function createAdminAccountSafely(email, password) {
-  // اسم فريد لتجنب تعارض مع أي instance ثانوي آخر مفتوح بنفس الجلسة
-  const secondaryApp = initializeApp(firebaseConfigForTransfer, "secondary-" + Date.now());
-  const secondaryAuth = getAuth(secondaryApp);
+  // البحث عن موظف موجود بنفس الإيميل
+  const dupEmailQ = query(
+    collection(db, "employees"),
+    where("email", "==", email)
+  );
 
-  try {
-    const cred = await createUserWithEmailAndPassword(secondaryAuth, email, password);
-    return cred.user.uid;
-  } finally {
-    // نحذف التطبيق الثانوي فوراً بعد الاستخدام (هذا لا يؤثر على المستخدم
-    // المُنشأ في Firebase Authentication، فقط ينظف الـ instance المحلي)
-    await deleteApp(secondaryApp).catch(() => {});
-  }
-}
+  const dupEmailSnap = await getDocs(dupEmailQ);
 
-function openTransferModal() {
-  const overlayEl = document.getElementById("transferAdminOverlay");
-  const modalEl   = document.getElementById("transferAdminModal");
-  const errorEl   = document.getElementById("ta_error");
-  const formEl    = document.getElementById("transferAdminForm");
-  if (!overlayEl || !modalEl) return;
-  overlayEl.style.display = "block";
-  modalEl.style.display   = "block";
-  if (errorEl) errorEl.style.display = "none";
-  if (formEl) formEl.reset();
-}
+  if (!dupEmailSnap.empty) {
 
-function closeTransferModal() {
-  const overlayEl = document.getElementById("transferAdminOverlay");
-  const modalEl   = document.getElementById("transferAdminModal");
-  if (overlayEl) overlayEl.style.display = "none";
-  if (modalEl)   modalEl.style.display   = "none";
-}
+    // الموظف موجود مسبقاً
+    employeeAlreadyExists = true;
 
-async function handleTransferAdmin(e) {
-  e.preventDefault();
+    const existingDoc = dupEmailSnap.docs[0];
+    newUid = existingDoc.id;
 
-  const fullName        = document.getElementById("ta_fullName").value.trim();
-  const phone            = document.getElementById("ta_phone").value.trim();
-  const employeeNumber  = document.getElementById("ta_employeeNumber").value.trim();
-  const email           = document.getElementById("ta_email").value.trim();
-  const password        = document.getElementById("ta_password").value;
+    // ترقيته لأدمن
+    await updateDoc(doc(db, "employees", newUid), {
+      isAdmin: true,
+      adminGrantedAt: serverTimestamp()
+    });
 
-  const errorEl   = document.getElementById("ta_error");
-  const submitBtn = document.getElementById("ta_submitBtn");
+  } else {
 
-  errorEl.style.display = "none";
-  submitBtn.disabled = true;
-  submitBtn.textContent = "جارٍ التنفيذ...";
+    // إنشاء حساب جديد إذا لم يكن موجوداً
+    newUid = await createAdminAccountSafely(email, password);
 
-  try {
-    // 1) تأكد ما يوجد موظف بنفس الإيميل أو الرقم الوظيفي مسبقاً
-    const dupEmailQ = query(collection(db, "employees"), where("email", "==", email));
-    const dupEmailSnap = await getDocs(dupEmailQ);
-    if (!dupEmailSnap.empty) {
-      throw new Error("هذا البريد الإلكتروني مستخدم لموظف آخر بالفعل");
-    }
-
-    const dupEmpNumQ = query(collection(db, "employees"), where("employeeNumber", "==", employeeNumber));
-    const dupEmpNumSnap = await getDocs(dupEmpNumQ);
-    if (!dupEmpNumSnap.empty) {
-      throw new Error("هذا الرقم الوظيفي مستخدم لموظف آخر بالفعل");
-    }
-
-    // 2) إنشاء حساب Auth جديد بدون كسر جلسة الأدمن الحالي
-    const newUid = await createAdminAccountSafely(email, password);
-
-    // 3) إنشاء سجل الموظف الجديد كأدمن
     await setDoc(doc(db, "employees", newUid), {
       fullName,
       phone,
@@ -1000,55 +954,63 @@ async function handleTransferAdmin(e) {
       createdVia: "transferAdmin"
     });
 
-    // 4) مزامنة adminUids (تستخدمها قواعد الأمان)
-    await setDoc(doc(db, "adminUids", newUid), { isAdmin: true, email }, { merge: true });
+  }
 
-    // 5) سحب صلاحية الأدمن الحالي
-    if (currentAdminData?.docId) {
-      await updateDoc(doc(db, "employees", currentAdminData.docId), {
+  // مزامنة adminUids
+  await setDoc(
+    doc(db, "adminUids", newUid),
+    {
+      isAdmin: true,
+      email
+    },
+    { merge: true }
+  );
+
+  // سحب صلاحية الأدمن الحالي
+  if (currentAdminData?.docId) {
+    await updateDoc(
+      doc(db, "employees", currentAdminData.docId),
+      {
         isAdmin: false,
         adminRevokedAt: serverTimestamp()
-      });
-      await deleteDoc(doc(db, "adminUids", currentAdminData.uid)).catch(() => {});
-    }
+      }
+    );
 
-    // 6) تسجيل عملية النقل في سجل تاريخي
-    await setDoc(doc(collection(db, "adminTransferLogs")), {
-      fromAdminId:      currentAdminData?.docId || null,
-      fromAdminName:    currentAdminData?.fullName || null,
-      toAdminId:        newUid,
-      toAdminName:      fullName,
-      toEmployeeNumber: employeeNumber,
-      transferredAt:    serverTimestamp()
-    });
-
-    alert(`تم نقل صلاحية الأدمن إلى "${fullName}" بنجاح.\nبيانات الدخول:\nالإيميل: ${email}\nكلمة المرور المؤقتة: ${password}\n\nسلّمها له الآن، وسيتم تسجيل خروجك بعد قليل.`);
-
-    closeTransferModal();
-
-    // تسجيل خروج الأدمن الحالي بعد النقل (لأنه فقد الصلاحية)
-    await signOut(auth);
-    window.location.href = "EmployeeLogin.html";
-
-  } catch (err) {
-    console.error("Transfer admin error:", err);
-    let msg = err.message || "حدث خطأ غير متوقع";
-    if (err.code === "auth/email-already-in-use") msg = "هذا البريد الإلكتروني مستخدم مسبقاً في نظام الدخول";
-    if (err.code === "auth/weak-password")         msg = "كلمة المرور ضعيفة جداً";
-    if (err.code === "auth/invalid-email")         msg = "صيغة البريد الإلكتروني غير صحيحة";
-    errorEl.textContent = msg;
-    errorEl.style.display = "block";
-  } finally {
-    submitBtn.disabled = false;
-    submitBtn.textContent = "تأكيد ونقل الصلاحية";
+    await deleteDoc(
+      doc(db, "adminUids", currentAdminData.uid)
+    ).catch(() => {});
   }
+
+  // سجل العمليات
+  await setDoc(doc(collection(db, "adminTransferLogs")), {
+    fromAdminId: currentAdminData?.docId || null,
+    fromAdminName: currentAdminData?.fullName || null,
+    toAdminId: newUid,
+    toAdminName: fullName,
+    toEmployeeNumber: employeeNumber,
+    transferredAt: serverTimestamp()
+  });
+
+  if (employeeAlreadyExists) {
+
+    alert(
+      `تم نقل صلاحية الأدمن إلى الموظف الموجود مسبقاً "${fullName}" بنجاح`
+    );
+
+  } else {
+
+    alert(
+      `تم نقل صلاحية الأدمن إلى "${fullName}" بنجاح.\n\nالإيميل: ${email}\nكلمة المرور: ${password}`
+    );
+
+  }
+
+  closeTransferModal();
+
+  await signOut(auth);
+  window.location.href = "EmployeeLogin.html";
+
 }
-
-document.getElementById("transferAdminBtn")?.addEventListener("click", openTransferModal);
-document.getElementById("ta_cancelBtn")?.addEventListener("click", closeTransferModal);
-document.getElementById("transferAdminOverlay")?.addEventListener("click", closeTransferModal);
-document.getElementById("transferAdminForm")?.addEventListener("submit", handleTransferAdmin);
-
 // ==================== أحداث الواجهة ====================
 
 document.querySelectorAll(".admin-tab").forEach((btn) => {
@@ -1115,6 +1077,9 @@ document.getElementById("logoutBtn").addEventListener("click", async () => {
   await signOut(auth);
   window.location.href = "EmployeeLogin.html";
 });
+document.getElementById("taCloseBtn")?.addEventListener("click", closeTransferModal);
+
+document.getElementById("transferAdminOverlay")?.addEventListener("click", closeTransferModal);
 
 // ==================== المصادقة ====================
 
