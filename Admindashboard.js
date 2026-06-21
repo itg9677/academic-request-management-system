@@ -768,60 +768,62 @@ function printActiveStudent() {
 
 // ==================== رفع/عرض نموذج الزيارة (PDF) - متاح فقط داخل تبويب الزيارة ====================
 
-function getVisitDepartmentInfo(dept) {
-
-  const map = {
-    physics: {
-      docId: "visitForm_physics",
-      path: "visitForms/physics.pdf",
-      name: "فيزياء"
-    },
-
-    chemistry: {
-      docId: "visitForm_chemistry",
-      path: "visitForms/chemistry.pdf",
-      name: "كيمياء"
-    },
-
-    statistics: {
-      docId: "visitForm_statistics",
-      path: "visitForms/statistics.pdf",
-      name: "إحصاء"
-    },
-
-    math: {
-      docId: "visitForm_math",
-      path: "visitForms/math.pdf",
-      name: "رياضيات"
-    },
-
-    biology: {
-      docId: "visitForm_biology",
-      path: "visitForms/biology.pdf",
-      name: "أحياء"
-    }
+function getVisitDeptName(dept) {
+  const names = {
+    physics: "فيزياء",
+    chemistry: "كيمياء",
+    statistics: "إحصاء",
+    math: "رياضيات",
+    biology: "أحياء"
   };
+  return names[dept] || dept;
+}
 
-  return map[dept];
+function getVisitPlaceName(place) {
+  const names = {
+    badaya: "البدايع",
+    unaizah: "عنيزة",
+    rass: "الرس",
+    asyah: "الاسياح",
+    bukayriyah: "البكيرية",
+    riyadh_alkhabra: "رياض الخبراء",
+    mithnab: "المذنب",
+    uqlat_suqur: "عقلة صقور",
+    nihaniyah: "النيهانية"
+  };
+  return names[place] || place;
+}
+
+function getVisitFormInfo(dept, place) {
+
+  if (!dept || !place) return null;
+
+  return {
+    docId: `visitForm_${dept}_${place}`,
+    path: `visitForms/${dept}_${place}.pdf`,
+    name: `${getVisitDeptName(dept)} - ${getVisitPlaceName(place)}`
+  };
 }
 const visitFormDocRef = () => doc(db, "settings", "visitForm");
 
 async function loadVisitFormInfo() {
 
-  const deptSelect = document.getElementById("visitDeptSelect");
+  const deptSelect  = document.getElementById("visitDeptSelect");
+  const placeSelect = document.getElementById("visitPlaceSelect");
   const nameEl = document.getElementById("uploadedFileName");
 
-  if (!deptSelect || !nameEl) return;
+  if (!deptSelect || !placeSelect || !nameEl) return;
 
-  const dept = deptSelect.value;
+  const dept  = deptSelect.value;
+  const place = placeSelect.value;
 
-  if (!dept) {
+  if (!dept || !place) {
     nameEl.innerHTML =
-      `<span style="color:#888">اختاري القسم أولاً</span>`;
+      `<span style="color:#888">اختاري القسم والمقر أولاً</span>`;
     return;
   }
 
-  const info = getVisitDepartmentInfo(dept);
+  const info = getVisitFormInfo(dept, place);
 
   try {
 
@@ -860,13 +862,13 @@ async function loadVisitFormInfo() {
       document
         .getElementById("removeVisitFileBtn")
         ?.addEventListener("click", () =>
-          removeVisitForm(dept)
+          removeVisitForm(dept, place)
         );
 
     } else {
 
       nameEl.innerHTML =
-        `<span style="color:#888">لا يوجد ملف مرفوع لهذا القسم</span>`;
+        `<span style="color:#888">لا يوجد ملف مرفوع لهذا القسم والمقر</span>`;
     }
 
   } catch (err) {
@@ -880,11 +882,11 @@ async function loadVisitFormInfo() {
 
 async function uploadVisitForm(file) {
 
-  const dept =
-    document.getElementById("visitDeptSelect").value;
+  const dept  = document.getElementById("visitDeptSelect").value;
+  const place = document.getElementById("visitPlaceSelect").value;
 
-  if (!dept) {
-    alert("اختاري القسم أولاً");
+  if (!dept || !place) {
+    alert("اختاري القسم والمقر أولاً");
     return;
   }
 
@@ -893,7 +895,7 @@ async function uploadVisitForm(file) {
     return;
   }
 
-  const info = getVisitDepartmentInfo(dept);
+  const info = getVisitFormInfo(dept, place);
 
   try {
 
@@ -909,6 +911,7 @@ async function uploadVisitForm(file) {
       doc(db, "settings", info.docId),
       {
         department: dept,
+        place,
         fileName: file.name,
         fileUrl,
         uploadedAt: serverTimestamp(),
@@ -929,12 +932,12 @@ async function uploadVisitForm(file) {
   }
 }
 
-async function removeVisitForm(dept) {
+async function removeVisitForm(dept, place) {
 
   if (!confirm("هل تريدين حذف الملف؟"))
     return;
 
-  const info = getVisitDepartmentInfo(dept);
+  const info = getVisitFormInfo(dept, place);
 
   try {
 
@@ -960,6 +963,11 @@ const uploadVisitFileBtnEl = document.getElementById("uploadVisitFileBtn");
 const visitFileInputEl     = document.getElementById("visitFileInput");
 document
   .getElementById("visitDeptSelect")
+  ?.addEventListener("change", () => {
+      loadVisitFormInfo();
+  });
+document
+  .getElementById("visitPlaceSelect")
   ?.addEventListener("change", () => {
       loadVisitFormInfo();
   });
