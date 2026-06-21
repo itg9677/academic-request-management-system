@@ -15,7 +15,7 @@ import {
 let courseCounter = 1;
 
 /* ==========================
-   إضافة صف مادة (بدون ساعات)
+   إضافة صف مادة
 ========================== */
 window.addCourseRow = function () {
 
@@ -27,24 +27,15 @@ window.addCourseRow = function () {
         <td>${courseCounter}</td>
 
         <td>
-            <input
-                type="text"
-                name="courseName_${courseCounter}"
-                placeholder="اسم المادة">
+            <input type="text" name="courseName_${courseCounter}" placeholder="اسم المادة">
         </td>
 
         <td>
-            <input
-                type="text"
-                name="courseCode_${courseCounter}"
-                placeholder="الرمز">
+            <input type="text" name="courseCode_${courseCounter}" placeholder="الرمز">
         </td>
 
         <td>
-            <input
-                type="text"
-                name="section_${courseCounter}"
-                placeholder="الشعبة">
+            <input type="text" name="section_${courseCounter}" placeholder="الشعبة">
         </td>
     `;
 
@@ -60,77 +51,110 @@ window.addEventListener("load", () => {
 });
 
 /* ==========================
-   بيانات الطالبة
+   ربط التخصص + المقر برمز نموذج الزيارة
 ========================== */
-onAuthStateChanged(auth, async (user) => {
+const majorKeys = {
+    "فيزياء":  "physics",
+    "كيمياء":  "chemistry",
+    "إحصاء":   "statistics",
+    "رياضيات": "math",
+    "أحياء":   "biology"
+};
 
-    if (!user) {
-        window.location.href = "loginPage.html";
-        return;
-    }
+const placeKeys = {
+    "البدايع":       "badaya",
+    "عنيزة":         "unaizah",
+    "الرس":          "rass",
+    "الاسياح":       "asyah",
+    "البكيرية":      "bukayriyah",
+    "رياض الخبراء":  "riyadh_alkhabra",
+    "المذنب":        "mithnab",
+    "عقلة صقور":     "uqlat_suqur",
+    "النيهانية":     "nihaniyah"
+};
 
-    loadVisitFormDownload();
+function getVisitFormDocId(major, place) {
+    const m = majorKeys[major];
+    const p = placeKeys[place];
+    if (!m || !p) return null;
+    return `visitForm_${m}_${p}`;
+}
 
-    const studentSnap = await getDoc(doc(db, "students", user.uid));
-
-    if (studentSnap.exists()) {
-        const data = studentSnap.data();
-        document.getElementById("fullName").value     = data.fullName      || "";
-        document.getElementById("universityId").value = data.universityId  || "";
-        document.getElementById("major").value        = data.major         || "";
-        document.getElementById("phone").value        = data.phoneNumber   || "";
-    }
-});
+let currentMajor = "";
 
 /* ==========================
-   عرض رابط تحميل نموذج الزيارة
+   تحميل نموذج الزيارة
 ========================== */
 async function loadVisitFormDownload(visitFormDoc) {
 
     const container = document.getElementById("visitFormDownload");
+    if (!container) return;
 
-    if (!container || !visitFormDoc) return;
+    if (!visitFormDoc) {
+        container.innerHTML = `<span class="no-form-msg">لا يوجد نموذج متاح لهذا التخصص والمقر</span>`;
+        return;
+    }
 
     try {
-
-        const snap = await getDoc(
-            doc(db, "settings", visitFormDoc)
-        );
+        const snap = await getDoc(doc(db, "settings", visitFormDoc));
 
         if (snap.exists()) {
-
             const data = snap.data();
-
             container.innerHTML = `
                 <a href="${data.fileUrl}"
                    target="_blank"
-                   rel="noopener"
                    class="download-form-link"
                    download="${data.fileName || "نموذج_الزيارة.pdf"}">
-
                     <span class="download-icon">⬇</span>
                     تحميل نموذج الزيارة
-
                 </a>
             `;
-
         } else {
-
-            container.innerHTML =
-                `<span class="no-form-msg">لا يوجد نموذج مرفوع لهذا القسم</span>`;
+            container.innerHTML = `<span class="no-form-msg">لا يوجد نموذج مرفوع لهذا التخصص والمقر</span>`;
         }
 
     } catch (error) {
-
         console.error(error);
-
-        container.innerHTML =
-            `<span class="no-form-msg">تعذر تحميل النموذج</span>`;
+        container.innerHTML = `<span class="no-form-msg">تعذر تحميل النموذج</span>`;
     }
 }
 
 /* ==========================
-   بيانات الطالبة
+   إظهار/إخفاء قسم نموذج الزيارة
+   يظهر فقط عند: نوع الزيارة = داخلية + تحديد المقر
+========================== */
+async function updateVisitFormSection() {
+
+    const section   = document.getElementById("visitFormSection");
+    const visitType = document.querySelector('input[name="visitType"]:checked')?.value;
+    const place     = document.getElementById("visitPlace")?.value;
+
+    if (!section) return;
+
+    if (visitType !== "internal" || !place) {
+        section.classList.add("hidden");
+        document.getElementById("visitFormDownload").innerHTML = "";
+        return;
+    }
+
+    section.classList.remove("hidden");
+
+    const docId = getVisitFormDocId(currentMajor, place);
+    await loadVisitFormDownload(docId);
+}
+
+/* ==========================
+   ربط مستمعي الأحداث لإظهار النموذج
+========================== */
+window.addEventListener("load", () => {
+    document.querySelectorAll('input[name="visitType"]').forEach(radio => {
+        radio.addEventListener("change", updateVisitFormSection);
+    });
+    document.getElementById("visitPlace")?.addEventListener("change", updateVisitFormSection);
+});
+
+/* ==========================
+   تحميل بيانات الطالبة + النموذج
 ========================== */
 onAuthStateChanged(auth, async (user) => {
 
@@ -139,66 +163,24 @@ onAuthStateChanged(auth, async (user) => {
         return;
     }
 
-    const studentSnap = await getDoc(
-        doc(db, "students", user.uid)
-    );
+    const studentSnap = await getDoc(doc(db, "students", user.uid));
 
     if (studentSnap.exists()) {
 
         const data = studentSnap.data();
 
-        document.getElementById("fullName").value =
-            data.fullName || "";
+        document.getElementById("fullName").value     = data.fullName      || "";
+        document.getElementById("universityId").value = data.universityId  || "";
+        document.getElementById("major").value        = data.major         || "";
+        document.getElementById("phone").value        = data.phoneNumber   || "";
 
-        document.getElementById("universityId").value =
-            data.universityId || "";
+        currentMajor = data.major || "";
 
-        document.getElementById("major").value =
-            data.major || "";
-
-        document.getElementById("phone").value =
-            data.phoneNumber || "";
-
-        let visitFormDoc = "";
-
-        switch (data.major) {
-
-            case "فيزياء":
-                visitFormDoc = "visitForm_physics";
-                break;
-
-            case "كيمياء":
-                visitFormDoc = "visitForm_chemistry";
-                break;
-
-            case "إحصاء":
-                visitFormDoc = "visitForm_statistics";
-                break;
-
-            case "رياضيات":
-                visitFormDoc = "visitForm_math";
-                break;
-
-            case "أحياء":
-                visitFormDoc = "visitForm_biology";
-                break;
-        }
-
-        await loadVisitFormDownload(visitFormDoc);
+        await updateVisitFormSection();
     }
 });
-await loadVisitFormDownload(visitFormDoc);
-        document.getElementById("fullName").value    = data.fullName    || "";
-        document.getElementById("universityId").value = data.universityId || "";
-        document.getElementById("major").value        = data.major        || "";
-        document.getElementById("phone").value         = data.phoneNumber  || "";
-    
-
-await loadVisitFormDownload(visitFormDoc);
-    // جلب نموذج الزيارة إذا موجود
 
 /* ==========================
->>>>>>> Stashed changes
    إرسال الطلب
 ========================== */
 document.getElementById("submitBtn")
@@ -255,15 +237,18 @@ document.getElementById("submitBtn")
 
         alert("تم إرسال الطلب بنجاح ✅");
 
-        // إعادة ضبط
+        // إعادة ضبط النموذج
         document.getElementById("level").value      = "";
         document.getElementById("visitPlace").value = "";
         document.getElementById("reason").value     = "";
         document.getElementById("coursesBody").innerHTML = "";
         const checked = document.querySelector('input[name="visitType"]:checked');
         if (checked) checked.checked = false;
+
         courseCounter = 1;
         addCourseRow();
+
+        await updateVisitFormSection();
 
     } catch (error) {
         console.error(error);
