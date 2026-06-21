@@ -23,10 +23,6 @@ body{
     margin:0;
     background:var(--background);
     min-height:100vh;
-    display:flex;
-    justify-content:center;
-    align-items:center;
-    padding:20px;
     color:var(--text);
 }
 
@@ -253,200 +249,319 @@ textarea:focus{
     font-family:Arial,sans-serif;
 }
 
-/* ===================================
-   الصفحة الرئيسية
-=================================== */
+/* =====================================================
+   صفحة الطالب الرئيسية
+===================================================== */
 
 .student-main-page{
-    background:var(--background);
+    background:#f7f9fc;
     min-height:100vh;
-    display:flex;
-    flex-direction:column;
+    display:block;
 }
 
-/* ===================================
-   الترويسة
-=================================== */
+/* ==========================
+   Header
+========================== */
+/* ==========================
+   Header
+========================== */
 
-.student-main-page header{
-    
-    border-bottom:3px solid var(--secondary);
 
-    padding:25px 20px 15px;
+.top-header{
+    background:#fff;
+
+    height:100px;
 
     display:flex;
-    flex-direction:column;
+    justify-content:space-between;
     align-items:center;
+
+    padding:0 40px;
+
+    border-bottom:1px solid #e5e7eb;
+
+    position:relative;
+    overflow:hidden;
 }
 
-.student-main-page header img{
-    width:280px;
-    max-width:90%;
+.top-header::before{
+    content:"";
+
+    position:absolute;
+    inset:0;
+
+   background:#fff;
+
+    background-size:cover;
+
+    opacity:.08;
+
+    z-index:0;
+}
+
+
+.top-header::after{
+    content:"";
+
+    position:absolute;
+
+    right:0;
+    left:0;
+    bottom:-35px;
+
+    height:70px;
+
+    background:url("images/pattern.png")
+    center no-repeat;
+
+    background-size:contain;
+
+    opacity:.15;
+
+    pointer-events:none;
+}
+
+.header-right h2{
+    margin:0;
+    color:var(--primary);
+    font-size:20px;
+}
+
+.header-right p{
+    margin-top:5px;
+    color:#777;
+    font-size:14px;
+}
+
+.header-center{
+    position:absolute;
+    left:50%;
+    transform:translateX(-50%);
+}
+
+.header-logo{
+    width:200px;
     height:auto;
 }
-
-.student-main-page .welcome-text{
-    margin-top:15px;
-
-    color:var(--primary);
-    font-size:18px;
-    font-weight:bold;
-
-    text-align:center;
-}
-
-/* ===================================
-   المحتوى
-=================================== */
+/* ==========================
+   Main Layout
+========================== */
 
 .student-main-page main{
-    flex:1;
+    width:95%;
+    max-width:1100px;
+    margin:auto;
+}
 
+/* ==========================
+   Student Card
+========================== */
+
+.student-info-card{
+    background:#fff;
+    margin-top:60px;
+    border-radius:20px;
+    padding:25px;
+    box-shadow:
+    0 10px 30px rgba(0,0,0,.08);
+}
+
+.card-header{
     display:flex;
-    flex-direction:column;
+    justify-content:space-between;
     align-items:center;
 
-    padding:30px 20px;
+    margin-bottom:20px;
 }
 
-/* زخرفة كلية العلوم */
-
-.student-main-page .science-pattern{
-    width:500px;
-    max-width:95%;
-    height:auto;
-
-    margin:20px 0 30px;
-}
-
-/* ===================================
-   بطاقة الخدمات
-=================================== */
-
-.student-main-page .options-card{
-    background:var(--white);
-
-    width:100%;
-    max-width:520px;
-
-    padding:36px;
-
-    border-radius:14px;
-    border-top:5px solid var(--secondary);
-
-    box-shadow:0 4px 24px rgba(26,58,107,.12);
-
-    text-align:center;
-}
-
-.student-main-page .card-title{
+.card-header h3{
     color:var(--primary);
+    margin:0;
+    font-size:20px;
+}
 
-    font-size:24px;
+.info-row{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+
+    padding:15px 0;
+
+    border-bottom:1px solid #eee;
+}
+
+.info-row:last-child{
+    border-bottom:none;
+}
+
+.info-label{
+    color:var(--primary);
     font-weight:bold;
-
-    margin-bottom:30px;
 }
 
-/* ===================================
-   روابط الخدمات
-=================================== */
+.info-value{
+    color:#555;
+}
 
-.student-main-page .option-link{
-    display:flex;
-    justify-content:center;
-    align-items:center;
+/* ==========================
+   Edit Button
+========================== */
 
-    min-height:55px;
-    margin-bottom:12px;
+#editProfileBtn{
+    background:var(--secondary);
+    color:#fff;
 
-    color:var(--primary);
-    font-size:17px;
+    border:none;
+
+    padding:10px 18px;
+
+    border-radius:10px;
+
+    cursor:pointer;
+
     font-weight:600;
-
-    text-decoration:underline;
-    text-decoration-color:var(--secondary);
-    text-underline-offset:6px;
-    text-decoration-thickness:2px;
 
     transition:.3s;
 }
 
-.student-main-page .option-link:last-child{
-    margin-bottom:0;
-}
-
-.student-main-page .option-link:hover{
-    background:var(--primary);
-    color:white;
-
-    border-radius:8px;
-
-    transform:translateY(-2px);
-}
-
-/* ===================================
-   عناصر إضافية
-=================================== */
-
-.student-main-page .divider{
-    display:none;
-}
-
-.student-main-page .loading{
-    text-align:center;
-    color:var(--text);
-}
-
-/* ===================================
-   الجوال
-=================================== */
-
-@media (max-width:480px){
-
-    .student-main-page header img{
-        width:220px;
-    }
-
-    .student-main-page .welcome-text{
-        font-size:15px;
-    }
-
-    .student-main-page .science-pattern{
-        width:300px;
-    }
-
-    .student-main-page .options-card{
-        padding:28px 24px;
-    }
-
-    .student-main-page .card-title{
-        font-size:20px;
-    }
-
-    .student-main-page .option-link{
-        font-size:15px;
-    }
-}
-.card-header{
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 15px;
-}
-
-/* تحسين شكل الزر */
-#editProfileBtn{
-    background: #1a3a6b;
-    color: #fff;
-    border: none;
-    padding: 8px 12px;
-    border-radius: 8px;
-    cursor: pointer;
-}
-
 #editProfileBtn:hover{
-    opacity: 0.9;
+    opacity:.9;
+}
+
+/* ==========================
+   Services Section
+========================== */
+
+.services-section{
+    margin-top:40px;
+}
+
+.section-title{
+    text-align:center;
+
+    color:var(--primary);
+
+    font-size:24px;
+
+    margin-bottom:25px;
+}
+
+.services-grid{
+    display:grid;
+
+    grid-template-columns:
+    repeat(3,1fr);
+
+    gap:20px;
+}
+
+.service-card{
+    background:#fff;
+
+    border-radius:18px;
+
+    padding:30px 20px;
+
+    text-align:center;
+
+    text-decoration:none;
+
+    color:var(--primary);
+
+    box-shadow:
+    0 5px 20px rgba(0,0,0,.08);
+
+    transition:.3s;
+}
+
+.service-card:hover{
+    transform:translateY(-6px);
+
+    box-shadow:
+    0 12px 30px rgba(26,58,107,.15);
+}
+
+.service-icon{
+    font-size:42px;
+    margin-bottom:15px;
+}
+
+.service-card h3{
+    margin:10px 0;
+}
+
+.service-card p{
+    color:#666;
+    font-size:14px;
+    margin:0;
+    line-height:1.7;
+}
+
+/* ==========================
+   Logout
+========================== */
+
+.logout-container{
+    text-align:center;
+    margin:35px 0;
+}
+
+.logout-btn{
+    background:#c62828;
+
+    color:#fff;
+
+    border:none;
+
+    border-radius:10px;
+
+    padding: 12px;
+
+    cursor:pointer;
+
+    transition:.3s;
+
+
+}
+
+.logout-btn:hover{
+    opacity:.9;
+}
+
+/* ==========================
+   Mobile
+========================== */
+
+@media(max-width:768px){
+
+    .top-header{
+        padding:20px 20px 70px;
+    }
+
+    .header-content{
+        flex-direction:column;
+        text-align:center;
+    }
+
+    .top-header .logo{
+        width:75px;
+    }
+
+    .card-header{
+        flex-direction:column;
+        gap:12px;
+    }
+
+    .services-grid{
+        grid-template-columns:1fr;
+    }
+
+    .info-row{
+        flex-direction:column;
+        gap:6px;
+        text-align:center;
+    }
+
 }
 /* ================================= */
 /* صفحة رفع عذر الغياب */
