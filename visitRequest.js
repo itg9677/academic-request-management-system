@@ -51,6 +51,38 @@ window.addEventListener("load", () => {
 });
 
 /* ==========================
+   ربط التخصص + المقر برمز نموذج الزيارة
+========================== */
+const majorKeys = {
+    "فيزياء":  "physics",
+    "كيمياء":  "chemistry",
+    "إحصاء":   "statistics",
+    "رياضيات": "math",
+    "أحياء":   "biology"
+};
+
+const placeKeys = {
+    "البدايع":       "badaya",
+    "عنيزة":         "unaizah",
+    "الرس":          "rass",
+    "الاسياح":       "asyah",
+    "البكيرية":      "bukayriyah",
+    "رياض الخبراء":  "riyadh_alkhabra",
+    "المذنب":        "mithnab",
+    "عقلة صقور":     "uqlat_suqur",
+    "النيهانية":     "nihaniyah"
+};
+
+function getVisitFormDocId(major, place) {
+    const m = majorKeys[major];
+    const p = placeKeys[place];
+    if (!m || !p) return null;
+    return `visitForm_${m}_${p}`;
+}
+
+let currentMajor = "";
+
+/* ==========================
    تحميل نموذج الزيارة
 ========================== */
 async function loadVisitFormDownload(visitFormDoc) {
@@ -59,7 +91,7 @@ async function loadVisitFormDownload(visitFormDoc) {
     if (!container) return;
 
     if (!visitFormDoc) {
-        container.innerHTML = `<span class="no-form-msg">لا يوجد نموذج متاح لهذا القسم</span>`;
+        container.innerHTML = `<span class="no-form-msg">لا يوجد نموذج متاح لهذا التخصص والمقر</span>`;
         return;
     }
 
@@ -78,7 +110,7 @@ async function loadVisitFormDownload(visitFormDoc) {
                 </a>
             `;
         } else {
-            container.innerHTML = `<span class="no-form-msg">لا يوجد نموذج مرفوع لهذا القسم</span>`;
+            container.innerHTML = `<span class="no-form-msg">لا يوجد نموذج مرفوع لهذا التخصص والمقر</span>`;
         }
 
     } catch (error) {
@@ -86,6 +118,40 @@ async function loadVisitFormDownload(visitFormDoc) {
         container.innerHTML = `<span class="no-form-msg">تعذر تحميل النموذج</span>`;
     }
 }
+
+/* ==========================
+   إظهار/إخفاء قسم نموذج الزيارة
+   يظهر فقط عند: نوع الزيارة = داخلية + تحديد المقر
+========================== */
+async function updateVisitFormSection() {
+
+    const section   = document.getElementById("visitFormSection");
+    const visitType = document.querySelector('input[name="visitType"]:checked')?.value;
+    const place     = document.getElementById("visitPlace")?.value;
+
+    if (!section) return;
+
+    if (visitType !== "internal" || !place) {
+        section.classList.add("hidden");
+        document.getElementById("visitFormDownload").innerHTML = "";
+        return;
+    }
+
+    section.classList.remove("hidden");
+
+    const docId = getVisitFormDocId(currentMajor, place);
+    await loadVisitFormDownload(docId);
+}
+
+/* ==========================
+   ربط مستمعي الأحداث لإظهار النموذج
+========================== */
+window.addEventListener("load", () => {
+    document.querySelectorAll('input[name="visitType"]').forEach(radio => {
+        radio.addEventListener("change", updateVisitFormSection);
+    });
+    document.getElementById("visitPlace")?.addEventListener("change", updateVisitFormSection);
+});
 
 /* ==========================
    تحميل بيانات الطالبة + النموذج
@@ -108,17 +174,9 @@ onAuthStateChanged(auth, async (user) => {
         document.getElementById("major").value        = data.major         || "";
         document.getElementById("phone").value        = data.phoneNumber   || "";
 
-        let visitFormDoc = "";
+        currentMajor = data.major || "";
 
-        switch (data.major) {
-            case "فيزياء":   visitFormDoc = "visitForm_physics"; break;
-            case "كيمياء":   visitFormDoc = "visitForm_chemistry"; break;
-            case "إحصاء":    visitFormDoc = "visitForm_statistics"; break;
-            case "رياضيات":  visitFormDoc = "visitForm_math"; break;
-            case "أحياء":    visitFormDoc = "visitForm_biology"; break;
-        }
-
-        await loadVisitFormDownload(visitFormDoc);
+        await updateVisitFormSection();
     }
 });
 
@@ -189,6 +247,8 @@ document.getElementById("submitBtn")
 
         courseCounter = 1;
         addCourseRow();
+
+        await updateVisitFormSection();
 
     } catch (error) {
         console.error(error);

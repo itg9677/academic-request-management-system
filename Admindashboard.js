@@ -8,6 +8,10 @@ import {
   ref, uploadBytes, getDownloadURL, deleteObject
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
 
+// imports خاصة بميزة نقل صلاحية الأدمن (تطبيق Firebase ثانوي مؤقت)
+import { initializeApp, deleteApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getAuth, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
 console.log("FILE LOADED");
 
 // ==================== State ====================
@@ -183,7 +187,7 @@ async function loadAllData() {
   tableWrapEl.style.display = "none";
 
   try {
- 
+
     const reqQuery = query(
       collection(db, "requests"),
       where("requestType", "in", ["add", "drop", "edit"])
@@ -211,9 +215,9 @@ async function loadAllData() {
 }
 
 function updateBadges() {
-  document.getElementById("badge-addDrop").textContent = tabData.addDrop.filter((r) => r.status === "pending").length;
-  document.getElementById("badge-excuse").textContent  = tabData.excuse.filter((r) => r.status === "pending").length;
-  document.getElementById("badge-visit").textContent   = tabData.visit.filter((r) => r.status === "pending").length;
+  document.getElementById("badge-addDrop").textContent = tabData.addDrop.length;
+  document.getElementById("badge-excuse").textContent  = tabData.excuse.length;
+  document.getElementById("badge-visit").textContent   = tabData.visit.length;
 }
 
 function updateStatCards() {
@@ -436,35 +440,113 @@ function buildOtherRequestsTable(tab, item) {
   const cfg    = tabConfig[tab];
   const others = tabData[tab].filter(
     (it) => it.id !== item.id && it[cfg.studentField] === item[cfg.studentField]
-  );
+  ).sort((a, b) => {
+    const aTime = a.createdAt?.toMillis?.() ?? 0;
+    const bTime = b.createdAt?.toMillis?.() ?? 0;
+    return bTime - aTime;
+  });
 
   if (!others.length) return "";
 
-  const rows = others.map((o) => {
-    let label = "-";
-    if (tab === "addDrop") label = `${reqTypeLabel[o.requestType] || o.requestType || "-"} — ${esc(o.courseName || o.courseCode || "")}`;
-    else if (tab === "excuse") label = `${esc(o.courseCode || "-")} — ${examTypeLabel[o.examType] || esc(o.examType || "-")}`;
-    else label = visitTypeLabel[o.visitType] || o.visitType || "-";
-
-    const statusKey = getEffectiveStatus(o);
+  // لو مش addDrop: جدول واحد بدون تقسيم
+  if (tab !== "addDrop") {
+    const rows = others.map((o) => {
+      let label = tab === "excuse"
+        ? `${esc(o.courseCode || "-")} — ${examTypeLabel[o.examType] || esc(o.examType || "-")}`
+        : visitTypeLabel[o.visitType] || o.visitType || "-";
+      const sk = getEffectiveStatus(o);
+      return `
+        <tr class="sp-other-row sp-other-clickable" data-id="${o.id}" style="cursor:pointer;">
+          <td>${label}</td>
+          <td><span class="status-badge s-${sk}">${statusLabel[sk] || sk}</span></td>
+          <td>${formatDate(o.createdAt)}</td>
+          <td style="color:#1a3a6b;font-size:0.85rem;">عرض ←</td>
+        </tr>`;
+    }).join("");
     return `
-      <tr class="sp-other-row sp-other-clickable" data-id="${o.id}" style="cursor:pointer;" title="انقر لعرض تفاصيل هذا الطلب">
-        <td>${label}</td>
-        <td><span class="status-badge s-${statusKey}">${statusLabel[statusKey] || statusKey}</span></td>
-        <td>${formatDate(o.createdAt)}</td>
-        <td style="color:#1a3a6b;font-size:0.85rem;">عرض ←</td>
-      </tr>
-    `;
-  }).join("");
+      <div class="sp-section-title">طلبات أخرى لنفس الطالب (${others.length})</div>
+      <div class="sp-table-wrap">
+        <table class="sp-table sp-other-table">
+          <thead><tr><th>الطلب</th><th>الحالة</th><th>التاريخ</th><th></th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>`;
+  }
+
+  // addDrop: تقسيم — مواد تخصص vs مواد حرة/مشتركة
+  const specRequests   = others.filter(o => o.assignedDepartment?.trim() !== "شؤون الطالبات");
+  const sharedRequests = others.filter(o => o.assignedDepartment?.trim() === "شؤون الطالبات");
+
+  // استخرج اسم قسم الطالب من الكاش
+  const studentUidKey = item[cfg.studentField];
+  const studentObj    = studentsCache[studentUidKey] || {};
+  const studentDept   = studentObj.major || studentObj.department || "القسم";
+
+  function buildRows(list) {
+    return list.map(o => {
+      const label = `${reqTypeLabel[o.requestType] || o.requestType || "-"} — ${esc(o.courseName || o.courseCode || "")}`;
+      const sk    = getEffectiveStatus(o);
+      return `
+        <tr class="sp-other-row sp-other-clickable" data-id="${o.id}" style="cursor:pointer;">
+          <td>${label}</td>
+          <td><span class="status-badge s-${sk}">${statusLabel[sk] || sk}</span></td>
+          <td>${formatDate(o.createdAt)}</td>
+          <td style="color:#1a3a6b;font-size:0.85rem;">عرض ←</td>
+        </tr>`;
+    }).join("");
+  }
+
+  function buildTable({ list, icon, headerClass, titleClass, title, ownerLabel, ownerClass, countClass }) {
+    if (!list.length) return "";
+    const ownerTagHtml = ownerLabel
+      ? `<span class="sp-other-owner-tag ${ownerClass}">
+           <i class="ti ti-building" style="font-size:11px;"></i>
+           ${ownerLabel}
+         </span>`
+      : "";
+    return `
+      <div class="sp-other-table-block">
+        <div class="sp-other-table-header ${headerClass}">
+          <i class="ti ${icon}" aria-hidden="true"></i>
+          <span class="sp-other-table-title ${titleClass}">${title}</span>
+          <span class="sp-other-count-badge ${countClass}">${list.length}</span>
+          ${ownerTagHtml}
+        </div>
+        <div class="sp-table-wrap">
+          <table class="sp-table sp-other-table">
+            <thead><tr><th>الطلب</th><th>الحالة</th><th>التاريخ</th><th></th></tr></thead>
+            <tbody>${buildRows(list)}</tbody>
+          </table>
+        </div>
+      </div>`;
+  }
+
+  const specTable = buildTable({
+    list:        specRequests,
+    icon:        "ti-school",
+    headerClass: "sp-other-header-spec",
+    titleClass:  "sp-other-title-spec",
+    title:       "مواد التخصص",
+    ownerLabel:  studentDept,
+    ownerClass:  "sp-other-owner-other",
+    countClass:  "sp-other-count-spec",
+  });
+
+  const sharedTable = buildTable({
+    list:        sharedRequests,
+    icon:        "ti-layers-intersect",
+    headerClass: "sp-other-header-free",
+    titleClass:  "sp-other-title-free",
+    title:       "المواد الحرة والمشتركة",
+    ownerLabel:  "شؤون الطالبات",
+    ownerClass:  "sp-other-owner-other",
+    countClass:  "sp-other-count-free",
+  });
 
   return `
     <div class="sp-section-title">طلبات أخرى لنفس الطالب (${others.length})</div>
-    <div class="sp-table-wrap">
-      <table class="sp-table sp-other-table">
-        <thead><tr><th>الطلب</th><th>الحالة</th><th>التاريخ</th><th></th></tr></thead>
-        <tbody>${rows}</tbody>
-      </table>
-    </div>
+    ${specTable}
+    ${sharedTable}
   `;
 }
 
@@ -690,60 +772,62 @@ function printActiveStudent() {
 
 // ==================== رفع/عرض نموذج الزيارة (PDF) - متاح فقط داخل تبويب الزيارة ====================
 
-function getVisitDepartmentInfo(dept) {
-
-  const map = {
-    physics: {
-      docId: "visitForm_physics",
-      path: "visitForms/physics.pdf",
-      name: "فيزياء"
-    },
-
-    chemistry: {
-      docId: "visitForm_chemistry",
-      path: "visitForms/chemistry.pdf",
-      name: "كيمياء"
-    },
-
-    statistics: {
-      docId: "visitForm_statistics",
-      path: "visitForms/statistics.pdf",
-      name: "إحصاء"
-    },
-
-    math: {
-      docId: "visitForm_math",
-      path: "visitForms/math.pdf",
-      name: "رياضيات"
-    },
-
-    biology: {
-      docId: "visitForm_biology",
-      path: "visitForms/biology.pdf",
-      name: "أحياء"
-    }
+function getVisitDeptName(dept) {
+  const names = {
+    physics: "فيزياء",
+    chemistry: "كيمياء",
+    statistics: "إحصاء",
+    math: "رياضيات",
+    biology: "أحياء"
   };
+  return names[dept] || dept;
+}
 
-  return map[dept];
+function getVisitPlaceName(place) {
+  const names = {
+    badaya: "البدايع",
+    unaizah: "عنيزة",
+    rass: "الرس",
+    asyah: "الاسياح",
+    bukayriyah: "البكيرية",
+    riyadh_alkhabra: "رياض الخبراء",
+    mithnab: "المذنب",
+    uqlat_suqur: "عقلة صقور",
+    nihaniyah: "النيهانية"
+  };
+  return names[place] || place;
+}
+
+function getVisitFormInfo(dept, place) {
+
+  if (!dept || !place) return null;
+
+  return {
+    docId: `visitForm_${dept}_${place}`,
+    path: `visitForms/${dept}_${place}.pdf`,
+    name: `${getVisitDeptName(dept)} - ${getVisitPlaceName(place)}`
+  };
 }
 const visitFormDocRef = () => doc(db, "settings", "visitForm");
 
 async function loadVisitFormInfo() {
 
-  const deptSelect = document.getElementById("visitDeptSelect");
+  const deptSelect  = document.getElementById("visitDeptSelect");
+  const placeSelect = document.getElementById("visitPlaceSelect");
   const nameEl = document.getElementById("uploadedFileName");
 
-  if (!deptSelect || !nameEl) return;
+  if (!deptSelect || !placeSelect || !nameEl) return;
 
-  const dept = deptSelect.value;
+  const dept  = deptSelect.value;
+  const place = placeSelect.value;
 
-  if (!dept) {
+  if (!dept || !place) {
     nameEl.innerHTML =
-      `<span style="color:#888">اختاري القسم أولاً</span>`;
+      `<span style="color:#888">اختاري القسم والمقر أولاً</span>`;
     return;
   }
 
-  const info = getVisitDepartmentInfo(dept);
+  const info = getVisitFormInfo(dept, place);
 
   try {
 
@@ -782,13 +866,13 @@ async function loadVisitFormInfo() {
       document
         .getElementById("removeVisitFileBtn")
         ?.addEventListener("click", () =>
-          removeVisitForm(dept)
+          removeVisitForm(dept, place)
         );
 
     } else {
 
       nameEl.innerHTML =
-        `<span style="color:#888">لا يوجد ملف مرفوع لهذا القسم</span>`;
+        `<span style="color:#888">لا يوجد ملف مرفوع لهذا القسم والمقر</span>`;
     }
 
   } catch (err) {
@@ -802,11 +886,11 @@ async function loadVisitFormInfo() {
 
 async function uploadVisitForm(file) {
 
-  const dept =
-    document.getElementById("visitDeptSelect").value;
+  const dept  = document.getElementById("visitDeptSelect").value;
+  const place = document.getElementById("visitPlaceSelect").value;
 
-  if (!dept) {
-    alert("اختاري القسم أولاً");
+  if (!dept || !place) {
+    alert("اختاري القسم والمقر أولاً");
     return;
   }
 
@@ -815,7 +899,7 @@ async function uploadVisitForm(file) {
     return;
   }
 
-  const info = getVisitDepartmentInfo(dept);
+  const info = getVisitFormInfo(dept, place);
 
   try {
 
@@ -831,6 +915,7 @@ async function uploadVisitForm(file) {
       doc(db, "settings", info.docId),
       {
         department: dept,
+        place,
         fileName: file.name,
         fileUrl,
         uploadedAt: serverTimestamp(),
@@ -851,12 +936,12 @@ async function uploadVisitForm(file) {
   }
 }
 
-async function removeVisitForm(dept) {
+async function removeVisitForm(dept, place) {
 
   if (!confirm("هل تريدين حذف الملف؟"))
     return;
 
-  const info = getVisitDepartmentInfo(dept);
+  const info = getVisitFormInfo(dept, place);
 
   try {
 
@@ -885,6 +970,11 @@ document
   ?.addEventListener("change", () => {
       loadVisitFormInfo();
   });
+document
+  .getElementById("visitPlaceSelect")
+  ?.addEventListener("change", () => {
+      loadVisitFormInfo();
+  });
 
 if (uploadVisitFileBtnEl && visitFileInputEl) {
   uploadVisitFileBtnEl.addEventListener("click", () => visitFileInputEl.click());
@@ -896,6 +986,109 @@ if (uploadVisitFileBtnEl && visitFileInputEl) {
   });
 }
 
+// ==================== نقل صلاحية الأدمن ====================
+// نستخدم تطبيق Firebase ثانوي (Secondary App) بنفس الكونفق، عشان إنشاء
+// حساب Auth جديد لا يؤثر على جلسة الأدمن الحالي (Firebase تلقائياً يسجّل
+// دخول بآخر حساب يتم إنشاؤه إذا استخدمنا نفس instance الأساسي).
+try {
+
+  let newUid;
+  let employeeAlreadyExists = false;
+
+  // البحث عن موظف موجود بنفس الإيميل
+  const dupEmailQ = query(
+    collection(db, "employees"),
+    where("email", "==", email)
+  );
+
+  const dupEmailSnap = await getDocs(dupEmailQ);
+
+  if (!dupEmailSnap.empty) {
+
+    // الموظف موجود مسبقاً
+    employeeAlreadyExists = true;
+
+    const existingDoc = dupEmailSnap.docs[0];
+    newUid = existingDoc.id;
+
+    // ترقيته لأدمن
+    await updateDoc(doc(db, "employees", newUid), {
+      isAdmin: true,
+      adminGrantedAt: serverTimestamp()
+    });
+
+  } else {
+
+    // إنشاء حساب جديد إذا لم يكن موجوداً
+    newUid = await createAdminAccountSafely(email, password);
+
+    await setDoc(doc(db, "employees", newUid), {
+      fullName,
+      phone,
+      employeeNumber,
+      email,
+      isAdmin: true,
+      createdAt: serverTimestamp(),
+      createdVia: "transferAdmin"
+    });
+
+  }
+
+  // مزامنة adminUids
+  await setDoc(
+    doc(db, "adminUids", newUid),
+    {
+      isAdmin: true,
+      email
+    },
+    { merge: true }
+  );
+
+  // سحب صلاحية الأدمن الحالي
+  if (currentAdminData?.docId) {
+    await updateDoc(
+      doc(db, "employees", currentAdminData.docId),
+      {
+        isAdmin: false,
+        adminRevokedAt: serverTimestamp()
+      }
+    );
+
+    await deleteDoc(
+      doc(db, "adminUids", currentAdminData.uid)
+    ).catch(() => {});
+  }
+
+  // سجل العمليات
+  await setDoc(doc(collection(db, "adminTransferLogs")), {
+    fromAdminId: currentAdminData?.docId || null,
+    fromAdminName: currentAdminData?.fullName || null,
+    toAdminId: newUid,
+    toAdminName: fullName,
+    toEmployeeNumber: employeeNumber,
+    transferredAt: serverTimestamp()
+  });
+
+  if (employeeAlreadyExists) {
+
+    alert(
+      `تم نقل صلاحية الأدمن إلى الموظف الموجود مسبقاً "${fullName}" بنجاح`
+    );
+
+  } else {
+
+    alert(
+      `تم نقل صلاحية الأدمن إلى "${fullName}" بنجاح.\n\nالإيميل: ${email}\nكلمة المرور: ${password}`
+    );
+
+  }
+
+  closeTransferModal();
+
+  await signOut(auth);
+  window.location.href = "EmployeeLogin.html";
+
+}
 // ==================== أحداث الواجهة ====================
 
 document.querySelectorAll(".admin-tab").forEach((btn) => {
@@ -916,6 +1109,15 @@ document.querySelectorAll(".admin-tab").forEach((btn) => {
         loadVisitFormInfo();
       } else {
         visitUploadAreaEl.style.display = "none";
+      }
+    }
+
+    // إخفاء فلتر الأقسام في تبويبي الأعذار والزيارة (لا علاقة لهم بالقسم)
+    const deptFilterWrapEl = document.getElementById("deptFilterWrap");
+    if (deptFilterWrapEl) {
+      deptFilterWrapEl.style.display = currentTab === "addDrop" ? "" : "none";
+      if (currentTab !== "addDrop") {
+        currentDeptFilter = "all";
       }
     }
 
@@ -962,6 +1164,9 @@ document.getElementById("logoutBtn").addEventListener("click", async () => {
   await signOut(auth);
   window.location.href = "EmployeeLogin.html";
 });
+document.getElementById("taCloseBtn")?.addEventListener("click", closeTransferModal);
+
+document.getElementById("transferAdminOverlay")?.addEventListener("click", closeTransferModal);
 
 // ==================== المصادقة ====================
 
