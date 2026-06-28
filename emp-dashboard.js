@@ -19,6 +19,7 @@ const tabData = { addDrop: [], excuse: [], visit: [] };
 let currentTab          = "addDrop";
 let currentStatusFilter = "all";
 let searchQuery         = "";
+let currentDeptFilter = "all";
 let activeRequest       = null;
 
 // ==================== التواريخ ====================
@@ -263,8 +264,10 @@ function updateBadges() {
   if (el("badge-visit"))   el("badge-visit").textContent   = tabData.visit.length;
 }
 
-function updateStatCards() {
-  const items = tabData[currentTab];
+function updateStatCards(filtered) {
+  // لو ما تمررنا شي، استخدم كل البيانات (السلوك الافتراضي)
+  const items = filtered ?? tabData[currentTab];
+  
   const counts = {
     new:          items.filter(r => getEffectiveStatus(r) === "new").length,
     under_review: items.filter(r => getEffectiveStatus(r) === "under_review").length,
@@ -272,6 +275,7 @@ function updateStatCards() {
     rejected:     items.filter(r => r.status === "rejected").length,
     all:          items.length
   };
+
   Object.entries(counts).forEach(([key, val]) => {
     const el = document.getElementById("cnt-" + key);
     if (el) el.textContent = val;
@@ -302,6 +306,16 @@ async function renderTab() {
 
   let filtered = [...tabData[currentTab]];
 
+    // ✅ فلتر الأقسام — يعمل على كل التبويبات لشؤون الطالبات
+if (isAffairs && currentDeptFilter !== "all") {
+  filtered = filtered.filter(it => {
+    const studentUid   = it[cfg.studentField];
+    const student      = studentsCache[studentUid] || {};
+    const studentMajor = student.major || student.department || "";
+    return studentMajor === currentDeptFilter || it.major === currentDeptFilter;
+  });
+}
+
   if (currentStatusFilter !== "all") {
     filtered = filtered.filter(it => getEffectiveStatus(it) === currentStatusFilter);
   }
@@ -316,7 +330,7 @@ async function renderTab() {
     });
   }
 
-  updateStatCards();
+updateStatCards(filtered);
 
   const byStudent = {};
   filtered.forEach(it => {
@@ -1059,6 +1073,14 @@ if (searchInputEl) {
     searchDebounce = setTimeout(() => renderTab(), 200);
   });
 }
+// ✅ فلتر الأقسام
+const deptFilterEl = document.getElementById("deptFilter");
+if (deptFilterEl) {
+  deptFilterEl.addEventListener("change", e => {
+    currentDeptFilter = e.target.value;
+    renderTab();
+  });
+}
 
 // إغلاق اللوحة الجانبية
 document.getElementById("spCloseBtn")?.addEventListener("click", closeSidePanel);
@@ -1085,9 +1107,12 @@ auth.authStateReady().then(() => {
       if (empData.role !== "employee") { window.location.replace("EmployeeLogin.html"); return; }
 
       currentEmployee = { uid: user.uid, ...empData };
-      isAffairs       = (empData.department || "").trim() === "شؤون الطالبات";
       isAffairs = (empData.department || "").trim() === "شؤون الطالبات";
-
+      // ✅ إظهار/إخفاء فلتر الأقسام — يظهر فقط لشؤون الطالبات وفقط في تبويب الحذف/الإضافة
+      const deptFilterWrap = document.getElementById("deptFilterWrap");
+      if (deptFilterWrap) {
+          deptFilterWrap.style.display = isAffairs ? "" : "none";   
+       }
 // إخفاء تبويب الزيارة لغير موظفات شؤون الطالبات
 const visitTabBtn = document.querySelector('.emp-tab-btn[data-tab="visit"]');
 
