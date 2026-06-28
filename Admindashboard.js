@@ -223,12 +223,11 @@ function updateBadges() {
   document.getElementById("badge-visit").textContent   = tabData.visit.length;
 }
 
-function updateStatCards() {
-  const items = tabData[currentTab];
-  const newCount         = items.filter((r) => getEffectiveStatus(r) === "new").length;
+function updateStatCards(items) {
+  const newCount = items.filter((r) => getEffectiveStatus(r) === "new").length;
   const underReviewCount = items.filter((r) => getEffectiveStatus(r) === "under_review").length;
-  const approvedCount    = items.filter((r) => r.status === "approved").length;
-  const rejectedCount    = items.filter((r) => r.status === "rejected").length;
+  const approvedCount = items.filter((r) => r.status === "approved").length;
+  const rejectedCount = items.filter((r) => r.status === "rejected").length;
 
   const elNew         = document.getElementById("cnt-new");
   const elUnderReview = document.getElementById("cnt-under_review");
@@ -271,8 +270,8 @@ async function renderTab() {
     return getReqDepartment(it, student) === currentDeptFilter;
   });
 
-  updateStatCards();
-
+ updateStatCards(filtered);
+ 
   if (currentStatusFilter !== "all") {
     filtered = filtered.filter((it) => getEffectiveStatus(it) === currentStatusFilter);
   }
