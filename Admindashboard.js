@@ -15,6 +15,43 @@ import { getAuth, createUserWithEmailAndPassword } from "https://www.gstatic.com
 console.log("FILE LOADED");
 
 // ==================== State ====================
+// ==================== تحميل بيانات الأدمن ====================
+
+onAuthStateChanged(auth, async (user) => {
+  if (!user) {
+    window.location.href = "loginPage.html"; // أو اسم صفحة تسجيل الدخول عندك
+    return;
+  }
+
+  try {
+    // جلب بيانات الموظف من Firestore
+    const snap = await getDoc(doc(db, "employees", user.uid));
+
+    if (snap.exists()) {
+      currentAdminData = {
+        docId: user.uid,
+        ...snap.data()
+      };
+
+      // حفظ اسم الموظف في الكاش
+      employeesCache[user.uid] = currentAdminData.fullName || "موظف";
+
+      // عرض الاسم في الصفحة
+      document.getElementById("adminName").textContent = currentAdminData.fullName || "";
+      document.getElementById("adminEmail").textContent = currentAdminData.email || "";
+      document.getElementById("adminNameWelcome").textContent = currentAdminData.fullName || "";
+
+      // تحميل البيانات بعد تحميل بيانات الأدمن
+      loadAllData();
+
+    } else {
+      console.error("لم يتم العثور على بيانات الموظف في employees/");
+    }
+
+  } catch (err) {
+    console.error("خطأ في تحميل بيانات الأدمن:", err);
+  }
+});
 
 let currentAdminData = null;
 
