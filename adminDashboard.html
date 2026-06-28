@@ -136,18 +136,60 @@
         <option value="biology">أحياء</option>
     </select>
 
-    <select id="visitPlaceSelect" class="admin-filter-select">
+    <select id="visitPlaceSelect" class="admin-filter-select" disabled>
         <option value="">اختر المقر</option>
-        <option value="badaya">البدايع</option>
-        <option value="unaizah">عنيزة</option>
-        <option value="rass">الرس</option>
-        <option value="asyah">الاسياح</option>
-        <option value="bukayriyah">البكيرية</option>
-        <option value="riyadh_alkhabra">رياض الخبراء</option>
-        <option value="mithnab">المذنب</option>
-        <option value="uqlat_suqur">عقلة صقور</option>
-        <option value="nihaniyah">النيهانية</option>
     </select>
+
+    <script>
+      (function () {
+        const deptPlaces = {
+          physics:   [
+            { value: "asyah",          label: "الاسياح" },
+            { value: "unaizah",        label: "عنيزة" },
+            { value: "bukayriyah",     label: "البكيرية" },
+            { value: "badaya",         label: "البدايع" },
+            { value: "rass",           label: "الرس" },
+            { value: "mithnab",        label: "المذنب" },
+            { value: "uqlat_suqur",    label: "عقلة صقور" },
+            { value: "nihaniyah",      label: "النبهانية" },
+          ],
+          chemistry: [
+            { value: "unaizah",        label: "عنيزة" },
+            { value: "rass",           label: "الرس" },
+          ],
+          statistics: [],
+          math: [
+            { value: "asyah",          label: "الاسياح" },
+            { value: "unaizah",        label: "عنيزة" },
+            { value: "bukayriyah",     label: "البكيرية" },
+            { value: "badaya",         label: "البدايع" },
+            { value: "rass",           label: "الرس" },
+            { value: "mithnab",        label: "المذنب" },
+            { value: "uqlat_suqur",    label: "عقلة صقور" },
+            { value: "nihaniyah",      label: "النبهانية" },
+            { value: "riyadh_alkhabra",label: "رياض الخبراء" },
+          ],
+          biology: [
+            { value: "unaizah",        label: "عنيزة" },
+          ],
+        };
+
+        const deptSel  = document.getElementById("visitDeptSelect");
+        const placeSel = document.getElementById("visitPlaceSelect");
+
+        deptSel.addEventListener("change", function () {
+          const places = deptPlaces[this.value] || [];
+          placeSel.innerHTML = '<option value="">اختر المقر</option>';
+          places.forEach(function (p) {
+            const opt = document.createElement("option");
+            opt.value = p.value;
+            opt.textContent = p.label;
+            placeSel.appendChild(opt);
+          });
+          placeSel.disabled = places.length === 0;
+        });
+      })();
+    </script>
 
     <div class="visit-upload-controls">
 
