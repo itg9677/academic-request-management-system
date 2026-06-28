@@ -10,11 +10,15 @@
   <link rel="stylesheet" href="adminStyle.css" />
   <link rel="stylesheet" href="sidebarStyle.css" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tabler-icons/3.35.0/tabler-icons.min.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
 </head>
 
 <body class="sidebar-layout admin-page employee-dashboard-page">
 
   <!-- ===== Sidebar ===== -->
+
+
   <aside class="sb-sidebar">
     <div class="sb-brand">
       <div class="sb-brand-icon"><i class="ti ti-shield-check"></i></div>
@@ -29,6 +33,12 @@
         <i class="ti ti-layout-dashboard"></i>
         <span>لوحة التحكم</span>
       </div>
+
+      <div class="sb-nav-item" id="navStats" style="cursor:pointer;">
+  <i class="ti ti-chart-bar"></i>
+  <span>الإحصائيات</span>
+</div>
+
       <div class="sb-nav-item admin-tab active" data-tab="addDrop">
         <i class="ti ti-file-text"></i>
         <span>طلبات الحذف والإضافة</span>
@@ -93,33 +103,82 @@
       </div>
 
       <!-- Stats -->
-      <div class="admin-stats-grid">
-        <div class="admin-stat-card emp-stat-card stat-total active" data-filter="all" id="card-all">
-          <div class="stat-icon"><i class="ti ti-copy"></i></div>
-          <div class="stat-num" id="cnt-all">0</div>
-          <div class="stat-label">الكل</div>
-        </div>
-        <div class="admin-stat-card emp-stat-card stat-new" data-filter="new" id="card-new">
-          <div class="stat-icon"><i class="ti ti-sparkles"></i></div>
-          <div class="stat-num" id="cnt-new">0</div>
-          <div class="stat-label">جديد</div>
-        </div>
-        <div class="admin-stat-card emp-stat-card stat-review" data-filter="under_review" id="card-under_review">
-          <div class="stat-icon"><i class="ti ti-loader-2"></i></div>
-          <div class="stat-num" id="cnt-under_review">0</div>
-          <div class="stat-label">قيد المراجعة</div>
-        </div>
-        <div class="admin-stat-card emp-stat-card stat-approved" data-filter="approved" id="card-approved">
-          <div class="stat-icon"><i class="ti ti-circle-check"></i></div>
-          <div class="stat-num" id="cnt-approved">0</div>
-          <div class="stat-label">مقبول</div>
-        </div>
-        <div class="admin-stat-card emp-stat-card stat-rejected" data-filter="rejected" id="card-rejected">
-          <div class="stat-icon"><i class="ti ti-circle-x"></i></div>
-          <div class="stat-num" id="cnt-rejected">0</div>
-          <div class="stat-label">مرفوض</div>
-        </div>
-      </div>
+      <!-- Admin Dashboard Overview -->
+<section class="admin-dashboard" id="dashboardSection" style="display:none;">
+
+  <!-- Grid: إجماليات سريعة -->
+  <div class="admin-dashboard-grid">
+    <div class="dash-card">
+      <div class="dash-card-label">إجمالي الطلبات</div>
+      <div class="dash-card-value" id="dash-total-requests">0</div>
+      <div class="dash-card-sub">كل الأنواع وكل الأقسام</div>
+    </div>
+
+    <div class="dash-card">
+      <div class="dash-card-label">طلبات اليوم</div>
+      <div class="dash-card-value" id="dash-today-requests">0</div>
+      <div class="dash-card-sub">من منتصف الليل حتى الآن</div>
+    </div>
+
+    <div class="dash-card">
+      <div class="dash-card-label">طلبات هذا الأسبوع</div>
+      <div class="dash-card-value" id="dash-week-requests">0</div>
+      <div class="dash-card-sub">آخر 7 أيام</div>
+    </div>
+
+    <div class="dash-card">
+      <div class="dash-card-label">نسبة الطلبات المقبولة</div>
+      <div class="dash-card-value" id="dash-accepted-rate">0%</div>
+      <div class="dash-card-sub">من إجمالي الطلبات المعالجة</div>
+    </div>
+  </div>
+
+  <!-- Grid: حسب الأقسام والموظفين -->
+  <div class="admin-dashboard-grid">
+    <div class="dash-card">
+      <div class="dash-card-label">أكثر قسم لديه طلبات</div>
+      <div class="dash-card-value" id="dash-top-dept">-</div>
+      <div class="dash-card-sub" id="dash-top-dept-count">0 طلب</div>
+    </div>
+
+    <div class="dash-card">
+      <div class="dash-card-label">أكثر موظف نشاطًا</div>
+      <div class="dash-card-value" id="dash-top-employee">-</div>
+      <div class="dash-card-sub" id="dash-top-employee-count">0 طلب</div>
+    </div>
+
+    <div class="dash-card">
+      <div class="dash-card-label">طلبات قيد المراجعة</div>
+      <div class="dash-card-value" id="dash-under-review">0</div>
+      <div class="dash-card-sub">تحتاج متابعة</div>
+    </div>
+
+    <div class="dash-card">
+      <div class="dash-card-label">طلبات مرفوضة</div>
+      <div class="dash-card-value" id="dash-rejected">0</div>
+      <div class="dash-card-sub">تم رفضها من الموظفين</div>
+    </div>
+  </div>
+
+  <!-- Charts Row -->
+  <div class="dash-charts-row">
+    <div class="dash-chart-card">
+      <div class="dash-chart-title">عدد الطلبات خلال آخر 30 يوم</div>
+      <canvas id="chartRequestsByDay"></canvas>
+    </div>
+
+    <div class="dash-chart-card">
+      <div class="dash-chart-title">توزيع الطلبات حسب الأقسام</div>
+      <canvas id="chartRequestsByDept"></canvas>
+    </div>
+
+    <div class="dash-chart-card">
+      <div class="dash-chart-title">أداء الموظفين (عدد الطلبات المعالجة)</div>
+      <canvas id="chartRequestsByEmployee"></canvas>
+    </div>
+  </div>
+
+</section>
 
       <!-- Table Card -->
       <div class="admin-table-card">

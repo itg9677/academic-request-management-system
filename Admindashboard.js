@@ -182,6 +182,9 @@ function buildStudentAllFields(student) {
 async function loadAllData() {
   const loadingEl   = document.getElementById("loadingState");
   const tableWrapEl = document.getElementById("tableWrap");
+  updateDashboardStats();
+buildCharts();
+
 
   loadingEl.style.display  = "";
   tableWrapEl.style.display = "none";
@@ -653,6 +656,218 @@ async function updateRequestStatus(tab, item, newStatus) {
     buttons.forEach((b) => (b.disabled = false));
   }
 }
+
+function updateDashboardStats() {
+  const allItems = [
+    ...tabData.addDrop,
+    ...tabData.excuse,
+    ...tabData.visit
+  ];
+
+  // إجمالي الطلبات
+  const total = allItems.length;
+
+  // اليوم / الأسبوع
+  const now = new Date();
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const startOfWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6);
+
+  let todayCount = 0;
+  let weekCount  = 0;
+
+  let approvedCount = 0;
+  let rejectedCount = 0;
+  let underReviewCount = 0;
+
+  const deptCounts = {};
+  const employeeCounts = {};
+
+  allItems.forEach((item) => {
+    const created = item.createdAt && item.createdAt.toDate ? item.createdAt.toDate() : null;
+    if (created) {
+      if (created >= startOfToday) todayCount++;
+      if (created >= startOfWeek)  weekCount++;
+    }
+
+    const status = getEffectiveStatus(item);
+    if (status === "approved") approvedCount++;
+    if (status === "rejected") rejectedCount++;
+    if (status === "under_review") underReviewCount++;
+
+    // حسب القسم
+    const cfg = tabConfig.addDrop; // نستخدم نفس منطق القسم
+    const studentUid = item[cfg.studentField] || item.uid || item.studentUid;
+    const student = studentsCache[studentUid] || {};
+    const dept = getReqDepartment(item, student) || "غير محدد";
+    deptCounts[dept] = (deptCounts[dept] || 0) + 1;
+
+    // حسب الموظف
+    if (item.assignedEmployee) {
+      employeeCounts[item.assignedEmployee] = (employeeCounts[item.assignedEmployee] || 0) + 1;
+    }
+  });
+
+  // نسبة المقبول من المعالج (مقبول + مرفوض)
+  const processed = approvedCount + rejectedCount;
+  const acceptedRate = processed ? Math.round((approvedCount / processed) * 100) : 0;
+
+  // أكثر قسم
+  let topDept = "-";
+  let topDeptCount = 0;
+  Object.entries(deptCounts).forEach(([dept, count]) => {
+    if (count > topDeptCount) {
+      topDeptCount = count;
+      topDept = dept;
+    }
+  });
+
+  // أكثر موظف
+  let topEmpId = null;
+  let topEmpCount = 0;
+  Object.entries(employeeCounts).forEach(([uid, count]) => {
+    if (count > topEmpCount) {
+      topEmpCount = count;
+      topEmpId = uid;
+    }
+  });
+  const topEmpName = topEmpId ? (employeesCache[topEmpId] || topEmpId) : "-";
+
+  // تعبئة القيم في الداشبورد
+  document.getElementById("dash-total-requests").textContent      = total;
+  document.getElementById("dash-today-requests").textContent      = todayCount;
+  document.getElementById("dash-week-requests").textContent       = weekCount;
+  document.getElementById("dash-accepted-rate").textContent       = acceptedRate + "%";
+  document.getElementById("dash-top-dept").textContent            = topDept;
+  document.getElementById("dash-top-dept-count").textContent      = topDeptCount + " طلب";
+  document.getElementById("dash-top-employee").textContent        = topEmpName;
+  document.getElementById("dash-top-employee-count").textContent  = topEmpCount + " طلب";
+  document.getElementById("dash-under-review").textContent        = underReviewCount;
+  document.getElementById("dash-rejected").textContent            = rejectedCount;
+}
+
+let chartRequestsByDay = null;
+let chartRequestsByDept = null;
+let chartRequestsByEmployee = null;
+
+function buildCharts() {
+  const allItems = [
+    ...tabData.addDrop,
+    ...tabData.excuse,
+    ...tabData.visit
+  ];
+
+  // ===== 1) عدد الطلبات خلال آخر 30 يوم =====
+  const daysMap = {};
+  const now = new Date();
+  for (let i = 29; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
+    const key = d.toLocaleDateString("ar-SA-u-ca-gregory");
+    daysMap[key] = 0;
+  }
+
+  allItems.forEach((item) => {
+    const created = item.createdAt && item.createdAt.toDate ? item.createdAt.toDate() : null;
+    if (!created) return;
+    const key = created.toLocaleDateString("ar-SA-u-ca-gregory");
+    if (key in daysMap) {
+      daysMap[key]++;
+    }
+  });
+
+  const dayLabels = Object.keys(daysMap);
+  const dayValues = Object.values(daysMap);
+
+  const ctxDay = document.getElementById("chartRequestsByDay").getContext("2d");
+  if (chartRequestsByDay) chartRequestsByDay.destroy();
+  chartRequestsByDay = new Chart(ctxDay, {
+    type: "line",
+    data: {
+      labels: dayLabels,
+      datasets: [{
+        label: "عدد الطلبات",
+        data: dayValues,
+        borderColor: "#1a3a6b",
+        backgroundColor: "rgba(26,58,107,0.12)",
+        tension: 0.3,
+        fill: true,
+      }]
+    },
+    options: {
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { maxTicksLimit: 6 } },
+        y: { beginAtZero: true }
+      }
+    }
+  });
+
+  // ===== 2) توزيع الطلبات حسب الأقسام =====
+  const deptCounts = {};
+  allItems.forEach((item) => {
+    const cfg = tabConfig.addDrop;
+    const studentUid = item[cfg.studentField] || item.uid || item.studentUid;
+    const student = studentsCache[studentUid] || {};
+    const dept = getReqDepartment(item, student) || "غير محدد";
+    deptCounts[dept] = (deptCounts[dept] || 0) + 1;
+  });
+
+  const deptLabels = Object.keys(deptCounts);
+  const deptValues = Object.values(deptCounts);
+
+  const ctxDept = document.getElementById("chartRequestsByDept").getContext("2d");
+  if (chartRequestsByDept) chartRequestsByDept.destroy();
+  chartRequestsByDept = new Chart(ctxDept, {
+    type: "bar",
+    data: {
+      labels: deptLabels,
+      datasets: [{
+        label: "عدد الطلبات",
+        data: deptValues,
+        backgroundColor: "#c8972b",
+      }]
+    },
+    options: {
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { autoSkip: false } },
+        y: { beginAtZero: true }
+      }
+    }
+  });
+
+  // ===== 3) أداء الموظفين =====
+  const employeeCounts = {};
+  allItems.forEach((item) => {
+    if (item.assignedEmployee) {
+      employeeCounts[item.assignedEmployee] = (employeeCounts[item.assignedEmployee] || 0) + 1;
+    }
+  });
+
+  const empLabels = Object.keys(employeeCounts).map((uid) => employeesCache[uid] || uid);
+  const empValues = Object.values(employeeCounts);
+
+  const ctxEmp = document.getElementById("chartRequestsByEmployee").getContext("2d");
+  if (chartRequestsByEmployee) chartRequestsByEmployee.destroy();
+  chartRequestsByEmployee = new Chart(ctxEmp, {
+    type: "bar",
+    data: {
+      labels: empLabels,
+      datasets: [{
+        label: "عدد الطلبات المعالجة",
+        data: empValues,
+        backgroundColor: "#1a3a6b",
+      }]
+    },
+    options: {
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { autoSkip: false } },
+        y: { beginAtZero: true }
+      }
+    }
+  });
+}
+
 
 // ==================== الطباعة ====================
 
@@ -1257,6 +1472,42 @@ auth.authStateReady().then(() => {
 
       currentAdminData = { docId: adminDoc.id, uid: user.uid, ...data };
       employeesCache[adminDoc.id] = data.fullName || "الأدمن";
+
+// ====== التحكم في عرض صفحة الإحصائيات ======
+
+const navStats = document.getElementById("navStats");
+const dashboardSection = document.getElementById("dashboardSection");
+const tableCard = document.querySelector(".admin-table-card");
+const statsGrid = document.querySelector(".admin-stats-grid");
+
+// إظهار صفحة الإحصائيات
+function showDashboard() {
+  dashboardSection.style.display = "";
+  tableCard.style.display = "none";
+  statsGrid.style.display = "none";
+}
+
+// إخفاء صفحة الإحصائيات
+function hideDashboard() {
+  dashboardSection.style.display = "none";
+  tableCard.style.display = "";
+  statsGrid.style.display = "";
+}
+
+// عند الضغط على زر الإحصائيات
+navStats.addEventListener("click", () => {
+  showDashboard();
+});
+
+// عند الضغط على أي تبويب من التبويبات (الحذف – الأعذار – الزيارة)
+document.querySelector(".sb-nav").addEventListener("click", (e) => {
+  const tab = e.target.closest(".admin-tab");
+  if (tab) {
+    hideDashboard();
+  }
+});
+
+
 
       // مزامنة uid هذا الأدمن في مجموعة مخصصة (adminUids) تُستخدم فقط من
       // قواعد الأمان (Security Rules) للتحقق من صلاحية الأدمن عند الكتابة
