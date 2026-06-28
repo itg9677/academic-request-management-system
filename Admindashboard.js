@@ -183,7 +183,7 @@ async function loadAllData() {
   const loadingEl   = document.getElementById("loadingState");
   const tableWrapEl = document.getElementById("tableWrap");
   updateDashboardStats();
-buildCharts();
+  buildCharts();
 
 
   loadingEl.style.display  = "";
@@ -1472,40 +1472,26 @@ auth.authStateReady().then(() => {
 
       currentAdminData = { docId: adminDoc.id, uid: user.uid, ...data };
       employeesCache[adminDoc.id] = data.fullName || "الأدمن";
-
-// ====== التحكم في عرض صفحة الإحصائيات ======
+// ====== عرض صفحة الإحصائيات ======
 
 const navStats = document.getElementById("navStats");
 const dashboardSection = document.getElementById("dashboardSection");
-const tableCard = document.querySelector(".admin-table-card");
 const statsGrid = document.querySelector(".admin-stats-grid");
 
-// إظهار صفحة الإحصائيات
-function showDashboard() {
-  dashboardSection.style.display = "";
-  tableCard.style.display = "none";
-  statsGrid.style.display = "none";
-}
-
-// إخفاء صفحة الإحصائيات
-function hideDashboard() {
-  dashboardSection.style.display = "none";
-  tableCard.style.display = "";
-  statsGrid.style.display = "";
-}
-
-// عند الضغط على زر الإحصائيات
+// إظهار الإحصائيات
 navStats.addEventListener("click", () => {
-  showDashboard();
+  dashboardSection.style.display = "";
+  statsGrid.style.display = "";   // الكاردز تبقى ظاهرة
 });
 
-// عند الضغط على أي تبويب من التبويبات (الحذف – الأعذار – الزيارة)
-document.querySelector(".sb-nav").addEventListener("click", (e) => {
-  const tab = e.target.closest(".admin-tab");
-  if (tab) {
-    hideDashboard();
-  }
+// عند الضغط على أي تبويب طلبات
+document.querySelectorAll(".admin-tab").forEach(tab => {
+  tab.addEventListener("click", () => {
+    dashboardSection.style.display = "none";  // نخفي الإحصائيات
+    statsGrid.style.display = "";             // الكاردز تبقى ظاهرة
+  });
 });
+
 
 
 
