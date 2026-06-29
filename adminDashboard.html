@@ -11,6 +11,7 @@
   <link rel="stylesheet" href="sidebarStyle.css" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tabler-icons/3.35.0/tabler-icons.min.css" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+ 
 
 </head>
 
@@ -305,6 +306,7 @@
               autocomplete="off" />
           </div>
 
+          <!-- فلتر الأقسام — يظهر في تبويب الحذف/الإضافة -->
           <div class="dept-filter-pill" id="deptFilterWrap">
             <i class="ti ti-filter"></i>
             <select id="deptFilter">
@@ -324,6 +326,48 @@
             <option value="approved">مقبول</option>
             <option value="rejected">مرفوض</option>
           </select>
+
+          <!-- فلاتر الأعذار — تظهر فقط في تبويب طلبات الأعذار -->
+<div class="excuse-filters-wrap" id="excuseFiltersWrap" style="display:none;">
+            <div class="dept-filter-pill">
+              <i class="ti ti-building"></i>
+              <select id="excuseDeptFilter">
+                <option value="all">كل الأقسام</option>
+                <option value="فيزياء">فيزياء</option>
+                <option value="أحياء">أحياء</option>
+                <option value="إحصاء">إحصاء</option>
+                <option value="كيمياء">كيمياء</option>
+                <option value="رياضيات">رياضيات</option>
+              </select>
+            </div>
+
+            <div class="dept-filter-pill">
+              <i class="ti ti-pencil"></i>
+              <select id="excuseExamTypeFilter">
+                <option value="all">كل أنواع الاختبارات</option>
+                <option value="midterm1">اختبار فصلي أول</option>
+                <option value="midterm2">اختبار فصلي ثاني</option>
+                <option value="final">اختبار نهائي</option>
+              </select>
+            </div>
+
+            <div class="dept-filter-pill">
+              <i class="ti ti-adjustments-horizontal"></i>
+              <select id="excuseStatusExportFilter">
+                <option value="all">كل الحالات</option>
+                <option value="new">جديد</option>
+                <option value="under_review">قيد المراجعة</option>
+                <option value="approved">مقبول</option>
+                <option value="rejected">مرفوض</option>
+              </select>
+            </div>
+
+            <button class="excel-export-btn" id="exportExcuseExcelBtn">
+              <i class="ti ti-file-spreadsheet"></i>
+              تصدير Excel
+            </button>
+
+          </div>
         </div>
 
         <div class="admin-search-info" id="searchInfoBar" style="display:none"></div>
@@ -464,5 +508,6 @@
   </style>
 
   <script type="module" src="Admindashboard.js"></script>
+  <script type="module" src="complaintsAdmin.js"></script>
 </body>
 </html>
