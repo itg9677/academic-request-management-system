@@ -1,4 +1,5 @@
 import { auth, db } from "./firebase.js";
+import { getCurrentSemester } from "./semester.js";
 
 import { 
   onAuthStateChanged, 
@@ -32,6 +33,19 @@ onAuthStateChanged(auth, async (user) => {
   document.getElementById("universityId").textContent = data.universityId || "-";
   document.getElementById("major").textContent = data.major || "-";
   document.getElementById("phoneNumber").textContent = data.phoneNumber || "-";
+
+  // عرض اسم الفصل الدراسي الحالي
+  try {
+    const semesterLineEl = document.getElementById("currentSemesterLine");
+    if (semesterLineEl) {
+      const currentSemester = await getCurrentSemester();
+      semesterLineEl.textContent = currentSemester?.name
+        ? `الفصل الدراسي الحالي: ${currentSemester.name}`
+        : "";
+    }
+  } catch (e) {
+    console.error("خطأ في عرض الفصل الحالي:", e);
+  }
 
   const editBtn = document.getElementById("editProfileBtn");
   const modal = document.getElementById("editModal");

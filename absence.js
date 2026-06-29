@@ -1,4 +1,5 @@
 import { auth, db, storage } from "./firebase.js";
+import { getCurrentSemester } from "./semester.js";
 
 import {
     onAuthStateChanged
@@ -163,6 +164,9 @@ form.addEventListener("submit", async (e) => {
             return;
         }
 
+        // تحديد الفصل الدراسي الحالي
+        const currentSemester = await getCurrentSemester();
+
         // حفظ الطلب في Firestore
         await addDoc(collection(db, "excuses"), {
             uid:               currentUser.uid,
@@ -178,6 +182,7 @@ form.addEventListener("submit", async (e) => {
             attachmentName,
             assignedDepartment: targetDept,
             assignedEmployees:  targetEmployeeIds,
+            semester:           currentSemester?.semester || null,
             status:             "new",
             createdAt:          serverTimestamp(),
             updatedAt:          serverTimestamp()

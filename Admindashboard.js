@@ -1,4 +1,5 @@
 import { auth, db, storage } from "./firebase.js";
+import { getCurrentSemester, getAllSemesters, activateSemester } from "./semester.js";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import {
   doc, getDoc, setDoc, deleteDoc, collection, query, where, getDocs,
@@ -65,6 +66,20 @@ let currentStatusFilter = "all";
 let currentDeptFilter   = "all";
 let searchQuery         = "";
 let activeRequest       = null;
+let currentSemesterData   = null;
+let selectedSemesterFilter = "current"; // "current" أو رقم فصل محدد من الأرشيف
+
+// ==================== إدارة الحالة النشطة في السايد بانل ====================
+
+function setActiveSidebarItem(activeId) {
+  // إزالة active من جميع عناصر السايد بانل
+  document.querySelectorAll(".sb-nav-item").forEach((item) => {
+    item.classList.remove("active");
+  });
+  // إضافة active للعنصر المحدد
+  const el = document.getElementById(activeId);
+  if (el) el.classList.add("active");
+}
 
 // ==================== أدوات مساعدة ====================
 
@@ -260,6 +275,206 @@ function updateBadges() {
   document.getElementById("badge-visit").textContent   = tabData.visit.length;
 }
 
+// ==================== إدارة الفصل الدراسي ====================
+
+// يجلب الفصل الحالي ويعبّئ قائمة الفصول المنسدلة - يُستدعى مرة عند الدخول
+async function initSemesterData() {
+  try {
+    currentSemesterData = await getCurrentSemester(true);
+    await populateSemesterFilter();
+  } catch (err) {
+    console.error("initSemesterData error:", err);
+  }
+}
+
+async function populateSemesterFilter() {
+  const sel = document.getElementById("semesterFilter");
+  if (!sel) return;
+
+  const history = await getAllSemesters();
+
+  sel.innerHTML = `<option value="current">الفصل الحالي${currentSemesterData?.name ? " - " + esc(currentSemesterData.name) : ""}</option>`;
+
+  history.forEach((s) => {
+    // لا نكرر الفصل الحالي في القائمة لو كان موجوداً بالأرشيف أيضاً
+    if (currentSemesterData && s.semester === currentSemesterData.semester) return;
+    const opt = document.createElement("option");
+    opt.value = s.semester;
+    opt.textContent = s.name || s.semester;
+    sel.appendChild(opt);
+  });
+
+  sel.value = selectedSemesterFilter;
+}
+
+// تصنيف فصل بناءً على التواريخ مقارنةً بتاريخ اليوم
+function classifySemester(s) {
+  const now   = new Date();
+  const start = s.startDate && s.startDate.toDate ? s.startDate.toDate() : (s.startDate ? new Date(s.startDate) : null);
+  const end   = s.endDate   && s.endDate.toDate   ? s.endDate.toDate()   : (s.endDate   ? new Date(s.endDate)   : null);
+  if (!start || !end) return "unknown";
+  if (now < start) return "upcoming";
+  if (now > end)   return "past";
+  return "active";
+}
+
+// يعرض بيانات الفصل الحالي + الأرشيف داخل قسم "إدارة الفصل الدراسي"
+async function loadSemesterInfo() {
+  currentSemesterData = await getCurrentSemester(true);
+
+  await populateSemesterFilter();
+
+  const allSemesters = await getAllSemesters();
+  const now = new Date();
+
+  // تصنيف كل الفصول
+  const active   = [];
+  const upcoming = [];
+  const past     = [];
+
+  allSemesters.forEach((s) => {
+    const type = classifySemester(s);
+    if (type === "active")   active.push(s);
+    else if (type === "upcoming") upcoming.push(s);
+    else                     past.push(s);
+  });
+
+  // ترتيب القادمة: الأقرب أولاً | السابقة: الأحدث أولاً
+  upcoming.sort((a, b) => {
+    const aS = a.startDate?.toDate ? a.startDate.toDate() : new Date(a.startDate);
+    const bS = b.startDate?.toDate ? b.startDate.toDate() : new Date(b.startDate);
+    return aS - bS;
+  });
+  past.sort((a, b) => {
+    const aE = a.endDate?.toDate ? a.endDate.toDate() : new Date(a.endDate);
+    const bE = b.endDate?.toDate ? b.endDate.toDate() : new Date(b.endDate);
+    return bE - aE;
+  });
+
+  // بناء كارد واحد
+  function buildSemCard(s, badgeHtml, badgeStyle) {
+    const daysLeft = (() => {
+      const end = s.endDate?.toDate ? s.endDate.toDate() : new Date(s.endDate);
+      const start = s.startDate?.toDate ? s.startDate.toDate() : new Date(s.startDate);
+      const diff = Math.ceil((end - now) / (1000 * 60 * 60 * 24));
+      const diffStart = Math.ceil((start - now) / (1000 * 60 * 60 * 24));
+      if (classifySemester(s) === "active")   return `<span style="font-size:12px;color:#888;">يتبقى ${diff} يوم</span>`;
+      if (classifySemester(s) === "upcoming") return `<span style="font-size:12px;color:#888;">يبدأ بعد ${diffStart} يوم</span>`;
+      return "";
+    })();
+
+    return `
+      <div class="dash-card" style="display:flex;justify-content:space-between;align-items:center;gap:12px;">
+        <div style="flex:1;">
+          <div class="dash-card-label" style="font-size:15px;font-weight:600;">${esc(s.name || s.semester)}</div>
+          <div class="dash-card-sub" style="margin-top:4px;">${formatDate(s.startDate)} → ${formatDate(s.endDate)}</div>
+          ${daysLeft ? `<div style="margin-top:4px;">${daysLeft}</div>` : ""}
+        </div>
+        <span class="status-badge" style="${badgeStyle}">${badgeHtml}</span>
+      </div>`;
+  }
+
+  // تحديث الكارد العلوي (الفصل المفعّل يدوياً)
+  const nameEl  = document.getElementById("currentSemesterName");
+  const datesEl = document.getElementById("currentSemesterDates");
+  if (nameEl)  nameEl.textContent = currentSemesterData?.name || "لم يتم تفعيل فصل بعد";
+  if (datesEl) {
+    if (currentSemesterData) {
+      const type = classifySemester(currentSemesterData);
+      const typeLabel = type === "active" ? " — جارٍ حالياً ✅" : type === "upcoming" ? " — قادم 🔜" : " — منتهٍ ⚠️";
+      datesEl.textContent = `${formatDate(currentSemesterData.startDate)} → ${formatDate(currentSemesterData.endDate)}${typeLabel}`;
+    } else {
+      datesEl.textContent = "-";
+    }
+  }
+
+  const historyListEl = document.getElementById("semesterHistoryList");
+  if (!historyListEl) return;
+
+  let html = "";
+
+  // --- الفصل الحالي (نشط) ---
+  if (active.length) {
+    html += `<div class="sem-section-title" style="margin:0 0 8px;font-weight:700;color:#1a7f37;font-size:13px;">
+      <i class="ti ti-circle-check"></i> الفصل الجاري
+    </div>`;
+    html += active.map((s) => buildSemCard(s, "جارٍ ✅", "background:#d4edda;color:#155724;border:none;")).join("");
+  }
+
+  // --- الفصول القادمة ---
+  if (upcoming.length) {
+    html += `<div class="sem-section-title" style="margin:18px 0 8px;font-weight:700;color:#1a3a6b;font-size:13px;">
+      <i class="ti ti-clock"></i> الفصول القادمة
+    </div>`;
+    html += upcoming.map((s) => buildSemCard(s, "قادم 🔜", "background:#cce5ff;color:#004085;border:none;")).join("");
+  }
+
+  // --- الفصول السابقة ---
+  if (past.length) {
+    html += `<div class="sem-section-title" style="margin:18px 0 8px;font-weight:700;color:#856404;font-size:13px;">
+      <i class="ti ti-history"></i> الفصول السابقة
+    </div>`;
+    html += past.map((s) => buildSemCard(s, "منتهٍ", "background:#fff3cd;color:#856404;border:none;")).join("");
+  }
+
+  if (!html) {
+    html = `<div class="admin-empty" style="padding:12px;">لا توجد فصول محفوظة بعد</div>`;
+  }
+
+  historyListEl.innerHTML = html;
+}
+
+// تفعيل فصل جديد من النموذج
+document.getElementById("semesterForm")?.addEventListener("submit", async (e) => {
+  e.preventDefault();
+
+  const msgEl = document.getElementById("semesterMsg");
+  const btn   = document.getElementById("activateSemesterBtn");
+
+  const name   = document.getElementById("semName").value.trim();
+  const number = document.getElementById("semNumber").value.trim();
+  const start  = document.getElementById("semStart").value;
+  const end    = document.getElementById("semEnd").value;
+
+  if (!name || !number || !start || !end) {
+    if (msgEl) { msgEl.textContent = "يرجى تعبئة جميع الحقول"; msgEl.style.color = "#c0392b"; }
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = "جاري التفعيل...";
+
+  try {
+    await activateSemester({
+      name,
+      semester: number,
+      startDate: new Date(start),
+      endDate: new Date(end)
+    });
+
+    if (msgEl) { msgEl.textContent = `تم تفعيل "${name}" بنجاح ✅`; msgEl.style.color = "#1a7f37"; }
+
+    document.getElementById("semesterForm").reset();
+
+    selectedSemesterFilter = "current";
+    await loadSemesterInfo();
+    await loadAllData();
+
+  } catch (err) {
+    console.error("activateSemester error:", err);
+    if (msgEl) { msgEl.textContent = "حدث خطأ أثناء التفعيل: " + err.message; msgEl.style.color = "#c0392b"; }
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="ti ti-check"></i> تفعيل الفصل';
+  }
+});
+
+// تغيير الفصل المعروض في الجداول (الحالي أو فصل سابق)
+document.getElementById("semesterFilter")?.addEventListener("change", (e) => {
+  selectedSemesterFilter = e.target.value;
+  renderTab();
+});
+
 function updateStatCards(items) {
   const newCount = items.filter((r) => getEffectiveStatus(r) === "new").length;
   const underReviewCount = items.filter((r) => getEffectiveStatus(r) === "under_review").length;
@@ -295,6 +510,12 @@ async function renderTab() {
   const cfg   = tabConfig[currentTab];
   const items = tabData[currentTab];
 
+  // تأكد من إظهار الجدول ومنطقة البحث عند كل render
+  const tableWrapEl = document.getElementById("tableWrap");
+  const searchRowEl = document.querySelector(".admin-search-row");
+  if (tableWrapEl) tableWrapEl.style.display = "";
+  if (searchRowEl) searchRowEl.style.display = "";
+
   const uniqueStudentUids = [...new Set(items.map((it) => it[cfg.studentField]).filter(Boolean))];
   await Promise.all(uniqueStudentUids.map((uid) => getStudent(uid)));
 
@@ -302,6 +523,10 @@ async function renderTab() {
   await Promise.all(uniqueEmpUids.map((uid) => getEmployeeName(uid)));
 
   let filtered = items.filter((it) => {
+    const semOk = selectedSemesterFilter === "current"
+      ? (!currentSemesterData || !it.semester || it.semester === currentSemesterData.semester)
+      : (!it.semester || it.semester === selectedSemesterFilter);
+    if (!semOk) return false;
     if (currentDeptFilter === "all") return true;
     const student = studentsCache[it[cfg.studentField]] || {};
     return getReqDepartment(it, student) === currentDeptFilter;
@@ -885,9 +1110,10 @@ function buildCharts() {
     }
   });
 
-  // ===== 2) توزيع الطلبات حسب الأقسام =====
+  // ===== 2) توزيع الطلبات حسب الأقسام - يعرض كل الأقسام دائماً ويبرز المختار =====
+  const allItemsForDept = [...tabData.addDrop, ...tabData.excuse, ...tabData.visit];
   const deptCounts = {};
-  allItems.forEach((item) => {
+  allItemsForDept.forEach((item) => {
     const cfg = tabConfig.addDrop;
     const studentUid = item[cfg.studentField] || item.uid || item.studentUid;
     const student = studentsCache[studentUid] || {};
@@ -897,6 +1123,10 @@ function buildCharts() {
 
   const deptLabels = Object.keys(deptCounts);
   const deptValues = Object.values(deptCounts);
+  // تلوين القسم المختار بذهبي والباقي بأزرق فاتح
+  const deptColors = deptLabels.map((d) =>
+    currentStatsDeptFilter === "all" || d === currentStatsDeptFilter ? "#c8972b" : "rgba(200,151,43,0.25)"
+  );
 
   const ctxDept = document.getElementById("chartRequestsByDept").getContext("2d");
   if (chartRequestsByDept) chartRequestsByDept.destroy();
@@ -904,18 +1134,11 @@ function buildCharts() {
     type: "bar",
     data: {
       labels: deptLabels,
-      datasets: [{
-        label: "عدد الطلبات",
-        data: deptValues,
-        backgroundColor: "#c8972b",
-      }]
+      datasets: [{ label: "عدد الطلبات", data: deptValues, backgroundColor: deptColors }]
     },
     options: {
       plugins: { legend: { display: false } },
-      scales: {
-        x: { ticks: { autoSkip: false } },
-        y: { beginAtZero: true }
-      }
+      scales: { x: { ticks: { autoSkip: false } }, y: { beginAtZero: true } }
     }
   });
 
@@ -1098,6 +1321,190 @@ function printActiveStudent() {
 }
 
 // ==================== رفع/عرض نموذج الزيارة (PDF) - متاح فقط داخل تبويب الزيارة ====================
+
+// ==================== فلترة الأقسام في صفحة الإحصائيات ====================
+
+let currentStatsDeptFilter = "all";
+
+function renderDeptFilterForStats() {
+  const allItems = [...tabData.addDrop, ...tabData.excuse, ...tabData.visit];
+
+  // استخراج قائمة الأقسام الموجودة فعلاً
+  const depts = new Set();
+  allItems.forEach((item) => {
+    const cfg = tabConfig.addDrop;
+    const studentUid = item[cfg.studentField] || item.uid || item.studentUid;
+    const student = studentsCache[studentUid] || {};
+    const dept = getReqDepartment(item, student);
+    if (dept) depts.add(dept);
+  });
+
+  // بناء شريط الفلترة إذا لم يكن موجوداً
+  let filterBar = document.getElementById("statsDeptFilterBar");
+  if (!filterBar) {
+    filterBar = document.createElement("div");
+    filterBar.id = "statsDeptFilterBar";
+    filterBar.style.cssText = "display:flex;flex-wrap:wrap;gap:10px;margin-bottom:20px;align-items:center;";
+    // إدراجه في بداية dashboardSection
+    const dashSec = document.getElementById("dashboardSection");
+    if (dashSec) dashSec.insertBefore(filterBar, dashSec.firstChild);
+  }
+
+  const deptList = ["all", ...depts];
+  filterBar.innerHTML = deptList.map((d) => `
+    <button class="stats-dept-pill ${currentStatsDeptFilter === d ? "active" : ""}"
+      data-dept="${d}"
+      style="padding:7px 16px;border-radius:20px;border:2px solid ${currentStatsDeptFilter === d ? "#1a3a6b" : "#ddd"};
+             background:${currentStatsDeptFilter === d ? "#1a3a6b" : "#fff"};
+             color:${currentStatsDeptFilter === d ? "#fff" : "#333"};
+             cursor:pointer;font-family:inherit;font-size:13px;transition:all 0.2s;">
+      ${d === "all" ? "كل الأقسام" : d}
+    </button>
+  `).join("");
+
+  filterBar.querySelectorAll(".stats-dept-pill").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      currentStatsDeptFilter = btn.dataset.dept;
+      renderDeptFilterForStats();
+      updateDashboardStatsFiltered();
+      buildChartsFiltered();
+    });
+  });
+
+  filterBar.style.display = "";
+}
+
+function getFilteredStatsItems() {
+  const allItems = [...tabData.addDrop, ...tabData.excuse, ...tabData.visit];
+  if (currentStatsDeptFilter === "all") return allItems;
+  return allItems.filter((item) => {
+    const cfg = tabConfig.addDrop;
+    const studentUid = item[cfg.studentField] || item.uid || item.studentUid;
+    const student = studentsCache[studentUid] || {};
+    const dept = getReqDepartment(item, student);
+    return dept === currentStatsDeptFilter;
+  });
+}
+
+function updateDashboardStatsFiltered() {
+  const allItems = getFilteredStatsItems();
+  const now = new Date();
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const startOfWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6);
+
+  let todayCount = 0, weekCount = 0, approvedCount = 0, rejectedCount = 0, underReviewCount = 0;
+  const deptCounts = {}, employeeCounts = {};
+
+  allItems.forEach((item) => {
+    const created = item.createdAt && item.createdAt.toDate ? item.createdAt.toDate() : null;
+    if (created) {
+      if (created >= startOfToday) todayCount++;
+      if (created >= startOfWeek) weekCount++;
+    }
+    const status = getEffectiveStatus(item);
+    if (status === "approved") approvedCount++;
+    if (status === "rejected") rejectedCount++;
+    if (status === "under_review") underReviewCount++;
+
+    const cfg = tabConfig.addDrop;
+    const studentUid = item[cfg.studentField] || item.uid || item.studentUid;
+    const student = studentsCache[studentUid] || {};
+    const dept = getReqDepartment(item, student) || "غير محدد";
+    deptCounts[dept] = (deptCounts[dept] || 0) + 1;
+
+    if (item.assignedEmployee) {
+      employeeCounts[item.assignedEmployee] = (employeeCounts[item.assignedEmployee] || 0) + 1;
+    }
+  });
+
+  const processed = approvedCount + rejectedCount;
+  const acceptedRate = processed ? Math.round((approvedCount / processed) * 100) : 0;
+
+  let topDept = "-", topDeptCount = 0;
+  Object.entries(deptCounts).forEach(([dept, count]) => {
+    if (count > topDeptCount) { topDeptCount = count; topDept = dept; }
+  });
+
+  let topEmpId = null, topEmpCount = 0;
+  Object.entries(employeeCounts).forEach(([uid, count]) => {
+    if (count > topEmpCount) { topEmpCount = count; topEmpId = uid; }
+  });
+  const topEmpName = topEmpId ? (employeesCache[topEmpId] || topEmpId) : "-";
+
+  document.getElementById("dash-total-requests").textContent     = allItems.length;
+  document.getElementById("dash-today-requests").textContent     = todayCount;
+  document.getElementById("dash-week-requests").textContent      = weekCount;
+  document.getElementById("dash-accepted-rate").textContent      = acceptedRate + "%";
+  document.getElementById("dash-top-dept").textContent           = topDept;
+  document.getElementById("dash-top-dept-count").textContent     = topDeptCount + " طلب";
+  document.getElementById("dash-top-employee").textContent       = topEmpName;
+  document.getElementById("dash-top-employee-count").textContent = topEmpCount + " طلب";
+  document.getElementById("dash-under-review").textContent       = underReviewCount;
+  document.getElementById("dash-rejected").textContent           = rejectedCount;
+}
+
+function buildChartsFiltered() {
+  const allItems = getFilteredStatsItems();
+
+  // ===== 1) آخر 30 يوم =====
+  const daysMap = {};
+  const now = new Date();
+  for (let i = 29; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
+    daysMap[d.toLocaleDateString("ar-SA-u-ca-gregory")] = 0;
+  }
+  allItems.forEach((item) => {
+    const created = item.createdAt && item.createdAt.toDate ? item.createdAt.toDate() : null;
+    if (!created) return;
+    const key = created.toLocaleDateString("ar-SA-u-ca-gregory");
+    if (key in daysMap) daysMap[key]++;
+  });
+
+  const ctxDay = document.getElementById("chartRequestsByDay").getContext("2d");
+  if (chartRequestsByDay) chartRequestsByDay.destroy();
+  chartRequestsByDay = new Chart(ctxDay, {
+    type: "line",
+    data: {
+      labels: Object.keys(daysMap),
+      datasets: [{ label: "عدد الطلبات", data: Object.values(daysMap), borderColor: "#1a3a6b", backgroundColor: "rgba(26,58,107,0.12)", tension: 0.3, fill: true }]
+    },
+    options: { plugins: { legend: { display: false } }, scales: { x: { ticks: { maxTicksLimit: 6 } }, y: { beginAtZero: true } } }
+  });
+
+  // ===== 2) حسب الأقسام =====
+  const deptCounts = {};
+  allItems.forEach((item) => {
+    const cfg = tabConfig.addDrop;
+    const studentUid = item[cfg.studentField] || item.uid || item.studentUid;
+    const student = studentsCache[studentUid] || {};
+    const dept = getReqDepartment(item, student) || "غير محدد";
+    deptCounts[dept] = (deptCounts[dept] || 0) + 1;
+  });
+
+  const ctxDept = document.getElementById("chartRequestsByDept").getContext("2d");
+  if (chartRequestsByDept) chartRequestsByDept.destroy();
+  chartRequestsByDept = new Chart(ctxDept, {
+    type: "bar",
+    data: { labels: Object.keys(deptCounts), datasets: [{ label: "عدد الطلبات", data: Object.values(deptCounts), backgroundColor: "#c8972b" }] },
+    options: { plugins: { legend: { display: false } }, scales: { x: { ticks: { autoSkip: false } }, y: { beginAtZero: true } } }
+  });
+
+  // ===== 3) أداء الموظفين =====
+  const employeeCounts = {};
+  allItems.forEach((item) => {
+    if (item.assignedEmployee) employeeCounts[item.assignedEmployee] = (employeeCounts[item.assignedEmployee] || 0) + 1;
+  });
+
+  const ctxEmp = document.getElementById("chartRequestsByEmployee").getContext("2d");
+  if (chartRequestsByEmployee) chartRequestsByEmployee.destroy();
+  chartRequestsByEmployee = new Chart(ctxEmp, {
+    type: "bar",
+    data: { labels: Object.keys(employeeCounts).map((uid) => employeesCache[uid] || uid), datasets: [{ label: "عدد الطلبات المعالجة", data: Object.values(employeeCounts), backgroundColor: "#1a3a6b" }] },
+    options: { plugins: { legend: { display: false } }, scales: { x: { ticks: { autoSkip: false } }, y: { beginAtZero: true } } }
+  });
+}
+
+
 
 function getVisitDeptName(dept) {
   const names = {
@@ -1483,6 +1890,16 @@ document.querySelectorAll(".admin-tab").forEach((btn) => {
     document.querySelectorAll(".admin-stat-card").forEach((c) => c.classList.remove("active"));
     document.getElementById("card-all").classList.add("active");
 
+    // إعادة إظهار الجدول ومنطقة البحث (قد تكون اختفت عند فتح الإحصائيات أو الفصل)
+    const tableWrapEl2 = document.getElementById("tableWrap");
+    if (tableWrapEl2) tableWrapEl2.style.display = "";
+    const searchRowEl = document.querySelector(".admin-search-row");
+    if (searchRowEl) searchRowEl.style.display = "";
+
+    // إخفاء فلتر أقسام الإحصائيات
+    const filterBar = document.getElementById("statsDeptFilterBar");
+    if (filterBar) filterBar.style.display = "none";
+
     // إظهار منطقة رفع نموذج الزيارة فقط داخل تبويب "طلبات الزيارة"
     const visitUploadAreaEl = document.getElementById("visitUploadArea");
     if (visitUploadAreaEl) {
@@ -1502,6 +1919,22 @@ document.querySelectorAll(".admin-tab").forEach((btn) => {
         currentDeptFilter = "all";
       }
     }
+
+    // إخفاء قسم إدارة الفصل الدراسي عند فتح أي تبويب طلبات
+    const semesterSectionEl = document.getElementById("semesterSection");
+    if (semesterSectionEl) semesterSectionEl.style.display = "none";
+
+    // إخفاء قسم الإحصائيات
+    const dashboardSectionEl = document.getElementById("dashboardSection");
+    if (dashboardSectionEl) dashboardSectionEl.style.display = "none";
+
+    // إظهار كاردات الفلتر (الكل / جديد / قيد المراجعة / مقبول / مرفوض)
+    const statsGridEl = document.querySelector(".admin-stats-grid");
+    if (statsGridEl) statsGridEl.style.display = "";
+
+    // تفعيل لون التبويب في السايد بانل
+    document.querySelectorAll(".sb-nav-item").forEach((i) => i.classList.remove("active"));
+    btn.classList.add("active");
 
     renderTab();
   });
@@ -1589,24 +2022,101 @@ auth.authStateReady().then(() => {
 const navStats = document.getElementById("navStats");
 const dashboardSection = document.getElementById("dashboardSection");
 const statsGrid = document.querySelector(".admin-stats-grid");
+const semesterSection = document.getElementById("semesterSection");
+const navSemester = document.getElementById("navSemester");
 
 // إظهار الإحصائيات
 navStats.addEventListener("click", () => {
   dashboardSection.style.display = "";
-  statsGrid.style.display = "";   // الكاردز تبقى ظاهرة
+  statsGrid.style.display = "none";   // إخفاء فلاتر الحالة
+  if (semesterSection) semesterSection.style.display = "none";
+
+  // إخفاء منطقة البحث والجدول
+  const searchRowEl = document.querySelector(".admin-search-row");
+  if (searchRowEl) searchRowEl.style.display = "none";
+  const tableWrapEl2 = document.getElementById("tableWrap");
+  if (tableWrapEl2) tableWrapEl2.style.display = "none";
+  const loadingEl2 = document.getElementById("loadingState");
+  if (loadingEl2) loadingEl2.style.display = "none";
+  const visitUploadAreaEl = document.getElementById("visitUploadArea");
+  if (visitUploadAreaEl) visitUploadAreaEl.style.display = "none";
+
+  setActiveSidebarItem("navStats");
+  renderDeptFilterForStats();
 });
 
-// عند الضغط على أي تبويب طلبات
-document.querySelectorAll(".admin-tab").forEach(tab => {
-  tab.addEventListener("click", () => {
-    dashboardSection.style.display = "none";  // نخفي الإحصائيات
-    statsGrid.style.display = "";             // الكاردز تبقى ظاهرة
+// إظهار قسم إدارة الفصل الدراسي
+if (navSemester) {
+  navSemester.addEventListener("click", async () => {
+    dashboardSection.style.display = "none";
+    statsGrid.style.display = "none";   // إخفاء فلاتر الحالة
+    if (semesterSection) semesterSection.style.display = "";
+
+    // إخفاء منطقة البحث والجدول
+    const searchRowEl = document.querySelector(".admin-search-row");
+    if (searchRowEl) searchRowEl.style.display = "none";
+    const tableWrapEl2 = document.getElementById("tableWrap");
+    if (tableWrapEl2) tableWrapEl2.style.display = "none";
+    const loadingEl2 = document.getElementById("loadingState");
+    if (loadingEl2) loadingEl2.style.display = "none";
+    const visitUploadAreaEl = document.getElementById("visitUploadArea");
+    if (visitUploadAreaEl) visitUploadAreaEl.style.display = "none";
+
+    setActiveSidebarItem("navSemester");
+    await loadSemesterInfo();
   });
-});
+}
+
+// ملاحظة: handler التبويبات الرئيسي موجود في قسم "أحداث الواجهة" أعلاه
 
 
 
 
+// لوحة التحكم (navHome) قابلة للضغط - تعيد للتبويب الافتراضي
+const navHome = document.getElementById("navHome");
+if (navHome) {
+  navHome.style.cursor = "pointer";
+  navHome.addEventListener("click", () => {
+    // إخفاء الأقسام الأخرى
+    if (dashboardSection) dashboardSection.style.display = "none";
+    if (semesterSection)  semesterSection.style.display  = "none";
+
+    // إخفاء فلتر الأقسام للإحصائيات
+    const filterBar = document.getElementById("statsDeptFilterBar");
+    if (filterBar) filterBar.style.display = "none";
+
+    // إظهار الكاردز والجدول والبحث
+    if (statsGrid) statsGrid.style.display = "";
+    const searchRowEl = document.querySelector(".admin-search-row");
+    if (searchRowEl) searchRowEl.style.display = "";
+
+    // تفعيل تبويب الحذف والإضافة (الافتراضي)
+    currentTab = "addDrop";
+    document.querySelectorAll(".sb-nav-item").forEach((i) => i.classList.remove("active"));
+    navHome.classList.add("active");
+
+    const firstTab = document.querySelector(".admin-tab[data-tab='addDrop']");
+    if (firstTab) {
+      document.querySelectorAll(".admin-tab").forEach((t) => t.classList.remove("active"));
+      firstTab.classList.add("active");
+    }
+
+    // إخفاء زيارة upload area
+    const visitUploadAreaEl = document.getElementById("visitUploadArea");
+    if (visitUploadAreaEl) visitUploadAreaEl.style.display = "none";
+
+    // إعادة تعيين الفلاتر
+    currentStatusFilter = "all";
+    currentDeptFilter = "all";
+    document.querySelectorAll(".admin-stat-card").forEach((c) => c.classList.remove("active"));
+    const cardAll = document.getElementById("card-all");
+    if (cardAll) cardAll.classList.add("active");
+
+    renderTab();
+  });
+}
+
+// ==================== مزامنة uid هذا الأدمن ====================
       // مزامنة uid هذا الأدمن في مجموعة مخصصة (adminUids) تُستخدم فقط من
       // قواعد الأمان (Security Rules) للتحقق من صلاحية الأدمن عند الكتابة
       // المباشرة لقاعدة البيانات/التخزين (رفع/حذف نموذج الزيارة)
@@ -1626,6 +2136,7 @@ document.querySelectorAll(".admin-tab").forEach(tab => {
       if (adminEmailEl) adminEmailEl.textContent = data.email || user.email || "-";
 
       setDates();
+      await initSemesterData();
       await loadAllData();
 
     } catch (err) {

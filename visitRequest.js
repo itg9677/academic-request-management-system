@@ -1,4 +1,5 @@
 import { auth, db } from "./firebase.js";
+import { getCurrentSemester } from "./semester.js";
 
 import {
     onAuthStateChanged
@@ -261,6 +262,8 @@ document.getElementById("submitBtn")
     });
 
     try {
+        const currentSemester = await getCurrentSemester();
+
         await addDoc(collection(db, "visitRequests"), {
             uid:          user.uid,
             fullName:     document.getElementById("fullName").value,
@@ -272,6 +275,7 @@ document.getElementById("submitBtn")
             visitPlace,
             reason,
             courses,
+            semester:  currentSemester?.semester || null,
             status:    "new",
             createdAt: serverTimestamp()
         });

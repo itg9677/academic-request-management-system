@@ -1,4 +1,5 @@
 import { auth, db } from "./firebase.js";
+import { getCurrentSemester } from "./semester.js";
 
 import {
     collection,
@@ -179,13 +180,17 @@ if (!validateChangeSections()) return;
 
     const notes = document.getElementById("notes").value;
 
+    /* ===== الفصل الدراسي الحالي ===== */
+    const currentSemester = await getCurrentSemester();
+
     /* ===== Snapshot بيانات الطالب ===== */
     const studentSnapshot = {
         studentUid: user.uid,
         fullName: student.fullName || "",
         universityId: student.universityId || "",
         phoneNumber: student.phoneNumber || "",
-        major: student.major || ""
+        major: student.major || "",
+        semester: currentSemester?.semester || null
     };
 
     const requests = [];

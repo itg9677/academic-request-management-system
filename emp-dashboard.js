@@ -1,4 +1,5 @@
 import { auth, db } from "./firebase.js";
+import { getCurrentSemester } from "./semester.js";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import {
   doc, getDoc, collection, query, where, getDocs,
@@ -8,6 +9,7 @@ import { onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-
 
 let currentEmployee = null;
 let isAffairs = false;
+let currentSemesterData = null;
 
 // ==================== State ====================
 
@@ -216,8 +218,13 @@ if (isAffairs) {
       getDocs(collection(db, "visitRequests"))
     ]);
 
-    tabData.excuse = excSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-    tabData.visit  = visSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    tabData.excuse = excSnap.docs
+      .map(d => ({ id: d.id, ...d.data() }))
+      .filter(r => !currentSemesterData || r.semester === currentSemesterData.semester);
+
+    tabData.visit  = visSnap.docs
+      .map(d => ({ id: d.id, ...d.data() }))
+      .filter(r => !currentSemesterData || r.semester === currentSemesterData.semester);
 
     updateBadges();
   } catch(err) {
@@ -245,7 +252,9 @@ const q = isAffairs
     // موظفة شؤون الطالبات تشوف كل طلبات كل الطالبات من كل الأقسام
     // (تماماً مثل موظفة القسم اللي تشوف كل طلبات طالبتها، تخصص ومشترك)
     // وصلاحية القبول/الرفض تتحدد لاحقاً حسب نوع المادة
-    tabData.addDrop = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    tabData.addDrop = snap.docs
+      .map(d => ({ id: d.id, ...d.data() }))
+      .filter(r => !currentSemesterData || r.semester === currentSemesterData.semester);
     updateBadges();
     if (currentTab === "addDrop") {
       await renderTab();
@@ -1191,6 +1200,15 @@ if (!isAffairs && visitTabBtn) {
 
       setDates();
       injectRejectModal();
+
+      // جلب الفصل الدراسي الحالي وعرضه
+      currentSemesterData = await getCurrentSemester();
+      const elSemesterLabel = document.getElementById("empCurrentSemesterLabel");
+      if (elSemesterLabel) {
+        elSemesterLabel.textContent = currentSemesterData?.name
+          ? `الفصل الحالي: ${currentSemesterData.name}`
+          : "لم يتم تفعيل فصل دراسي بعد";
+      }
 
       // تحميل الأعذار والزيارات مرة واحدة
       await loadExcuseAndVisit();

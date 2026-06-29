@@ -39,6 +39,11 @@
   <span>الإحصائيات</span>
 </div>
 
+      <div class="sb-nav-item" id="navSemester" style="cursor:pointer;">
+        <i class="ti ti-calendar"></i>
+        <span>إدارة الفصل الدراسي</span>
+      </div>
+
       <div class="sb-nav-item admin-tab active" data-tab="addDrop">
         <i class="ti ti-file-text"></i>
         <span>طلبات الحذف والإضافة</span>
@@ -215,6 +220,63 @@
 
 </section>
 
+<!-- ==================== إدارة الفصل الدراسي ==================== -->
+<section class="admin-dashboard" id="semesterSection" style="display:none;">
+
+  <div class="admin-table-card" style="padding:24px;">
+
+    <h3 style="margin:0 0 16px;">الفصل المفعّل حالياً في النظام</h3>
+
+    <div class="admin-dashboard-grid" style="margin-bottom:24px;">
+      <div class="dash-card">
+        <div class="dash-card-label">اسم الفصل</div>
+        <div class="dash-card-value" id="currentSemesterName">-</div>
+        <div class="dash-card-sub" id="currentSemesterDates">-</div>
+      </div>
+    </div>
+
+    <h3 style="margin:0 0 16px;">إضافة فصل (حالي أو قادم)</h3>
+    <p style="margin:0 0 14px;font-size:13px;color:#666;">
+      يمكنك إضافة فصل بتواريخ مستقبلية وسيظهر تلقائياً كـ "قادم"، وعند حلول تاريخه سيصبح "جارياً".
+    </p>
+
+    <form id="semesterForm" style="display:flex;flex-direction:column;gap:14px;max-width:420px;">
+
+      <div>
+        <label for="semName">اسم الفصل</label>
+        <input type="text" id="semName" class="ta-input" placeholder="مثال: الفصل الأول 1448" required>
+      </div>
+
+      <div>
+        <label for="semNumber">رقم الفصل</label>
+        <input type="text" id="semNumber" class="ta-input" placeholder="مثال: 14481" required>
+      </div>
+
+      <div>
+        <label for="semStart">تاريخ البداية (ميلادي)</label>
+        <input type="date" id="semStart" class="ta-input" required>
+      </div>
+
+      <div>
+        <label for="semEnd">تاريخ النهاية (ميلادي)</label>
+        <input type="date" id="semEnd" class="ta-input" required>
+      </div>
+
+      <button type="submit" class="sp-print-btn" id="activateSemesterBtn" style="background:#1a3a6b;">
+        <i class="ti ti-check"></i> حفظ الفصل
+      </button>
+    </form>
+
+    <div id="semesterMsg" style="margin-top:12px;"></div>
+
+    <h3 style="margin:28px 0 4px;">جميع الفصول</h3>
+    <p style="margin:0 0 14px;font-size:13px;color:#666;">مصنّفة تلقائياً بناءً على التواريخ</p>
+    <div id="semesterHistoryList" style="display:flex;flex-direction:column;gap:8px;"></div>
+
+  </div>
+
+</section>
+
       <!-- Table Card -->
       <div class="admin-table-card">
 
@@ -314,6 +376,13 @@
               <option value="كيمياء">كيمياء</option>
               <option value="أحياء">أحياء</option>
               <option value="إحصاء">إحصاء</option>
+            </select>
+          </div>
+
+          <div class="dept-filter-pill" id="semesterFilterWrap">
+            <i class="ti ti-calendar"></i>
+            <select id="semesterFilter">
+              <option value="current">الفصل الحالي</option>
             </select>
           </div>
 
