@@ -439,7 +439,7 @@
   font-size: 20px;
 }
 
-.stat-new      .stat-icon { background: #d1fae5; color: #059669; }
+.stat-new      .stat-icon { background: #d1fae5; color:  #b45000; }
 .stat-pending  .stat-icon { background: #fef3c7; color: #d97706; }
 .stat-review   .stat-icon { background: #ede9fe; color: #7c3aed; }
 .stat-approved .stat-icon { background: #dbeafe; color: #2563eb; }
@@ -599,7 +599,7 @@
   font-weight: 600;
 }
 
-.s-new          { background: #d1fae5; color: #059669; }
+.s-new          { background: #fcebde; color:  #b45000; }
 .s-pending      { background: #fef3c7; color: #d97706; }
 .s-under_review { background: #ede9fe; color: #7c3aed; }
 .s-approved     { background: #dbeafe; color: #2563eb; }

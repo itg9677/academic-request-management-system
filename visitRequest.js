@@ -61,6 +61,34 @@ const majorKeys = {
     "أحياء":   "biology"
 };
 
+/* خريطة المقرات المتاحة لكل تخصص */
+const majorPlaces = {
+    "فيزياء":  ["الاسياح", "عنيزة", "البكيرية", "البدايع", "الرس", "المذنب", "عقلة صقور", "النيهانية"],
+    "كيمياء":  ["عنيزة", "الرس"],
+    "أحياء":   ["عنيزة"],
+    "رياضيات": ["الاسياح", "عنيزة", "البكيرية", "البدايع", "الرس", "المذنب", "عقلة صقور", "النيهانية", "رياض الخبراء"],
+    "إحصاء":   []
+};
+
+/* تصفية قائمة المقر بناءً على التخصص — تخفي غير المتاح */
+function populatePlaceSelect(major) {
+    const placeSel = document.getElementById("visitPlace");
+    if (!placeSel) return;
+
+    const allowed = majorPlaces[major] || [];
+
+    Array.from(placeSel.options).forEach(opt => {
+        if (!opt.value) return; // الخيار الافتراضي "اختري المقر" يبقى دايماً
+        opt.hidden   = allowed.length > 0 && !allowed.includes(opt.value);
+        opt.disabled = opt.hidden;
+    });
+
+    // إعادة تعيين الاختيار لو القيمة الحالية أصبحت مخفية
+    if (placeSel.value && !allowed.includes(placeSel.value)) {
+        placeSel.value = "";
+    }
+}
+
 const placeKeys = {
     "البدايع":       "badaya",
     "عنيزة":         "unaizah",
@@ -91,7 +119,7 @@ async function loadVisitFormDownload(visitFormDoc) {
     if (!container) return;
 
     if (!visitFormDoc) {
-        container.innerHTML = `<span class="no-form-msg">لا يوجد نموذج متاح لهذا التخصص والمقر</span>`;
+        container.innerHTML = `<span class="no-form-msg">لا يوجد نموذج متاح لهذا التخصص اوالمقر</span>`;
         return;
     }
 
@@ -128,6 +156,18 @@ async function updateVisitFormSection() {
     const section   = document.getElementById("visitFormSection");
     const visitType = document.querySelector('input[name="visitType"]:checked')?.value;
     const place     = document.getElementById("visitPlace")?.value;
+    const placeGroup = document.getElementById("visitPlaceGroup");
+
+    // إظهار/إخفاء حقل المقر حسب نوع الزيارة
+    if (placeGroup) {
+        if (visitType === "internal") {
+            placeGroup.style.display = "";
+        } else {
+            placeGroup.style.display = "none";
+            if (document.getElementById("visitPlace"))
+                document.getElementById("visitPlace").value = "";
+        }
+    }
 
     if (!section) return;
 
@@ -176,6 +216,7 @@ onAuthStateChanged(auth, async (user) => {
 
         currentMajor = data.major || "";
 
+        populatePlaceSelect(currentMajor);
         await updateVisitFormSection();
     }
 });
@@ -244,6 +285,8 @@ document.getElementById("submitBtn")
         document.getElementById("coursesBody").innerHTML = "";
         const checked = document.querySelector('input[name="visitType"]:checked');
         if (checked) checked.checked = false;
+
+        populatePlaceSelect(currentMajor); // إعادة تعبئة المقرات بعد الإرسال
 
         courseCounter = 1;
         addCourseRow();

@@ -128,13 +128,26 @@
           <input type="file" id="visitFileInput" accept="application/pdf" style="display:none" />
         </div>
 
-        <!-- Search -->
+         <!-- ✅ Search + فلتر الأقسام في نفس الصف -->
         <div class="admin-search-row">
           <div class="admin-search-bar">
             <i class="ti ti-search admin-search-icon"></i>
             <input type="text" id="searchInput"
               placeholder="ابحث باسم الطالب أو رقمه الجامعي..."
               autocomplete="off" />
+          </div>
+
+          <!-- ✅ الفلتر داخل admin-search-row مباشرة — مخفي افتراضياً، يظهر فقط لشؤون الطالبات -->
+          <div class="dept-filter-pill" id="deptFilterWrap" style="display:none">
+            <i class="ti ti-filter"></i>
+            <select id="deptFilter">
+              <option value="all">كل الأقسام</option>
+              <option value="رياضيات">رياضيات</option>
+              <option value="فيزياء">فيزياء</option>
+              <option value="كيمياء">كيمياء</option>
+              <option value="أحياء">أحياء</option>
+              <option value="إحصاء">إحصاء</option>
+            </select>
           </div>
         </div>
 

@@ -15,6 +15,43 @@ import { getAuth, createUserWithEmailAndPassword } from "https://www.gstatic.com
 console.log("FILE LOADED");
 
 // ==================== State ====================
+// ==================== تحميل بيانات الأدمن ====================
+
+onAuthStateChanged(auth, async (user) => {
+  if (!user) {
+    window.location.href = "loginPage.html"; // أو اسم صفحة تسجيل الدخول عندك
+    return;
+  }
+
+  try {
+    // جلب بيانات الموظف من Firestore
+    const snap = await getDoc(doc(db, "employees", user.uid));
+
+    if (snap.exists()) {
+      currentAdminData = {
+        docId: user.uid,
+        ...snap.data()
+      };
+
+      // حفظ اسم الموظف في الكاش
+      employeesCache[user.uid] = currentAdminData.fullName || "موظف";
+
+      // عرض الاسم في الصفحة
+      document.getElementById("adminName").textContent = currentAdminData.fullName || "";
+      document.getElementById("adminEmail").textContent = currentAdminData.email || "";
+      document.getElementById("adminNameWelcome").textContent = currentAdminData.fullName || "";
+
+      // تحميل البيانات بعد تحميل بيانات الأدمن
+      loadAllData();
+
+    } else {
+      console.error("لم يتم العثور على بيانات الموظف في employees/");
+    }
+
+  } catch (err) {
+    console.error("خطأ في تحميل بيانات الأدمن:", err);
+  }
+});
 
 let currentAdminData = null;
 
@@ -182,6 +219,9 @@ function buildStudentAllFields(student) {
 async function loadAllData() {
   const loadingEl   = document.getElementById("loadingState");
   const tableWrapEl = document.getElementById("tableWrap");
+  updateDashboardStats();
+  buildCharts();
+
 
   loadingEl.style.display  = "";
   tableWrapEl.style.display = "none";
@@ -220,12 +260,11 @@ function updateBadges() {
   document.getElementById("badge-visit").textContent   = tabData.visit.length;
 }
 
-function updateStatCards() {
-  const items = tabData[currentTab];
-  const newCount         = items.filter((r) => getEffectiveStatus(r) === "new").length;
+function updateStatCards(items) {
+  const newCount = items.filter((r) => getEffectiveStatus(r) === "new").length;
   const underReviewCount = items.filter((r) => getEffectiveStatus(r) === "under_review").length;
-  const approvedCount    = items.filter((r) => r.status === "approved").length;
-  const rejectedCount    = items.filter((r) => r.status === "rejected").length;
+  const approvedCount = items.filter((r) => r.status === "approved").length;
+  const rejectedCount = items.filter((r) => r.status === "rejected").length;
 
   const elNew         = document.getElementById("cnt-new");
   const elUnderReview = document.getElementById("cnt-under_review");
@@ -268,8 +307,8 @@ async function renderTab() {
     return getReqDepartment(it, student) === currentDeptFilter;
   });
 
-  updateStatCards();
-
+ updateStatCards(filtered);
+ 
   if (currentStatusFilter !== "all") {
     filtered = filtered.filter((it) => getEffectiveStatus(it) === currentStatusFilter);
   }
@@ -363,8 +402,16 @@ function buildRow(tab, studentUid, requests) {
     <td><button class="detail-btn">التفاصيل <i class="ti ti-chevron-left detail-chevron"></i></button></td>
   `;
 
-  // فتح اللوحة بأول طلب (الأعلى أولوية)
-  tr.addEventListener("click", () => openSidePanel(tab, worstItem));
+  // فتح اللوحة بأول طلب مطابق للفلتر الحالي (الأعلى أولوية)
+  tr.addEventListener("click", () => {
+    // نرشح طلبات هذا الطالب بالفلتر الحالي لنختار أول واحد يظهر
+    let filteredRequests = requests;
+    if (currentStatusFilter !== "all") {
+      filteredRequests = requests.filter((it) => getEffectiveStatus(it) === currentStatusFilter);
+    }
+    const itemToOpen = filteredRequests[0] || requests[0];
+    openSidePanel(tab, itemToOpen);
+  });
   return tr;
 }
 
@@ -438,9 +485,43 @@ function buildDetailRows(tab, item) {
 
 function buildOtherRequestsTable(tab, item) {
   const cfg    = tabConfig[tab];
-  const others = tabData[tab].filter(
+
+  // تصفية باقي طلبات الطالب بنفس الفلاتر المفعّلة حالياً
+  let others = tabData[tab].filter(
     (it) => it.id !== item.id && it[cfg.studentField] === item[cfg.studentField]
-  ).sort((a, b) => {
+  );
+
+  // فلتر الحالة
+  if (currentStatusFilter !== "all") {
+    others = others.filter((it) => getEffectiveStatus(it) === currentStatusFilter);
+  }
+
+  // فلتر القسم (للزيارة والطلبات)
+  if (currentDeptFilter !== "all") {
+    others = others.filter((it) => {
+      const student = studentsCache[it[cfg.studentField]] || {};
+      return getReqDepartment(it, student) === currentDeptFilter;
+    });
+  }
+
+  // فلتر القسم والمقر لطلبات الزيارة
+  if (tab === "visit") {
+    const deptVal  = document.getElementById("visitDeptSelect")?.value  || "";
+    const placeVal = document.getElementById("visitPlaceSelect")?.value || "";
+    if (deptVal) {
+      const deptName = getVisitDeptName(deptVal);
+      others = others.filter((it) => {
+        const student = studentsCache[it[cfg.studentField]] || {};
+        return (it.assignedDepartment || student.major || "") === deptName;
+      });
+    }
+    if (placeVal) {
+      const placeName = getVisitPlaceName(placeVal);
+      others = others.filter((it) => (it.visitPlace || "") === placeName);
+    }
+  }
+
+  others.sort((a, b) => {
     const aTime = a.createdAt?.toMillis?.() ?? 0;
     const bTime = b.createdAt?.toMillis?.() ?? 0;
     return bTime - aTime;
@@ -568,7 +649,13 @@ function openSidePanel(tab, item) {
   const statusKey = getEffectiveStatus(item);
 
   document.getElementById("spTitle").textContent = student.fullName || "تفاصيل الطالب";
-  document.getElementById("spSub").textContent   = cfg.title;
+
+  // عنوان فرعي يعكس الفلتر الحالي
+  let subTitle = cfg.title;
+  if (currentStatusFilter !== "all") {
+    subTitle += ` — ${statusLabel[currentStatusFilter] || currentStatusFilter}`;
+  }
+  document.getElementById("spSub").textContent = subTitle;
 
   // جميع حقول الطالب الموجودة فعلاً في فايرستور
   const allStudentRows = buildStudentAllFields(student);
@@ -654,6 +741,218 @@ async function updateRequestStatus(tab, item, newStatus) {
   }
 }
 
+function updateDashboardStats() {
+  const allItems = [
+    ...tabData.addDrop,
+    ...tabData.excuse,
+    ...tabData.visit
+  ];
+
+  // إجمالي الطلبات
+  const total = allItems.length;
+
+  // اليوم / الأسبوع
+  const now = new Date();
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const startOfWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6);
+
+  let todayCount = 0;
+  let weekCount  = 0;
+
+  let approvedCount = 0;
+  let rejectedCount = 0;
+  let underReviewCount = 0;
+
+  const deptCounts = {};
+  const employeeCounts = {};
+
+  allItems.forEach((item) => {
+    const created = item.createdAt && item.createdAt.toDate ? item.createdAt.toDate() : null;
+    if (created) {
+      if (created >= startOfToday) todayCount++;
+      if (created >= startOfWeek)  weekCount++;
+    }
+
+    const status = getEffectiveStatus(item);
+    if (status === "approved") approvedCount++;
+    if (status === "rejected") rejectedCount++;
+    if (status === "under_review") underReviewCount++;
+
+    // حسب القسم
+    const cfg = tabConfig.addDrop; // نستخدم نفس منطق القسم
+    const studentUid = item[cfg.studentField] || item.uid || item.studentUid;
+    const student = studentsCache[studentUid] || {};
+    const dept = getReqDepartment(item, student) || "غير محدد";
+    deptCounts[dept] = (deptCounts[dept] || 0) + 1;
+
+    // حسب الموظف
+    if (item.assignedEmployee) {
+      employeeCounts[item.assignedEmployee] = (employeeCounts[item.assignedEmployee] || 0) + 1;
+    }
+  });
+
+  // نسبة المقبول من المعالج (مقبول + مرفوض)
+  const processed = approvedCount + rejectedCount;
+  const acceptedRate = processed ? Math.round((approvedCount / processed) * 100) : 0;
+
+  // أكثر قسم
+  let topDept = "-";
+  let topDeptCount = 0;
+  Object.entries(deptCounts).forEach(([dept, count]) => {
+    if (count > topDeptCount) {
+      topDeptCount = count;
+      topDept = dept;
+    }
+  });
+
+  // أكثر موظف
+  let topEmpId = null;
+  let topEmpCount = 0;
+  Object.entries(employeeCounts).forEach(([uid, count]) => {
+    if (count > topEmpCount) {
+      topEmpCount = count;
+      topEmpId = uid;
+    }
+  });
+  const topEmpName = topEmpId ? (employeesCache[topEmpId] || topEmpId) : "-";
+
+  // تعبئة القيم في الداشبورد
+  document.getElementById("dash-total-requests").textContent      = total;
+  document.getElementById("dash-today-requests").textContent      = todayCount;
+  document.getElementById("dash-week-requests").textContent       = weekCount;
+  document.getElementById("dash-accepted-rate").textContent       = acceptedRate + "%";
+  document.getElementById("dash-top-dept").textContent            = topDept;
+  document.getElementById("dash-top-dept-count").textContent      = topDeptCount + " طلب";
+  document.getElementById("dash-top-employee").textContent        = topEmpName;
+  document.getElementById("dash-top-employee-count").textContent  = topEmpCount + " طلب";
+  document.getElementById("dash-under-review").textContent        = underReviewCount;
+  document.getElementById("dash-rejected").textContent            = rejectedCount;
+}
+
+let chartRequestsByDay = null;
+let chartRequestsByDept = null;
+let chartRequestsByEmployee = null;
+
+function buildCharts() {
+  const allItems = [
+    ...tabData.addDrop,
+    ...tabData.excuse,
+    ...tabData.visit
+  ];
+
+  // ===== 1) عدد الطلبات خلال آخر 30 يوم =====
+  const daysMap = {};
+  const now = new Date();
+  for (let i = 29; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
+    const key = d.toLocaleDateString("ar-SA-u-ca-gregory");
+    daysMap[key] = 0;
+  }
+
+  allItems.forEach((item) => {
+    const created = item.createdAt && item.createdAt.toDate ? item.createdAt.toDate() : null;
+    if (!created) return;
+    const key = created.toLocaleDateString("ar-SA-u-ca-gregory");
+    if (key in daysMap) {
+      daysMap[key]++;
+    }
+  });
+
+  const dayLabels = Object.keys(daysMap);
+  const dayValues = Object.values(daysMap);
+
+  const ctxDay = document.getElementById("chartRequestsByDay").getContext("2d");
+  if (chartRequestsByDay) chartRequestsByDay.destroy();
+  chartRequestsByDay = new Chart(ctxDay, {
+    type: "line",
+    data: {
+      labels: dayLabels,
+      datasets: [{
+        label: "عدد الطلبات",
+        data: dayValues,
+        borderColor: "#1a3a6b",
+        backgroundColor: "rgba(26,58,107,0.12)",
+        tension: 0.3,
+        fill: true,
+      }]
+    },
+    options: {
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { maxTicksLimit: 6 } },
+        y: { beginAtZero: true }
+      }
+    }
+  });
+
+  // ===== 2) توزيع الطلبات حسب الأقسام =====
+  const deptCounts = {};
+  allItems.forEach((item) => {
+    const cfg = tabConfig.addDrop;
+    const studentUid = item[cfg.studentField] || item.uid || item.studentUid;
+    const student = studentsCache[studentUid] || {};
+    const dept = getReqDepartment(item, student) || "غير محدد";
+    deptCounts[dept] = (deptCounts[dept] || 0) + 1;
+  });
+
+  const deptLabels = Object.keys(deptCounts);
+  const deptValues = Object.values(deptCounts);
+
+  const ctxDept = document.getElementById("chartRequestsByDept").getContext("2d");
+  if (chartRequestsByDept) chartRequestsByDept.destroy();
+  chartRequestsByDept = new Chart(ctxDept, {
+    type: "bar",
+    data: {
+      labels: deptLabels,
+      datasets: [{
+        label: "عدد الطلبات",
+        data: deptValues,
+        backgroundColor: "#c8972b",
+      }]
+    },
+    options: {
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { autoSkip: false } },
+        y: { beginAtZero: true }
+      }
+    }
+  });
+
+  // ===== 3) أداء الموظفين =====
+  const employeeCounts = {};
+  allItems.forEach((item) => {
+    if (item.assignedEmployee) {
+      employeeCounts[item.assignedEmployee] = (employeeCounts[item.assignedEmployee] || 0) + 1;
+    }
+  });
+
+  const empLabels = Object.keys(employeeCounts).map((uid) => employeesCache[uid] || uid);
+  const empValues = Object.values(employeeCounts);
+
+  const ctxEmp = document.getElementById("chartRequestsByEmployee").getContext("2d");
+  if (chartRequestsByEmployee) chartRequestsByEmployee.destroy();
+  chartRequestsByEmployee = new Chart(ctxEmp, {
+    type: "bar",
+    data: {
+      labels: empLabels,
+      datasets: [{
+        label: "عدد الطلبات المعالجة",
+        data: empValues,
+        backgroundColor: "#1a3a6b",
+      }]
+    },
+    options: {
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { autoSkip: false } },
+        y: { beginAtZero: true }
+      }
+    }
+  });
+}
+
+
 // ==================== الطباعة ====================
 
 function printActiveStudent() {
@@ -661,7 +960,35 @@ function printActiveStudent() {
   const { tab, item } = activeRequest;
   const cfg     = tabConfig[tab];
   const student = studentsCache[item[cfg.studentField]] || {};
-  const items   = tabData[tab].filter((it) => it[cfg.studentField] === item[cfg.studentField]);
+
+  // طلبات الطالب مفلترة بنفس الفلاتر الحالية
+  let items = tabData[tab].filter((it) => it[cfg.studentField] === item[cfg.studentField]);
+
+  if (currentStatusFilter !== "all") {
+    items = items.filter((it) => getEffectiveStatus(it) === currentStatusFilter);
+  }
+  if (currentDeptFilter !== "all") {
+    items = items.filter((it) => {
+      const st = studentsCache[it[cfg.studentField]] || {};
+      return getReqDepartment(it, st) === currentDeptFilter;
+    });
+  }
+  // فلتر القسم والمقر لطلبات الزيارة
+  if (tab === "visit") {
+    const deptVal  = document.getElementById("visitDeptSelect")?.value  || "";
+    const placeVal = document.getElementById("visitPlaceSelect")?.value || "";
+    if (deptVal) {
+      const deptName = getVisitDeptName(deptVal);
+      items = items.filter((it) => {
+        const st = studentsCache[it[cfg.studentField]] || {};
+        return (it.assignedDepartment || st.major || "") === deptName;
+      });
+    }
+    if (placeVal) {
+      const placeName = getVisitPlaceName(placeVal);
+      items = items.filter((it) => (it.visitPlace || "") === placeName);
+    }
+  }
 
   // صفوف بيانات الطالب كاملة للطباعة
   const studentInfoRows = Object.entries(student)
@@ -990,105 +1317,160 @@ if (uploadVisitFileBtnEl && visitFileInputEl) {
 // نستخدم تطبيق Firebase ثانوي (Secondary App) بنفس الكونفق، عشان إنشاء
 // حساب Auth جديد لا يؤثر على جلسة الأدمن الحالي (Firebase تلقائياً يسجّل
 // دخول بآخر حساب يتم إنشاؤه إذا استخدمنا نفس instance الأساسي).
-try {
+const firebaseConfigForTransfer = {
+  apiKey: "AIzaSyDg4iYMZEdc8pjJU67KtXbSvhBaqdoP0iA",
+  authDomain: "studentsreq-d9ea1.firebaseapp.com",
+  projectId: "studentsreq-d9ea1",
+  storageBucket: "studentsreq-d9ea1.firebasestorage.app",
+  messagingSenderId: "375395162945",
+  appId: "1:375395162945:web:e3edb97c48a30ab6401fc0"
+};
 
-  let newUid;
-  let employeeAlreadyExists = false;
+async function createAdminAccountSafely(email, password) {
+  // اسم فريد لتجنب تعارض مع أي instance ثانوي آخر مفتوح بنفس الجلسة
+  const secondaryApp = initializeApp(firebaseConfigForTransfer, "secondary-" + Date.now());
+  const secondaryAuth = getAuth(secondaryApp);
 
-  // البحث عن موظف موجود بنفس الإيميل
-  const dupEmailQ = query(
-    collection(db, "employees"),
-    where("email", "==", email)
-  );
-
-  const dupEmailSnap = await getDocs(dupEmailQ);
-
-  if (!dupEmailSnap.empty) {
-
-    // الموظف موجود مسبقاً
-    employeeAlreadyExists = true;
-
-    const existingDoc = dupEmailSnap.docs[0];
-    newUid = existingDoc.id;
-
-    // ترقيته لأدمن
-    await updateDoc(doc(db, "employees", newUid), {
-      isAdmin: true,
-      adminGrantedAt: serverTimestamp()
-    });
-
-  } else {
-
-    // إنشاء حساب جديد إذا لم يكن موجوداً
-    newUid = await createAdminAccountSafely(email, password);
-
-    await setDoc(doc(db, "employees", newUid), {
-      fullName,
-      phone,
-      employeeNumber,
-      email,
-      isAdmin: true,
-      createdAt: serverTimestamp(),
-      createdVia: "transferAdmin"
-    });
-
+  try {
+    const cred = await createUserWithEmailAndPassword(secondaryAuth, email, password);
+    return cred.user.uid;
+  } finally {
+    await deleteApp(secondaryApp).catch(() => {});
   }
+}
 
-  // مزامنة adminUids
-  await setDoc(
-    doc(db, "adminUids", newUid),
-    {
-      isAdmin: true,
-      email
-    },
-    { merge: true }
-  );
+function openTransferModal() {
+  const overlayEl = document.getElementById("transferAdminOverlay");
+  const modalEl   = document.getElementById("transferAdminModal");
+  const errorEl   = document.getElementById("ta_error");
+  const formEl    = document.getElementById("transferAdminForm");
+  if (!overlayEl || !modalEl) return;
+  overlayEl.style.display = "block";
+  modalEl.style.display   = "block";
+  if (errorEl) errorEl.style.display = "none";
+  if (formEl) formEl.reset();
+}
 
-  // سحب صلاحية الأدمن الحالي
-  if (currentAdminData?.docId) {
-    await updateDoc(
-      doc(db, "employees", currentAdminData.docId),
-      {
+function closeTransferModal() {
+  const overlayEl = document.getElementById("transferAdminOverlay");
+  const modalEl   = document.getElementById("transferAdminModal");
+  if (overlayEl) overlayEl.style.display = "none";
+  if (modalEl)   modalEl.style.display   = "none";
+}
+
+async function handleTransferAdmin(e) {
+  e.preventDefault();
+
+  const fullName       = document.getElementById("ta_fullName").value.trim();
+  const phone          = document.getElementById("ta_phone").value.trim();
+  const employeeNumber = document.getElementById("ta_employeeNumber").value.trim();
+  const email          = document.getElementById("ta_email").value.trim();
+  const password       = document.getElementById("ta_password").value;
+
+  const errorEl   = document.getElementById("ta_error");
+  const submitBtn = document.getElementById("ta_submitBtn");
+
+  errorEl.style.display = "none";
+  submitBtn.disabled = true;
+  submitBtn.textContent = "جارٍ التنفيذ...";
+
+  try {
+    let newUid;
+    let employeeAlreadyExists = false;
+
+    // البحث عن موظف موجود بنفس الإيميل
+    const dupEmailQ = query(
+      collection(db, "employees"),
+      where("email", "==", email)
+    );
+    const dupEmailSnap = await getDocs(dupEmailQ);
+
+    if (!dupEmailSnap.empty) {
+
+      // الموظف موجود مسبقاً → نرقّيه لأدمن فقط (بدون إنشاء حساب جديد)
+      employeeAlreadyExists = true;
+      const existingDoc = dupEmailSnap.docs[0];
+      newUid = existingDoc.id;
+
+      await updateDoc(doc(db, "employees", newUid), {
+        isAdmin: true,
+        adminGrantedAt: serverTimestamp()
+      });
+
+    } else {
+
+      // تأكد ما يوجد رقم وظيفي مكرر قبل إنشاء حساب جديد
+      const dupEmpNumQ = query(collection(db, "employees"), where("employeeNumber", "==", employeeNumber));
+      const dupEmpNumSnap = await getDocs(dupEmpNumQ);
+      if (!dupEmpNumSnap.empty) {
+        throw new Error("هذا الرقم الوظيفي مستخدم لموظف آخر بالفعل");
+      }
+
+      // إنشاء حساب Auth جديد بدون كسر جلسة الأدمن الحالي
+      newUid = await createAdminAccountSafely(email, password);
+
+      await setDoc(doc(db, "employees", newUid), {
+        fullName,
+        phone,
+        employeeNumber,
+        email,
+        isAdmin: true,
+        createdAt: serverTimestamp(),
+        createdVia: "transferAdmin"
+      });
+    }
+
+    // مزامنة adminUids (تستخدمها قواعد الأمان)
+    await setDoc(doc(db, "adminUids", newUid), { isAdmin: true, email }, { merge: true });
+
+    // سحب صلاحية الأدمن الحالي
+    if (currentAdminData?.docId) {
+      await updateDoc(doc(db, "employees", currentAdminData.docId), {
         isAdmin: false,
         adminRevokedAt: serverTimestamp()
-      }
-    );
+      });
+      await deleteDoc(doc(db, "adminUids", currentAdminData.uid)).catch(() => {});
+    }
 
-    await deleteDoc(
-      doc(db, "adminUids", currentAdminData.uid)
-    ).catch(() => {});
+    // تسجيل عملية النقل بسجل تاريخي
+    await setDoc(doc(collection(db, "adminTransferLogs")), {
+      fromAdminId:      currentAdminData?.docId || null,
+      fromAdminName:    currentAdminData?.fullName || null,
+      toAdminId:        newUid,
+      toAdminName:      fullName,
+      toEmployeeNumber: employeeNumber,
+      transferredAt:    serverTimestamp()
+    });
+
+    if (employeeAlreadyExists) {
+      alert(`تم نقل صلاحية الأدمن إلى الموظف الموجود مسبقاً "${fullName}" بنجاح`);
+    } else {
+      alert(`تم نقل صلاحية الأدمن إلى "${fullName}" بنجاح.\n\nالإيميل: ${email}\nكلمة المرور: ${password}`);
+    }
+
+    closeTransferModal();
+
+    await signOut(auth);
+    window.location.href = "EmployeeLogin.html";
+
+  } catch (err) {
+    console.error("Transfer admin error:", err);
+    let msg = err.message || "حدث خطأ غير متوقع";
+    if (err.code === "auth/email-already-in-use") msg = "هذا البريد الإلكتروني مستخدم مسبقاً في نظام الدخول";
+    if (err.code === "auth/weak-password")         msg = "كلمة المرور ضعيفة جداً";
+    if (err.code === "auth/invalid-email")         msg = "صيغة البريد الإلكتروني غير صحيحة";
+    errorEl.textContent = msg;
+    errorEl.style.display = "block";
+  } finally {
+    submitBtn.disabled = false;
+    submitBtn.textContent = "تأكيد ونقل الصلاحية";
   }
-
-  // سجل العمليات
-  await setDoc(doc(collection(db, "adminTransferLogs")), {
-    fromAdminId: currentAdminData?.docId || null,
-    fromAdminName: currentAdminData?.fullName || null,
-    toAdminId: newUid,
-    toAdminName: fullName,
-    toEmployeeNumber: employeeNumber,
-    transferredAt: serverTimestamp()
-  });
-
-  if (employeeAlreadyExists) {
-
-    alert(
-      `تم نقل صلاحية الأدمن إلى الموظف الموجود مسبقاً "${fullName}" بنجاح`
-    );
-
-  } else {
-
-    alert(
-      `تم نقل صلاحية الأدمن إلى "${fullName}" بنجاح.\n\nالإيميل: ${email}\nكلمة المرور: ${password}`
-    );
-
-  }
-
-  closeTransferModal();
-
-  await signOut(auth);
-  window.location.href = "EmployeeLogin.html";
-
 }
+
+document.getElementById("transferAdminBtn")?.addEventListener("click", openTransferModal);
+document.getElementById("ta_cancelBtn")?.addEventListener("click", closeTransferModal);
+document.getElementById("transferAdminForm")?.addEventListener("submit", handleTransferAdmin);
+
 // ==================== أحداث الواجهة ====================
 
 document.querySelectorAll(".admin-tab").forEach((btn) => {
@@ -1202,6 +1584,28 @@ auth.authStateReady().then(() => {
 
       currentAdminData = { docId: adminDoc.id, uid: user.uid, ...data };
       employeesCache[adminDoc.id] = data.fullName || "الأدمن";
+// ====== عرض صفحة الإحصائيات ======
+
+const navStats = document.getElementById("navStats");
+const dashboardSection = document.getElementById("dashboardSection");
+const statsGrid = document.querySelector(".admin-stats-grid");
+
+// إظهار الإحصائيات
+navStats.addEventListener("click", () => {
+  dashboardSection.style.display = "";
+  statsGrid.style.display = "";   // الكاردز تبقى ظاهرة
+});
+
+// عند الضغط على أي تبويب طلبات
+document.querySelectorAll(".admin-tab").forEach(tab => {
+  tab.addEventListener("click", () => {
+    dashboardSection.style.display = "none";  // نخفي الإحصائيات
+    statsGrid.style.display = "";             // الكاردز تبقى ظاهرة
+  });
+});
+
+
+
 
       // مزامنة uid هذا الأدمن في مجموعة مخصصة (adminUids) تُستخدم فقط من
       // قواعد الأمان (Security Rules) للتحقق من صلاحية الأدمن عند الكتابة

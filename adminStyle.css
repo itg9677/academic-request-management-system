@@ -787,6 +787,90 @@ mark {
   .admin-main { padding: 12px; }
   .upload-pdf-btn { width: 100%; justify-content: center; }
 }
+
+/* ===== Admin Dashboard (Overview) ===== */
+
+.admin-dashboard {
+  margin: 10px 0 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* بطاقات الإجماليات */
+.admin-dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.dash-card {
+  background: #ffffff;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  padding: 14px 16px;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.04);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.dash-card-label {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.dash-card-value {
+  font-size: 22px;
+  font-weight: 700;
+  color: #1a3a6b;
+}
+
+.dash-card-sub {
+  font-size: 11px;
+  color: #94a3b8;
+}
+
+/* بطاقات الرسوم البيانية */
+.dash-charts-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.dash-chart-card {
+  background: #ffffff;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  padding: 14px 16px;
+}
+
+.dash-chart-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #1a3a6b;
+  margin-bottom: 8px;
+}
+
+/* Responsive */
+@media (max-width: 1200px) {
+  .admin-dashboard-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .dash-charts-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 800px) {
+  .admin-dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+  .dash-charts-row {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* ============================================
    إضافات لوحة الأدمن — تصميم جديد
    ============================================ */
