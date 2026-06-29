@@ -1596,8 +1596,9 @@ navStats.addEventListener("click", () => {
   statsGrid.style.display = "";   // الكاردز تبقى ظاهرة
 });
 
-// عند الضغط على أي تبويب طلبات
+// عند الضغط على أي تبويب طلبات (باستثناء تبويب الشكاوى — له منطقه الخاص في ComplaintsAdmin.js)
 document.querySelectorAll(".admin-tab").forEach(tab => {
+  if (tab.id === "navComplaintsAdmin") return;
   tab.addEventListener("click", () => {
     dashboardSection.style.display = "none";  // نخفي الإحصائيات
     statsGrid.style.display = "";             // الكاردز تبقى ظاهرة

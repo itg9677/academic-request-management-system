@@ -1,5 +1,3 @@
-
-
 import { auth, db } from "./firebase.js";
 import {
   collection, query, getDocs, doc, updateDoc, serverTimestamp, onSnapshot
@@ -426,9 +424,7 @@ async function saveAdminReply() {
 
 // ── التبديل لتبويب الشكاوى ──────────────────────────
 function switchToComplaints() {
-  // إخفاء ترحيب ونظرة المحتوى الحالية
-  const empWelcome = document.querySelector(".emp-welcome");
-  if (empWelcome) empWelcome.style.display = "none";
+  // ملاحظة: رسالة الترحيب (.emp-welcome) تبقى ظاهرة دائماً، حتى داخل تبويب الشكاوى
 
   // إخفاء كل تبويب آخر — نعيد استخدام منطق الأدمن الحالي
   document.querySelectorAll(".admin-tab").forEach(t => t.classList.remove("active"));
@@ -440,11 +436,13 @@ function switchToComplaints() {
   if (visitUpload) visitUpload.style.display = "none";
   if (deptFilter)  deptFilter.style.display  = "none";
 
-  // إخفاء stats + table الأصلية
-  const originalStats = document.querySelector(".admin-stats-grid:not(#complaintsSection .admin-stats-grid)");
-  const originalTable = document.querySelector(".admin-table-card:not(#complaintsSection .admin-table-card)");
-  if (originalStats) originalStats.style.display = "none";
-  if (originalTable) originalTable.style.display = "none";
+  // إخفاء stats + table الأصلية (كل عنصر خارج #complaintsSection)
+  document.querySelectorAll(".admin-stats-grid").forEach(el => {
+    if (!el.closest("#complaintsSection")) el.style.display = "none";
+  });
+  document.querySelectorAll(".admin-table-card").forEach(el => {
+    if (!el.closest("#complaintsSection")) el.style.display = "none";
+  });
 
   // إظهار قسم الشكاوى
   const cs = document.getElementById("complaintsSection");
@@ -462,10 +460,12 @@ function hideComplaintsSection() {
   const cs = document.getElementById("complaintsSection");
   if (cs) cs.style.display = "none";
 
-  const originalStats = document.querySelector(".admin-stats-grid:not(#complaintsSection .admin-stats-grid)");
-  const originalTable = document.querySelector(".admin-table-card:not(#complaintsSection .admin-table-card)");
-  if (originalStats) originalStats.style.display = "";
-  if (originalTable) originalTable.style.display = "";
+  document.querySelectorAll(".admin-stats-grid").forEach(el => {
+    if (!el.closest("#complaintsSection")) el.style.display = "";
+  });
+  document.querySelectorAll(".admin-table-card").forEach(el => {
+    if (!el.closest("#complaintsSection")) el.style.display = "";
+  });
 
   const empWelcome = document.querySelector(".emp-welcome");
   if (empWelcome) empWelcome.style.display = "";
