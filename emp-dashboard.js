@@ -1,5 +1,5 @@
 import { auth, db } from "./firebase.js";
-import { getCurrentSemester } from "./semester.js";
+import { getCurrentSemester, getAllSemesters } from "./semester.js";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import {
   doc, getDoc, collection, query, where, getDocs,
@@ -10,6 +10,26 @@ import { onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-
 let currentEmployee = null;
 let isAffairs = false;
 let currentSemesterData = null;
+let allSemestersCache   = [];   // كاش لكل الفصول
+
+// ==================== استنتاج الفصل من تاريخ الطلب ====================
+function inferSemesterFromDate(createdAt) {
+  if (!createdAt) return null;
+  const d = createdAt.toDate ? createdAt.toDate() : new Date(createdAt);
+  if (isNaN(d)) return null;
+  for (const s of allSemestersCache) {
+    const start = s.startDate?.toDate ? s.startDate.toDate() : (s.startDate ? new Date(s.startDate) : null);
+    const end   = s.endDate?.toDate   ? s.endDate.toDate()   : (s.endDate   ? new Date(s.endDate)   : null);
+    if (!start || !end) continue;
+    if (d >= start && d <= end) return s.semester;
+  }
+  return null;
+}
+
+function getItemSemester(item) {
+  if (item.semester != null) return item.semester;
+  return inferSemesterFromDate(item.createdAt);
+}
 
 // ==================== State ====================
 
@@ -220,11 +240,11 @@ if (isAffairs) {
 
     tabData.excuse = excSnap.docs
       .map(d => ({ id: d.id, ...d.data() }))
-      .filter(r => !currentSemesterData || r.semester === currentSemesterData.semester);
+      .filter(r => { const sem = getItemSemester(r); return !currentSemesterData || sem == null || sem === currentSemesterData.semester; });
 
     tabData.visit  = visSnap.docs
       .map(d => ({ id: d.id, ...d.data() }))
-      .filter(r => !currentSemesterData || r.semester === currentSemesterData.semester);
+      .filter(r => { const sem = getItemSemester(r); return !currentSemesterData || sem == null || sem === currentSemesterData.semester; });
 
     updateBadges();
   } catch(err) {
@@ -254,7 +274,7 @@ const q = isAffairs
     // وصلاحية القبول/الرفض تتحدد لاحقاً حسب نوع المادة
     tabData.addDrop = snap.docs
       .map(d => ({ id: d.id, ...d.data() }))
-      .filter(r => !currentSemesterData || r.semester === currentSemesterData.semester);
+      .filter(r => { const sem = getItemSemester(r); return !currentSemesterData || sem == null || sem === currentSemesterData.semester; });
     updateBadges();
     if (currentTab === "addDrop") {
       await renderTab();
@@ -1296,6 +1316,7 @@ if (!isAffairs && visitTabBtn) {
 
       // جلب الفصل الدراسي الحالي وعرضه
       currentSemesterData = await getCurrentSemester();
+  allSemestersCache = await getAllSemesters();   // ← كاش الفصول للـ infer
       const elSemesterLabel = document.getElementById("empCurrentSemesterLabel");
       if (elSemesterLabel) {
         elSemesterLabel.textContent = currentSemesterData?.name

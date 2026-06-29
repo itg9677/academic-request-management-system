@@ -67,6 +67,28 @@ let currentDeptFilter   = "all";
 let searchQuery         = "";
 let activeRequest       = null;
 let currentSemesterData   = null;
+let allSemestersCache     = [];   // كاش لكل الفصول (نستخدمه في inferSemesterFromDate)
+
+// ==================== استنتاج الفصل من تاريخ الطلب ====================
+// تُستخدم للطلبات القديمة التي ليس لها فيلد semester
+function inferSemesterFromDate(createdAt) {
+  if (!createdAt) return null;
+  const d = createdAt.toDate ? createdAt.toDate() : new Date(createdAt);
+  if (isNaN(d)) return null;
+  for (const s of allSemestersCache) {
+    const start = s.startDate?.toDate ? s.startDate.toDate() : (s.startDate ? new Date(s.startDate) : null);
+    const end   = s.endDate?.toDate   ? s.endDate.toDate()   : (s.endDate   ? new Date(s.endDate)   : null);
+    if (!start || !end) continue;
+    if (d >= start && d <= end) return s.semester;
+  }
+  return null;
+}
+
+// تُعيد رقم الفصل للطلب: من الفيلد لو موجود، وإلا تستنتجه من تاريخ الطلب
+function getItemSemester(item) {
+  if (item.semester != null) return item.semester;
+  return inferSemesterFromDate(item.createdAt);
+}
 let selectedSemesterFilter = "current"; // "current" أو رقم فصل محدد من الأرشيف
 
 // ==================== إدارة الحالة النشطة في السايد بانل ====================
@@ -296,6 +318,7 @@ function updateBadges() {
 async function initSemesterData() {
   try {
     currentSemesterData = await getCurrentSemester(true);
+    allSemestersCache   = await getAllSemesters();   // ← نحمل كل الفصول للـ infer
     await populateSemesterFilter();
   } catch (err) {
     console.error("initSemesterData error:", err);
@@ -538,9 +561,10 @@ async function renderTab() {
   await Promise.all(uniqueEmpUids.map((uid) => getEmployeeName(uid)));
 
   let filtered = items.filter((it) => {
+    const itemSem = getItemSemester(it);
     const semOk = selectedSemesterFilter === "current"
-      ? (!currentSemesterData || !it.semester || it.semester === currentSemesterData.semester)
-      : (!it.semester || it.semester === selectedSemesterFilter);
+      ? (!currentSemesterData || itemSem == null || itemSem === currentSemesterData.semester)
+      : (itemSem == null || itemSem === Number(selectedSemesterFilter));
     if (!semOk) return false;
     if (currentDeptFilter === "all") return true;
     const student = studentsCache[it[cfg.studentField]] || {};
