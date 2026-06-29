@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>الشكاوى والاقتراحات</title>
+  <link rel="stylesheet" href="visitRequest.css" />
+  <style>
+    /* أزرار نوع الطلب */
+    .radio-group { display: flex; gap: 15px; flex-wrap: wrap; }
+
+    .radio-card {
+      flex: 1;
+      min-width: 150px;
+      text-align: center;
+      padding: 14px;
+      border: 2px solid var(--border);
+      border-radius: 12px;
+      cursor: pointer;
+      transition: .3s;
+      font-weight: bold;
+      background: white;
+      color: var(--primary);
+      font-family: 'Tajawal', Arial, sans-serif;
+      font-size: 15px;
+    }
+    .radio-card input { display: none; }
+    .radio-card:has(input:checked) {
+      border-color: var(--primary);
+      background: rgba(26,58,107,.08);
+    }
+    .radio-card:hover {
+      border-color: var(--secondary);
+      transform: translateY(-2px);
+    }
+
+    /* منطقة رفع الملف */
+    .upload-area {
+      border: 2px dashed var(--border);
+      border-radius: 10px;
+      padding: 20px;
+      text-align: center;
+      cursor: pointer;
+      background: #fafbfd;
+      transition: .3s;
+      color: #6b7280;
+      font-size: 14px;
+      line-height: 1.7;
+    }
+    .upload-area:hover {
+      border-color: var(--primary);
+      background: rgba(26,58,107,.04);
+    }
+    .upload-area.has-file {
+      border-color: #16a34a;
+      border-style: solid;
+      background: #f0fdf4;
+      color: #15803d;
+    }
+    .upload-area svg {
+      display: block;
+      margin: 0 auto 8px;
+      width: 28px;
+      height: 28px;
+      stroke: #9ca3af;
+      fill: none;
+      stroke-width: 1.8;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+    .upload-area.has-file svg { stroke: #16a34a; }
+    .upload-area span { color: var(--primary); font-weight: bold; }
+    input[type="file"] { display: none; }
+
+    /* شاشة النجاح */
+    .success-view {
+      display: none;
+      text-align: center;
+      padding: 3rem 1rem;
+    }
+    .check-circle {
+      width: 70px;
+      height: 70px;
+      background: #dcfce7;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 1.25rem;
+    }
+    .check-circle svg {
+      width: 34px;
+      height: 34px;
+      stroke: #16a34a;
+      fill: none;
+      stroke-width: 2.5;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+    .success-view h2 {
+      font-size: 22px;
+      color: var(--primary);
+      margin-bottom: 10px;
+    }
+    .success-view p { color: #6b7280; font-size: 15px; margin-bottom: 1.5rem; }
+    .tracking-badge {
+      display: inline-block;
+      background: rgba(26,58,107,.08);
+      color: var(--primary);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 24px;
+      font-size: 15px;
+      font-weight: bold;
+      letter-spacing: 0.5px;
+      margin-bottom: 1.5rem;
+    }
+    .btn-secondary {
+      background: white;
+      color: var(--primary);
+      border: 2px solid var(--primary);
+      border-radius: 10px;
+      padding: 11px 28px;
+      font-size: 15px;
+      font-weight: bold;
+      font-family: 'Tajawal', Arial, sans-serif;
+      cursor: pointer;
+      transition: .3s;
+      margin-top: 10px;
+    }
+    .btn-secondary:hover {
+      background: var(--primary);
+      color: white;
+      transform: translateY(-2px);
+    }
+
+    @media (max-width: 768px) {
+      .radio-group { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+
+    <!-- الشعار -->
+    <div class="logo-container">
+      <img src="images/Qassim_University_logo.svg.png" alt="جامعة القصيم - كلية العلوم" />
+    </div>
+        <img src="images/pattern.png" class="science-pattern" alt="">
+
+    <!-- النموذج -->
+    <div class="request-form">
+
+      <div id="form-view">
+        <h1>الشكاوى والاقتراحات</h1>
+
+        <!-- نوع الطلب -->
+        <div class="section-divider">نوع الطلب</div>
+        <div class="radio-group" style="margin-bottom:20px;">
+          <label class="radio-card">
+            <input type="radio" name="type" value="شكوى" checked /> شكوى
+          </label>
+          <label class="radio-card">
+            <input type="radio" name="type" value="اقتراح" /> اقتراح
+          </label>
+          <label class="radio-card">
+            <input type="radio" name="type" value="استفسار" /> استفسار
+          </label>
+        </div>
+
+        <!-- الجهة والعنوان -->
+        <div class="form-grid">
+          <div class="form-group">
+            <label>الجهة المعنية</label>
+            <select id="target">
+              <option value="">اختر الجهة...</option>
+              <option>الكلية</option>
+              <option>قسم الفيزياء</option>
+              <option>قسم الإحصاء</option>
+              <option>قسم الرياضيات</option>
+              <option>قسم الأحياء</option>
+              <option>قسم الكيمياء</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group full-width">
+            <label>العنوان</label>
+            <input type="text" id="subject" placeholder="عنوان مختصر للطلب" />
+        </div>
+
+        <!-- التفاصيل -->
+        <div class="form-group full-width">
+          <label>التفاصيل</label>
+          <textarea id="details" placeholder="اشرح طلبك بوضوح وتفصيل..."></textarea>
+        </div>
+
+        <!-- المرفق -->
+        <div class="form-group full-width" style="margin-top:16px;">
+          <label>المرفق <span style="font-weight:400; color:#9ca3af;">(اختياري)</span></label>
+          <div class="upload-area" id="upload-area" onclick="document.getElementById('file-input').click()">
+            <svg viewBox="0 0 24 24"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+            <p id="upload-text">اضغط لرفع ملف أو صورة<br><span>PDF, JPG, PNG, DOCX</span> — حتى 10 ميجا</p>
+          </div>
+          <input type="file" id="file-input" accept=".pdf,.jpg,.jpeg,.png,.docx" onchange="handleFile(this)" />
+        </div>
+
+        <!-- زر الإرسال -->
+        <button onclick="submitForm()">إرسال الطلب</button>
+      </div>
+
+      <!-- شاشة النجاح -->
+      <div class="success-view" id="success-view">
+        <div class="check-circle">
+          <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+        </div>
+        <h2>تم إرسال طلبك بنجاح</h2>
+        <p>سيتم مراجعة طلبك والرد عليه</p>
+        <div class="tracking-badge" id="tracking-num"></div>
+        <br />
+        <button class="btn-secondary" onclick="resetForm()">إرسال طلب جديد</button>
+      </div>
+
+    </div>
+  </div>
+
+ <script type="module" src="complaints.js"></script>
+
+
+</body>
+</html>
