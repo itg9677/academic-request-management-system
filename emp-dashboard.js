@@ -363,6 +363,12 @@ updateStatCards(statsItems);
     return latestB - latestA;
   });
 
+  // إظهار / إخفاء منطقة تصدير الأعذار
+  const excuseExportWrap = document.getElementById("excuseExportWrap");
+  if (excuseExportWrap) {
+    excuseExportWrap.style.display = (currentTab === "excuse") ? "" : "none";
+  }
+
   if (loadingEl)   loadingEl.style.display  = "none";
   if (tableWrapEl) tableWrapEl.style.display = "";
 
@@ -1135,6 +1141,90 @@ document.getElementById("logoutBtn")?.addEventListener("click", async () => {
   await signOut(auth);
   window.location.href = "EmployeeLogin.html";
 });
+
+// ==================== تصدير Excel الأعذار ====================
+
+async function exportExcusesToExcel() {
+  const cfg   = tabConfig["excuse"];
+  const items = [...tabData.excuse];
+
+  if (!items.length) {
+    alert("لا توجد بيانات أعذار للتصدير.");
+    return;
+  }
+
+  // جلب بيانات أي طالبة غير موجودة في الكاش
+  const missingUids = [...new Set(
+    items.map(it => it[cfg.studentField]).filter(uid => uid && !studentsCache[uid])
+  )];
+  if (missingUids.length) {
+    await Promise.all(missingUids.map(uid => getStudent(uid)));
+  }
+
+  // تحميل مكتبة SheetJS إن لم تكن محملة
+  if (!window.XLSX) {
+    await new Promise((resolve, reject) => {
+      const s = document.createElement("script");
+      s.src = "https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js";
+      s.onload  = resolve;
+      s.onerror = reject;
+      document.head.appendChild(s);
+    });
+  }
+
+  // كل طلب = صف — كل عمود في خانته المستقلة
+  const data = [
+    ["الرقم الجامعي", "اسم الطالبة", "التخصص", "نوع الاختبار", "اسم المقرر", "تاريخ الغياب", "الحالة"]
+  ];
+
+  items.forEach(r => {
+    const student   = studentsCache[r[cfg.studentField]] || {};
+    const statusKey = getEffectiveStatus(r);
+    data.push([
+      student.studentId  || student.universityId || "-",
+      student.fullName   || "-",
+      student.major      || student.department   || "-",
+      examTypeLabel[r.examType] || r.examType    || "-",
+      r.courseName       || r.courseCode         || "-",
+      r.absenceDate      || r.examDate           || "-",
+      statusLabel[statusKey]    || statusKey
+    ]);
+  });
+
+  const ws = window.XLSX.utils.aoa_to_sheet(data);
+
+  // عرض مناسب للأعمدة
+  ws["!cols"] = [
+    { wch: 16 }, // الرقم الجامعي
+    { wch: 26 }, // اسم الطالبة
+    { wch: 14 }, // التخصص
+    { wch: 22 }, // نوع الاختبار
+    { wch: 28 }, // اسم المقرر
+    { wch: 16 }, // تاريخ الغياب
+    { wch: 14 }, // الحالة
+  ];
+
+  const wb = window.XLSX.utils.book_new();
+  window.XLSX.utils.book_append_sheet(wb, ws, "طلبات الأعذار");
+
+  const today = new Date().toLocaleDateString("ar-SA-u-ca-gregory").replace(/\//g, "-");
+  window.XLSX.writeFile(wb, `طلبات_الأعذار_${today}.xlsx`);
+}
+
+// ربط زر التصدير
+const exportExcuseBtn = document.getElementById("exportExcuseExcelBtn");
+if (exportExcuseBtn) {
+  exportExcuseBtn.addEventListener("click", async () => {
+    exportExcuseBtn.disabled = true;
+    exportExcuseBtn.innerHTML = '<i class="ti ti-loader-2 spin"></i> جاري التصدير...';
+    try {
+      await exportExcusesToExcel();
+    } finally {
+      exportExcuseBtn.disabled = false;
+      exportExcuseBtn.innerHTML = '<i class="ti ti-file-spreadsheet"></i> تصدير Excel';
+    }
+  });
+}
 
 // ==================== Auth ====================
 

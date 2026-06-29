@@ -10,6 +10,34 @@
   <link rel="stylesheet" href="adminStyle.css" />
   <link rel="stylesheet" href="sidebarStyle.css" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tabler-icons/3.35.0/tabler-icons.min.css" />
+  <style>
+    .excuse-export-wrap {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .excel-export-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 16px;
+      background: #1a6b3c;
+      color: #fff;
+      border: none;
+      border-radius: 20px;
+      font-family: inherit;
+      font-size: 0.88rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.18s, transform 0.12s;
+      white-space: nowrap;
+    }
+    .excel-export-btn:hover  { background: #155c32; }
+    .excel-export-btn:active { transform: scale(0.97); }
+    .excel-export-btn i      { font-size: 1rem; }
+    .excel-export-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+  </style>
 </head>
 
 <body class="sidebar-layout admin-page employee-dashboard-page">
@@ -148,6 +176,14 @@
               <option value="أحياء">أحياء</option>
               <option value="إحصاء">إحصاء</option>
             </select>
+          </div>
+
+          <!-- ✅ زر تصدير Excel — يظهر فقط في تبويب الأعذار -->
+          <div class="excuse-export-wrap" id="excuseExportWrap" style="display:none">
+            <button class="excel-export-btn" id="exportExcuseExcelBtn">
+              <i class="ti ti-file-spreadsheet"></i>
+              تصدير Excel
+            </button>
           </div>
         </div>
 

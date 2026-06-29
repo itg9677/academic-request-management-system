@@ -63,6 +63,8 @@ const tabData = { addDrop: [], excuse: [], visit: [] };
 let currentTab          = "addDrop";
 let currentStatusFilter = "all";
 let currentDeptFilter   = "all";
+let currentExcuseDept   = "all";   // فلتر قسم الأعذار
+let currentExamType     = "all";   // فلتر نوع الاختبار
 let searchQuery         = "";
 let activeRequest       = null;
 
@@ -294,6 +296,16 @@ function getEffectiveStatus(item) {
 async function renderTab() {
   const cfg   = tabConfig[currentTab];
   const items = tabData[currentTab];
+// إظهار زر التصدير فقط في تبويب الأعذار
+const exportBtn = document.getElementById("exportExcuseExcelBtn");
+if (exportBtn) {
+  if (currentTab === "excuse") {
+    exportBtn.style.display = "inline-flex"; // يظهر في الأعذار فقط
+  } else {
+    exportBtn.style.display = "none";        // يختفي في باقي التبويبات
+  }
+}
+
 
   const uniqueStudentUids = [...new Set(items.map((it) => it[cfg.studentField]).filter(Boolean))];
   await Promise.all(uniqueStudentUids.map((uid) => getStudent(uid)));
@@ -306,6 +318,20 @@ async function renderTab() {
     const student = studentsCache[it[cfg.studentField]] || {};
     return getReqDepartment(it, student) === currentDeptFilter;
   });
+
+  // ✅ فلاتر إضافية خاصة بتبويب الأعذار
+  if (currentTab === "excuse") {
+    if (currentExcuseDept !== "all") {
+      filtered = filtered.filter(it => {
+        const student = studentsCache[it[cfg.studentField]] || {};
+        const major   = student.major || student.department || it.major || "";
+        return major === currentExcuseDept;
+      });
+    }
+    if (currentExamType !== "all") {
+      filtered = filtered.filter(it => it.examType === currentExamType);
+    }
+  }
 
  updateStatCards(filtered);
  
@@ -1503,6 +1529,22 @@ document.querySelectorAll(".admin-tab").forEach((btn) => {
       }
     }
 
+    // ✅ إظهار / إخفاء فلاتر الأعذار
+    const excuseFiltersWrapEl = document.getElementById("excuseFiltersWrap");
+    if (excuseFiltersWrapEl) {
+      excuseFiltersWrapEl.classList.toggle("visible", currentTab === "excuse");
+      if (currentTab !== "excuse") {
+        currentExcuseDept = "all";
+        currentExamType   = "all";
+        const edf = document.getElementById("excuseDeptFilter");
+        const etf = document.getElementById("excuseExamTypeFilter");
+        const esf = document.getElementById("excuseStatusExportFilter");
+        if (edf) edf.value = "all";
+        if (etf) etf.value = "all";
+        if (esf) esf.value = "all";
+      }
+    }
+
     renderTab();
   });
 });
@@ -1520,6 +1562,17 @@ document.querySelectorAll(".admin-stat-card").forEach((card) => {
 
 document.getElementById("deptFilter").addEventListener("change", (e) => {
   currentDeptFilter = e.target.value;
+  renderTab();
+});
+
+// ✅ أحداث فلاتر الأعذار
+document.getElementById("excuseDeptFilter")?.addEventListener("change", (e) => {
+  currentExcuseDept = e.target.value;
+  renderTab();
+});
+
+document.getElementById("excuseExamTypeFilter")?.addEventListener("change", (e) => {
+  currentExamType = e.target.value;
   renderTab();
 });
 
@@ -1549,6 +1602,106 @@ document.getElementById("logoutBtn").addEventListener("click", async () => {
 document.getElementById("taCloseBtn")?.addEventListener("click", closeTransferModal);
 
 document.getElementById("transferAdminOverlay")?.addEventListener("click", closeTransferModal);
+
+// ==================== تصدير Excel الأعذار ====================
+
+async function exportExcusesToExcel() {
+  const cfg = tabConfig["excuse"];
+  let items = [...tabData.excuse];
+
+  // تطبيق نفس فلاتر الأعذار المفعّلة حالياً
+  if (currentExcuseDept !== "all") {
+    items = items.filter(it => {
+      const student = studentsCache[it[cfg.studentField]] || {};
+      return (student.major || student.department || it.major || "") === currentExcuseDept;
+    });
+  }
+  if (currentExamType !== "all") {
+    items = items.filter(it => it.examType === currentExamType);
+  }
+
+  const exportStatusEl = document.getElementById("excuseStatusExportFilter");
+  const exportStatus   = exportStatusEl ? exportStatusEl.value : "all";
+  if (exportStatus !== "all") {
+    items = items.filter(it => getEffectiveStatus(it) === exportStatus);
+  }
+
+  if (!items.length) {
+    alert("لا توجد بيانات للتصدير بناءً على الفلاتر المحددة.");
+    return;
+  }
+
+  // جلب بيانات أي طالبة ناقصة من الكاش
+  const missingUids = [...new Set(
+    items.map(it => it[cfg.studentField]).filter(uid => uid && !studentsCache[uid])
+  )];
+  if (missingUids.length) {
+    await Promise.all(missingUids.map(uid => getStudent(uid)));
+  }
+
+  // تحميل SheetJS إن لم تكن موجودة
+  if (!window.XLSX) {
+    await new Promise((resolve, reject) => {
+      const s = document.createElement("script");
+      s.src = "https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js";
+      s.onload  = resolve;
+      s.onerror = reject;
+      document.head.appendChild(s);
+    });
+  }
+
+  // كل طلب = صف — كل عمود منفصل
+  const data = [
+    ["الرقم الجامعي", "اسم الطالبة", "التخصص", "نوع الاختبار", "اسم المقرر", "تاريخ الغياب", "الحالة", "الموظف المعالج", "تاريخ الطلب"]
+  ];
+
+  items.forEach(r => {
+    const student   = studentsCache[r[cfg.studentField]] || {};
+    const statusKey = getEffectiveStatus(r);
+    const empName   = r.assignedEmployeeName ||
+      (r.assignedEmployee ? (employeesCache[r.assignedEmployee] || "-") : "-");
+    data.push([
+      student.studentId  || student.universityId || "-",
+      student.fullName   || "-",
+      student.major      || student.department   || "-",
+      examTypeLabel[r.examType] || r.examType    || "-",
+      r.courseName       || r.courseCode         || "-",
+      r.absenceDate      || r.examDate           || "-",
+      statusLabel[statusKey]    || statusKey,
+      empName,
+      formatDate(r.createdAt)
+    ]);
+  });
+
+  const ws = window.XLSX.utils.aoa_to_sheet(data);
+  ws["!cols"] = [
+    { wch: 16 }, { wch: 26 }, { wch: 14 }, { wch: 22 },
+    { wch: 28 }, { wch: 16 }, { wch: 14 }, { wch: 22 }, { wch: 16 }
+  ];
+
+  const wb = window.XLSX.utils.book_new();
+  window.XLSX.utils.book_append_sheet(wb, ws, "طلبات الأعذار");
+
+  const deptSuffix = currentExcuseDept !== "all" ? `_${currentExcuseDept}` : "";
+  const examSuffix = currentExamType   !== "all" ? `_${examTypeLabel[currentExamType] || currentExamType}` : "";
+  const statSuffix = exportStatus      !== "all" ? `_${statusLabel[exportStatus] || exportStatus}` : "";
+  const today      = new Date().toLocaleDateString("ar-SA-u-ca-gregory").replace(/\//g, "-");
+
+  window.XLSX.writeFile(wb, `طلبات_الأعذار${deptSuffix}${examSuffix}${statSuffix}_${today}.xlsx`);
+}
+
+// ربط زر التصدير
+document.getElementById("exportExcuseExcelBtn")?.addEventListener("click", async () => {
+  const btn = document.getElementById("exportExcuseExcelBtn");
+  btn.disabled = true;
+  btn.innerHTML = '<i class="ti ti-loader-2 spin"></i> جاري التصدير...';
+  try {
+    await exportExcusesToExcel();
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="ti ti-file-spreadsheet"></i> تصدير Excel';
+  }
+});
 
 // ==================== المصادقة ====================
 
