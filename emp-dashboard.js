@@ -305,6 +305,7 @@ async function renderTab() {
   await Promise.all(uniqueEmpUids.map(uid => getEmployeeName(uid)));
 
   let filtered = [...tabData[currentTab]];
+  let statsItems = [...filtered];
 
     // ✅ فلتر الأقسام — يعمل على كل التبويبات لشؤون الطالبات
 if (isAffairs && currentDeptFilter !== "all") {
@@ -315,6 +316,7 @@ if (isAffairs && currentDeptFilter !== "all") {
     return studentMajor === currentDeptFilter || it.major === currentDeptFilter;
   });
 }
+statsItems = [...filtered];
 
   if (currentStatusFilter !== "all") {
     filtered = filtered.filter(it => getEffectiveStatus(it) === currentStatusFilter);
@@ -328,9 +330,10 @@ if (isAffairs && currentDeptFilter !== "all") {
       const sid     = String(student.studentId || student.universityId || "").toLowerCase();
       return name.includes(q) || sid.includes(q);
     });
+    statsItems = [...filtered];
   }
 
-updateStatCards(filtered);
+updateStatCards(statsItems);
 
   const byStudent = {};
   filtered.forEach(it => {
