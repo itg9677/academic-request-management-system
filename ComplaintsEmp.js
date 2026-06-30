@@ -460,10 +460,12 @@ function switchToComplaints() {
 
   // ملاحظة: رسالة الترحيب (.emp-welcome) تبقى ظاهرة دائماً، توحيدًا مع باقي التبويبات
 
-  const originalStats = document.querySelector(".admin-stats-grid:not(#empComplaintsSection .admin-stats-grid)");
-  const originalTable = document.querySelector(".admin-table-card:not(#empComplaintsSection .admin-table-card)");
-  if (originalStats) originalStats.style.display = "none";
-  if (originalTable) originalTable.style.display = "none";
+  document.querySelectorAll(".admin-stats-grid").forEach(el => {
+    if (!el.closest("#empComplaintsSection")) el.style.display = "none";
+  });
+  document.querySelectorAll(".admin-table-card").forEach(el => {
+    if (!el.closest("#empComplaintsSection")) el.style.display = "none";
+  });
 
   const cs = document.getElementById("empComplaintsSection");
   if (cs) cs.style.display = "";
@@ -478,10 +480,12 @@ function hideComplaintsSection() {
   const cs = document.getElementById("empComplaintsSection");
   if (cs) cs.style.display = "none";
 
-  const originalStats = document.querySelector(".admin-stats-grid:not(#empComplaintsSection .admin-stats-grid)");
-  const originalTable = document.querySelector(".admin-table-card:not(#empComplaintsSection .admin-table-card)");
-  if (originalStats) originalStats.style.display = "";
-  if (originalTable) originalTable.style.display = "";
+  document.querySelectorAll(".admin-stats-grid").forEach(el => {
+    if (!el.closest("#empComplaintsSection")) el.style.display = "";
+  });
+  document.querySelectorAll(".admin-table-card").forEach(el => {
+    if (!el.closest("#empComplaintsSection")) el.style.display = "";
+  });
 
   const empWelcome = document.querySelector(".emp-welcome");
   if (empWelcome) empWelcome.style.display = "";

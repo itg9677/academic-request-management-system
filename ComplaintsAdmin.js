@@ -556,4 +556,4 @@ onAuthStateChanged(auth, async user => {
   injectComplaintsSection();
   patchOriginalTabs();
   subscribeComplaints();
-});
+}); 

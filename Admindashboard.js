@@ -43,6 +43,7 @@ onAuthStateChanged(auth, async (user) => {
       document.getElementById("adminNameWelcome").textContent = currentAdminData.fullName || "";
 
       // تحميل البيانات بعد تحميل بيانات الأدمن
+      injectRejectModal();
       loadAllData();
 
     } else {
@@ -206,6 +207,14 @@ const tabConfig = {
   visit:      { collectionName: "visitRequests",    studentField: "uid",        title: "طلبات الزيارة"       },
   complaints: { collectionName: "complaints",       studentField: "studentUid", title: "الشكاوى والاقتراحات" }
 };
+
+const REJECT_REASONS = [
+  { value: "section_closed", label: "الشعبة مغلقة"      },
+  { value: "system_closed",  label: "تم اقفال النظام"   },
+  { value: "no_contact",     label: "عدم تواصل الطالبة" },
+  { value: "conflict",       label: "وجود تعارض"         },
+  { value: "other",          label: "أخرى"               }
+];
 
 // ==================== جلب بيانات الطالب (جميع الحقول) ====================
 
@@ -1007,7 +1016,16 @@ function openSidePanel(tab, item) {
 
 
 document.getElementById("spBody").querySelectorAll(".sp-action-btn").forEach((btn) => {
-    btn.addEventListener("click", () => updateRequestStatus(tab, item, btn.dataset.action));
+    btn.addEventListener("click", () => {
+      const action = btn.dataset.action;
+      if (action === "rejected") {
+        openRejectModal(tab, item.id, async (reason) => {
+          await updateRequestStatus(tab, item, "rejected", reason);
+        });
+      } else {
+        updateRequestStatus(tab, item, action);
+      }
+    });
 });
 
 attachOtherRowsListeners(tab);
@@ -1028,25 +1046,109 @@ function closeSidePanel() {
   activeRequest = null;
 }
 
+// ==================== مودال الرفض ====================
+
+function injectRejectModal() {
+  if (document.getElementById("rejectModal")) return;
+  const modal = document.createElement("div");
+  modal.id = "rejectModal";
+  modal.style.cssText = "display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;align-items:center;justify-content:center;";
+  modal.innerHTML = `
+    <div style="background:#fff;border-radius:14px;padding:28px 24px;min-width:320px;max-width:420px;width:90%;direction:rtl;box-shadow:0 8px 32px rgba(0,0,0,.18);">
+      <div style="font-size:1.1rem;font-weight:700;color:#1a2d5a;margin-bottom:18px;">سبب الرفض</div>
+      <div id="rejectReasonList" style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px;">
+        ${REJECT_REASONS.map(r => `
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:0.95rem;">
+            <input type="radio" name="rejectReason" value="${r.value}" style="accent-color:#c9a84c;width:16px;height:16px;">
+            ${r.label}
+          </label>`).join("")}
+      </div>
+      <div id="rejectOtherWrap" style="display:none;margin-bottom:14px;">
+        <textarea id="rejectOtherText" placeholder="اكتب سبب الرفض..." rows="3"
+          style="width:100%;border:1px solid #ddd;border-radius:8px;padding:8px 10px;font-family:inherit;font-size:0.9rem;resize:vertical;box-sizing:border-box;"></textarea>
+      </div>
+      <div id="rejectFreeTextWrap" style="display:none;margin-bottom:16px;">
+        <textarea id="rejectFreeText" placeholder="اكتب سبب الرفض..." rows="4"
+          style="width:100%;border:1px solid #ddd;border-radius:8px;padding:8px 10px;font-family:inherit;font-size:0.9rem;resize:vertical;box-sizing:border-box;"></textarea>
+      </div>
+      <div style="display:flex;gap:10px;justify-content:flex-end;">
+        <button id="rejectCancelBtn"  style="padding:8px 20px;border:1px solid #ddd;border-radius:8px;background:#f5f5f5;cursor:pointer;font-family:inherit;">إلغاء</button>
+        <button id="rejectConfirmBtn" style="padding:8px 20px;border:none;border-radius:8px;background:#dc2626;color:#fff;cursor:pointer;font-weight:700;font-family:inherit;">تأكيد الرفض</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+
+  modal.querySelectorAll('input[name="rejectReason"]').forEach(radio => {
+    radio.addEventListener("change", () => {
+      document.getElementById("rejectOtherWrap").style.display = radio.value === "other" ? "block" : "none";
+    });
+  });
+  document.getElementById("rejectCancelBtn").addEventListener("click", closeRejectModal);
+  modal.addEventListener("click", e => { if (e.target === modal) closeRejectModal(); });
+}
+
+function openRejectModal(tab, requestId, onConfirm) {
+  const modal = document.getElementById("rejectModal");
+  modal.style.display = "flex";
+
+  const isFreeTextOnly = (tab === "excuse" || tab === "visit");
+
+  document.getElementById("rejectReasonList").style.display = isFreeTextOnly ? "none" : "flex";
+  document.getElementById("rejectOtherWrap").style.display  = "none";
+  document.getElementById("rejectFreeTextWrap").style.display = isFreeTextOnly ? "block" : "none";
+
+  modal.querySelectorAll('input[name="rejectReason"]').forEach(r => r.checked = false);
+  document.getElementById("rejectOtherText").value = "";
+  document.getElementById("rejectFreeText").value = "";
+
+  document.getElementById("rejectConfirmBtn").onclick = async () => {
+    let reason;
+    if (isFreeTextOnly) {
+      reason = document.getElementById("rejectFreeText").value.trim();
+      if (!reason) { alert("رجاءً اكتب سبب الرفض"); return; }
+    } else {
+      const selected = modal.querySelector('input[name="rejectReason"]:checked');
+      if (!selected) { alert("رجاءً اختر سبب الرفض"); return; }
+      if (selected.value === "other" && !document.getElementById("rejectOtherText").value.trim()) {
+        alert("رجاءً اكتب سبب الرفض"); return;
+      }
+      reason = selected.value === "other"
+        ? document.getElementById("rejectOtherText").value.trim()
+        : REJECT_REASONS.find(r => r.value === selected.value).label;
+    }
+    closeRejectModal();
+    await onConfirm(reason);
+  };
+}
+
+function closeRejectModal() {
+  document.getElementById("rejectModal").style.display = "none";
+}
+
 // 🔥 دالة تعرض اسم الموظف بدل الـ UID
 function getEmpName(uid) {
   return employeesCache[uid]?.fullName || uid;
 }
 
-async function updateRequestStatus(tab, item, newStatus) {
+async function updateRequestStatus(tab, item, newStatus, rejectReason) {
   const cfg     = tabConfig[tab];
   const buttons = document.querySelectorAll("#spBody .sp-action-btn");
   buttons.forEach((b) => (b.disabled = true));
 
   try {
-    await updateDoc(doc(db, cfg.collectionName, item.id), {
+    const updateData = {
       status:           newStatus,
       assignedEmployee: currentAdminData.docId,
       updatedAt:        serverTimestamp()
-    });
+    };
+    if (newStatus === "rejected" && rejectReason) updateData.rejectReason = rejectReason;
+
+    await updateDoc(doc(db, cfg.collectionName, item.id), updateData);
 
     item.status           = newStatus;
     item.assignedEmployee = currentAdminData.docId;
+    if (rejectReason) item.rejectReason = rejectReason;
 
     // 🔥 أهم تعديل — نخزن الاسم ككائن وليس نص
    employeesCache[currentAdminData.docId] = currentAdminData.fullName || "الأدمن";
@@ -2267,20 +2369,24 @@ if (navSemester) {
 
 // ملاحظة: handler التبويبات الرئيسي موجود في قسم "أحداث الواجهة" أعلاه
 
-async function updateRequestStatus(tab, item, newStatus) {
+async function updateRequestStatus(tab, item, newStatus, rejectReason) {
   const cfg     = tabConfig[tab];
   const buttons = document.querySelectorAll("#spBody .sp-action-btn");
   buttons.forEach((b) => (b.disabled = true));
 
   try {
-    await updateDoc(doc(db, cfg.collectionName, item.id), {
+    const updateData = {
       status:           newStatus,
       assignedEmployee: currentAdminData.docId,
       updatedAt:        serverTimestamp()
-    });
+    };
+    if (newStatus === "rejected" && rejectReason) updateData.rejectReason = rejectReason;
+
+    await updateDoc(doc(db, cfg.collectionName, item.id), updateData);
 
     item.status           = newStatus;
     item.assignedEmployee = currentAdminData.docId;
+    if (rejectReason) item.rejectReason = rejectReason;
 
     // 🔥 أهم تعديل — نخزن الاسم ككائن وليس نص
     employeesCache[currentAdminData.docId] = {
@@ -2575,6 +2681,7 @@ if (navHome) {
 
       setDates();
       await initSemesterData();
+      injectRejectModal();
       await loadAllData();
 
     } catch (err) {
