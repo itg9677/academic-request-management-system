@@ -134,6 +134,51 @@
       transform: translateY(-2px);
     }
 
+    /* أزرار العودة والمتابعة */
+    .actions {
+      display: flex !important;
+      flex-direction: row !important;
+      justify-content: center !important;
+      align-items: center !important;
+      gap: 12px !important;
+      flex-wrap: wrap !important;
+      margin-top: 16px;
+      width: 100%;
+    }
+    .actions button.btn-home,
+    .actions button.btn-track {
+      width: auto !important;
+      flex: 0 1 auto !important;
+      display: inline-block !important;
+      margin-top: 0 !important;
+    }
+    .btn-home {
+      background: #6c757d;
+      color: #fff;
+      border: none;
+      padding: 12px 25px;
+      border-radius: 10px;
+      font-size: 15px;
+      font-weight: bold;
+      font-family: 'Tajawal', Arial, sans-serif;
+      cursor: pointer;
+      transition: .3s;
+    }
+    .btn-home:hover { background: #5a6168; }
+    .btn-track {
+      background: var(--secondary, #c8972b);
+      color: #fff;
+      border: none;
+      padding: 12px 25px;
+      border-radius: 10px;
+      font-size: 15px;
+      font-weight: bold;
+      font-family: 'Tajawal', Arial, sans-serif;
+      cursor: pointer;
+      transition: .3s;
+    }
+    .btn-track:hover { opacity: .9; }
+
     @media (max-width: 768px) {
       .radio-group { flex-direction: column; }
     }
@@ -206,6 +251,15 @@
 
         <!-- زر الإرسال -->
         <button onclick="submitForm()">إرسال الطلب</button>
+
+        <div class="actions" style="display:flex; flex-direction:row; flex-wrap:nowrap; justify-content:center; align-items:center; gap:10px; margin-top:16px;">
+          <button type="button" class="btn-home" style="width:auto; margin-top:0; white-space:nowrap;" onclick="window.location.href='StudentMainPage.html'">
+            العودة للصفحة الرئيسية
+          </button>
+          <button type="button" class="btn-track" style="width:auto; margin-top:0; white-space:nowrap;" onclick="window.location.href='PreviousComplaints.html'">
+            متابعة الطلبات السابقة
+          </button>
+        </div>
       </div>
 
       <!-- شاشة النجاح -->
