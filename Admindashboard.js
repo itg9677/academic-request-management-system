@@ -59,11 +59,14 @@ let currentAdminData = null;
 const studentsCache  = {};
 const employeesCache = {};
 
-const tabData = { addDrop: [], excuse: [], visit: [] };
+const tabData = { addDrop: [], excuse: [], visit: [], complaints: [] };
 
 let currentTab          = "addDrop";
 let currentStatusFilter = "all";
 let currentDeptFilter   = "all";
+let currentExcuseDept      = "all";
+let currentExcuseExamType  = "all";
+let currentExcuseStatus    = "all";
 let searchQuery         = "";
 let activeRequest       = null;
 let currentSemesterData   = null;
@@ -198,9 +201,10 @@ const levelLabel     = {
 };
 
 const tabConfig = {
-  addDrop: { collectionName: "requests",      studentField: "studentUid", title: "طلبات الحذف والإضافة" },
-  excuse:  { collectionName: "excuses",       studentField: "uid", title: "طلبات رفع الأعذار"   },
-  visit:   { collectionName: "visitRequests", studentField: "uid",        title: "طلبات الزيارة"       }
+  addDrop:    { collectionName: "requests",         studentField: "studentUid", title: "طلبات الحذف والإضافة" },
+  excuse:     { collectionName: "excuses",          studentField: "uid",        title: "طلبات رفع الأعذار"   },
+  visit:      { collectionName: "visitRequests",    studentField: "uid",        title: "طلبات الزيارة"       },
+  complaints: { collectionName: "complaints",       studentField: "studentUid", title: "الشكاوى والاقتراحات" }
 };
 
 // ==================== جلب بيانات الطالب (جميع الحقول) ====================
@@ -285,15 +289,17 @@ async function loadAllEmployeeNames() {
       where("requestType", "in", ["add", "drop", "edit"])
     );
 
-    const [reqSnap, excSnap, visSnap] = await Promise.all([
+    const [reqSnap, excSnap, visSnap, compSnap] = await Promise.all([
       getDocs(reqQuery),
       getDocs(collection(db, "excuses")),
-      getDocs(collection(db, "visitRequests"))
+      getDocs(collection(db, "visitRequests")),
+      getDocs(collection(db, "complaints"))
     ]);
 
-    tabData.addDrop = reqSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
-    tabData.excuse  = excSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
-    tabData.visit   = visSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    tabData.addDrop    = reqSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    tabData.excuse     = excSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    tabData.visit      = visSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    tabData.complaints = compSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
 
     updateBadges();
   } catch (err) {
@@ -307,9 +313,11 @@ async function loadAllEmployeeNames() {
 }
 
 function updateBadges() {
-  document.getElementById("badge-addDrop").textContent = tabData.addDrop.length;
-  document.getElementById("badge-excuse").textContent  = tabData.excuse.length;
-  document.getElementById("badge-visit").textContent   = tabData.visit.length;
+  document.getElementById("badge-addDrop").textContent    = tabData.addDrop.length;
+  document.getElementById("badge-excuse").textContent     = tabData.excuse.length;
+  document.getElementById("badge-visit").textContent      = tabData.visit.length;
+  const compBadge = document.getElementById("badge-complaints");
+  if (compBadge) compBadge.textContent = tabData.complaints.length;
 }
 
 // ==================== إدارة الفصل الدراسي ====================
@@ -573,6 +581,23 @@ async function renderTab() {
 
  updateStatCards(filtered);
  
+  // فلاتر خاصة بتبويب الأعذار
+  if (currentTab === "excuse") {
+    if (currentExcuseDept !== "all") {
+      filtered = filtered.filter(it => {
+        const student = studentsCache[it[cfg.studentField]] || {};
+        const dept = it.assignedDepartment || student.major || student.department || "";
+        return dept === currentExcuseDept;
+      });
+    }
+    if (currentExcuseExamType !== "all") {
+      filtered = filtered.filter(it => it.examType === currentExcuseExamType);
+    }
+    if (currentExcuseStatus !== "all") {
+      filtered = filtered.filter(it => getEffectiveStatus(it) === currentExcuseStatus);
+    }
+  }
+
   if (currentStatusFilter !== "all") {
     filtered = filtered.filter((it) => getEffectiveStatus(it) === currentStatusFilter);
   }
@@ -629,6 +654,12 @@ async function renderTab() {
     infoBar.textContent   = `نتائج البحث عن "${searchQuery.trim()}": ${sortedUids.length} طالب`;
   } else {
     infoBar.style.display = "none";
+  }
+
+  // إظهار / إخفاء فلاتر + زر تصدير الأعذار (مثل الموظف)
+  const excuseFiltersWrap = document.getElementById("excuseFiltersWrap");
+  if (excuseFiltersWrap) {
+    excuseFiltersWrap.style.display = (currentTab === "excuse") ? "" : "none";
   }
 }
 
@@ -733,6 +764,19 @@ const empName = employeesCache[item.assignedEmployee] || "-";
   const courses = (item.courses || [])
     .map((c) => `${esc(c.courseName || "-")} (${esc(c.courseCode || "-")}) — الشعبة: ${esc(c.section || "-")}`)
     .join("<br>") || "-";
+
+  if (tab === "complaints") {
+    const compEmpName = item.assignedEmployee ? (employeesCache[item.assignedEmployee] || "-") : "-";
+    const typeLabel   = item.type === "complaint" ? "شكوى" : item.type === "suggestion" ? "اقتراح" : (item.type || "-");
+    return `
+      <tr><td class="sp-detail-label">النوع</td><td><strong>${esc(typeLabel)}</strong></td></tr>
+      <tr><td class="sp-detail-label">الموضوع</td><td>${esc(item.subject || item.title || "-")}</td></tr>
+      <tr><td class="sp-detail-label">التفاصيل</td><td style="white-space:pre-wrap;">${esc(item.message || item.body || item.content || "-")}</td></tr>
+      <tr><td class="sp-detail-label">تاريخ الإرسال</td><td>${formatDate(item.createdAt)}</td></tr>
+      <tr><td class="sp-detail-label">الحالة</td><td>${statusHtml}</td></tr>
+      <tr><td class="sp-detail-label">الموظف المعالج</td><td>${esc(compEmpName)}</td></tr>
+    `;
+  }
 
   return `
     <tr><td class="sp-detail-label">نوع الزيارة</td><td>${visitTypeLabel[item.visitType] || item.visitType || "-"}</td></tr>
@@ -971,6 +1015,10 @@ attachOtherRowsListeners(tab);
 document.getElementById("sidePanel").classList.add("open");
 document.getElementById("spOverlay").classList.add("show");
 document.querySelector(".admin-main").classList.add("panel-open");
+
+  // ارتفاع اللوحة الجانبية لأعلى عند كل نقر
+  const spBodyScrollEl = document.getElementById("spBody");
+  if (spBodyScrollEl) spBodyScrollEl.scrollTop = 0;
 }
 
 function closeSidePanel() {
@@ -2013,6 +2061,107 @@ document.getElementById("searchInput").addEventListener("input", (e) => {
   searchQuery = e.target.value;
   clearTimeout(searchDebounce);
   searchDebounce = setTimeout(() => renderTab(), 200);
+});
+
+// ==================== تصدير Excel الأعذار ====================
+
+async function exportExcusesToExcel() {
+  const cfg   = tabConfig["excuse"];
+  const items = [...tabData.excuse];
+
+  if (!items.length) {
+    alert("لا توجد بيانات أعذار للتصدير.");
+    return;
+  }
+
+  // جلب بيانات أي طالبة غير موجودة في الكاش
+  const missingUids = [...new Set(
+    items.map(it => it[cfg.studentField]).filter(uid => uid && !studentsCache[uid])
+  )];
+  if (missingUids.length) {
+    await Promise.all(missingUids.map(uid => getStudent(uid)));
+  }
+
+  // تحميل مكتبة SheetJS إن لم تكن محملة
+  if (!window.XLSX) {
+    await new Promise((resolve, reject) => {
+      const s = document.createElement("script");
+      s.src = "https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js";
+      s.onload  = resolve;
+      s.onerror = reject;
+      document.head.appendChild(s);
+    });
+  }
+
+  // كل طلب = صف — كل عمود في خانته المستقلة
+  const data = [
+    ["الرقم الجامعي", "اسم الطالبة", "التخصص", "نوع الاختبار", "اسم المقرر", "تاريخ الغياب", "الحالة"]
+  ];
+
+  items.forEach(r => {
+    const student   = studentsCache[r[cfg.studentField]] || {};
+    const statusKey = getEffectiveStatus(r);
+    data.push([
+      student.studentId  || student.universityId || "-",
+      student.fullName   || "-",
+      student.major      || student.department   || "-",
+      examTypeLabel[r.examType] || r.examType    || "-",
+      r.courseName       || r.courseCode         || "-",
+      r.absenceDate      || r.examDate           || "-",
+      statusLabel[statusKey]    || statusKey
+    ]);
+  });
+
+  const ws = window.XLSX.utils.aoa_to_sheet(data);
+
+  // عرض مناسب للأعمدة
+  ws["!cols"] = [
+    { wch: 16 }, // الرقم الجامعي
+    { wch: 26 }, // اسم الطالبة
+    { wch: 14 }, // التخصص
+    { wch: 22 }, // نوع الاختبار
+    { wch: 28 }, // اسم المقرر
+    { wch: 16 }, // تاريخ الغياب
+    { wch: 14 }, // الحالة
+  ];
+
+  const wb = window.XLSX.utils.book_new();
+  window.XLSX.utils.book_append_sheet(wb, ws, "طلبات الأعذار");
+
+  const today = new Date().toLocaleDateString("ar-SA-u-ca-gregory").replace(/\//g, "-");
+  window.XLSX.writeFile(wb, `طلبات_الأعذار_${today}.xlsx`);
+}
+
+// ربط زر التصدير
+const exportExcuseBtn = document.getElementById("exportExcuseExcelBtn");
+if (exportExcuseBtn) {
+  exportExcuseBtn.addEventListener("click", async () => {
+    exportExcuseBtn.disabled = true;
+    exportExcuseBtn.innerHTML = '<i class="ti ti-loader-2 spin"></i> جاري التصدير...';
+    try {
+      await exportExcusesToExcel();
+    } finally {
+      exportExcuseBtn.disabled = false;
+      exportExcuseBtn.innerHTML = '<i class="ti ti-file-spreadsheet"></i> تصدير Excel';
+    }
+  });
+}
+
+// ==================== فلاتر الأعذار الإضافية ====================
+
+document.getElementById("excuseDeptFilter")?.addEventListener("change", (e) => {
+  currentExcuseDept = e.target.value;
+  renderTab();
+});
+
+document.getElementById("excuseExamTypeFilter")?.addEventListener("change", (e) => {
+  currentExcuseExamType = e.target.value;
+  renderTab();
+});
+
+document.getElementById("excuseStatusExportFilter")?.addEventListener("change", (e) => {
+  currentExcuseStatus = e.target.value;
+  renderTab();
 });
 
 document.getElementById("spCloseBtn").addEventListener("click", closeSidePanel);

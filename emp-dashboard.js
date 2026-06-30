@@ -36,7 +36,7 @@ function getItemSemester(item) {
 const studentsCache  = {};
 const employeesCache = {};
 
-const tabData = { addDrop: [], excuse: [], visit: [] };
+const tabData = { addDrop: [], excuse: [], visit: [], complaints: [] };
 
 let currentTab          = "addDrop";
 let currentStatusFilter = "all";
@@ -140,9 +140,10 @@ const levelLabel     = {
 };
 
 const tabConfig = {
-  addDrop: { collectionName: "requests",      studentField: "studentUid", title: "طلبات الحذف والإضافة" },
-  excuse:  { collectionName: "excuses",       studentField: "studentUid", title: "طلبات رفع الأعذار"   },
-  visit:   { collectionName: "visitRequests", studentField: "uid",        title: "طلبات الزيارة"       }
+  addDrop:    { collectionName: "requests",         studentField: "studentUid", title: "طلبات الحذف والإضافة" },
+  excuse:     { collectionName: "excuses",          studentField: "studentUid", title: "طلبات رفع الأعذار"   },
+  visit:      { collectionName: "visitRequests",    studentField: "uid",        title: "طلبات الزيارة"       },
+  complaints: { collectionName: "complaints",       studentField: "studentUid", title: "الشكاوى والاقتراحات" }
 };
 
 const REJECT_REASONS = [
@@ -233,9 +234,10 @@ if (isAffairs) {
 }
 
 
-    const [excSnap, visSnap] = await Promise.all([
+    const [excSnap, visSnap, compSnap] = await Promise.all([
       getDocs(excQuery),
-      getDocs(collection(db, "visitRequests"))
+      getDocs(collection(db, "visitRequests")),
+      getDocs(collection(db, "complaints"))
     ]);
 
     tabData.excuse = excSnap.docs
@@ -245,6 +247,9 @@ if (isAffairs) {
     tabData.visit  = visSnap.docs
       .map(d => ({ id: d.id, ...d.data() }))
       .filter(r => { const sem = getItemSemester(r); return !currentSemesterData || sem == null || sem === currentSemesterData.semester; });
+
+    tabData.complaints = compSnap.docs
+      .map(d => ({ id: d.id, ...d.data() }));
 
     updateBadges();
   } catch(err) {
@@ -288,9 +293,10 @@ const q = isAffairs
 
 function updateBadges() {
   const el = (id) => document.getElementById(id);
-  if (el("badge-addDrop")) el("badge-addDrop").textContent = tabData.addDrop.length;
-  if (el("badge-excuse"))  el("badge-excuse").textContent  = tabData.excuse.length;
-  if (el("badge-visit"))   el("badge-visit").textContent   = tabData.visit.length;
+  if (el("badge-addDrop"))    el("badge-addDrop").textContent    = tabData.addDrop.length;
+  if (el("badge-excuse"))     el("badge-excuse").textContent     = tabData.excuse.length;
+  if (el("badge-visit"))      el("badge-visit").textContent      = tabData.visit.length;
+  if (el("badge-complaints")) el("badge-complaints").textContent = tabData.complaints.length;
 }
 
 function updateStatCards(filtered) {
@@ -532,6 +538,19 @@ function buildDetailRows(tab, item) {
   const courses = (item.courses || [])
     .map(c => `${esc(c.courseName || "-")} (${esc(c.courseCode || "-")}) — الشعبة: ${esc(c.section || "-")}`)
     .join("<br>") || "-";
+
+  if (tab === "complaints") {
+    const typeLabel = item.type === "complaint" ? "شكوى" : item.type === "suggestion" ? "اقتراح" : (item.type || "-");
+    return `
+      <tr><td class="sp-detail-label">النوع</td><td><strong>${esc(typeLabel)}</strong></td></tr>
+      <tr><td class="sp-detail-label">الموضوع</td><td>${esc(item.subject || item.title || "-")}</td></tr>
+      <tr><td class="sp-detail-label">التفاصيل</td><td style="white-space:pre-wrap;">${esc(item.message || item.body || item.content || "-")}</td></tr>
+      <tr><td class="sp-detail-label">تاريخ الإرسال</td><td>${formatDate(item.createdAt)}</td></tr>
+      <tr><td class="sp-detail-label">الحالة</td><td>${statusHtml}</td></tr>
+      <tr><td class="sp-detail-label">الموظف المعالج</td><td>${esc(empName)}</td></tr>
+      ${rejectRow}
+    `;
+  }
 
   return `
     <tr><td class="sp-detail-label">نوع الزيارة</td><td>${visitTypeLabel[item.visitType] || item.visitType || "-"}</td></tr>
@@ -834,6 +853,10 @@ ${isAffairs ? "هذه المادة تابعة لقسم آخر، وليست من 
 
   document.getElementById("sidePanel").classList.add("open");
   document.getElementById("spOverlay").classList.add("show");
+
+  // ارتفاع اللوحة الجانبية لأعلى عند كل نقر
+  const spBodyEl = document.getElementById("spBody");
+  if (spBodyEl) spBodyEl.scrollTop = 0;
 }
 
 function closeSidePanel() {

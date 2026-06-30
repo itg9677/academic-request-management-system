@@ -60,6 +60,7 @@
         <span>طلبات الزيارة</span>
         <span class="sb-badge admin-tab-badge" id="badge-visit">0</span>
       </div>
+      <!-- تبويب الشكاوى والاقتراحات يُضاف تلقائياً من complaintsAdmin.js -->
     </nav>
 
     <div class="sb-user">
@@ -574,6 +575,27 @@
       font-size: 14px;
     }
     .ta-input:focus { outline: none; border-color: #1a3a6b; }
+
+    /* ===== تغيير لون "جديد" إلى أزرق غامق ===== */
+    .status-badge.s-new,
+    .admin-stat-card.stat-new,
+    .emp-stat-card.stat-new {
+      background: #1a3a6b !important;
+      color: #fff !important;
+      border-color: #1a3a6b !important;
+    }
+    .admin-stat-card.stat-new .stat-icon,
+    .emp-stat-card.stat-new .stat-icon,
+    .admin-stat-card.stat-new .stat-num,
+    .emp-stat-card.stat-new .stat-num,
+    .admin-stat-card.stat-new .stat-label,
+    .emp-stat-card.stat-new .stat-label {
+      color: #fff !important;
+    }
+
+    /* ===== تصغير الجدول — عمودياً فقط ===== */
+    .admin-table th,
+    .admin-table td { padding-top: 6px; padding-bottom: 6px; }
   </style>
 
   <script type="module" src="Admindashboard.js"></script>
