@@ -360,7 +360,11 @@ async function renderRowsWithStudents(filtered, tbody) {
       <td>${dateStr}</td>
       <td><button class="detail-btn">التفاصيل <i class="ti ti-chevron-left detail-chevron"></i></button></td>
     `;
-    tr.addEventListener("click", () => openComplaintPanel(c, student));
+    tr.addEventListener("click", () => {
+      document.querySelectorAll(".admin-table tbody tr.row-active").forEach((r) => r.classList.remove("row-active"));
+      tr.classList.add("row-active");
+      openComplaintPanel(c, student);
+    });
     tbody.appendChild(tr);
   });
 }
@@ -395,7 +399,7 @@ function openComplaintPanel(c, student) {
   document.getElementById("cSpSub").textContent   = c.type    || "";
 
   document.getElementById("cSpBody").innerHTML = `
-    <div class="sp-detail-card" style="margin-bottom:16px;">
+    <div class="sp-detail-card sp-highlight-border" style="margin-bottom:16px;">
       <table class="sp-detail-table">
         <tr><td class="sp-detail-label">اسم الطالب</td>  <td>${esc(studentName)}</td></tr>
         <tr><td class="sp-detail-label">الرقم الجامعي</td><td>${esc(studentNum)}</td></tr>

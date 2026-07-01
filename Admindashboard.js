@@ -709,6 +709,10 @@ function buildRow(tab, studentUid, requests) {
 
   // فتح اللوحة بأول طلب مطابق للفلتر الحالي (الأعلى أولوية)
   tr.addEventListener("click", () => {
+    // تمييز الصف المختار بحدود مميزة
+    document.querySelectorAll(".admin-table tbody tr.row-active").forEach((r) => r.classList.remove("row-active"));
+    tr.classList.add("row-active");
+
     // نرشح طلبات هذا الطالب بالفلتر الحالي لنختار أول واحد يظهر
     let filteredRequests = requests;
     if (currentStatusFilter !== "all") {
@@ -989,14 +993,14 @@ function openSidePanel(tab, item) {
       </div>
 
       <div class="sp-detail-card">
-        <table class="sp-detail-table">
+        <table class="sp-detail-table sp-student-detail-table">
           ${allStudentRows}
         </table>
       </div>
     </div>
 
     <div class="sp-section-title">تفاصيل الطلب</div>
-    <div class="sp-detail-card">
+    <div class="sp-detail-card sp-highlight-border">
       <table class="sp-detail-table">${buildDetailRows(tab, item)}</table>
     </div>
 
@@ -2109,11 +2113,11 @@ document.querySelectorAll(".admin-tab").forEach((btn) => {
       }
     }
 
-    // إخفاء فلتر الأقسام في تبويبي الأعذار والزيارة (لا علاقة لهم بالقسم)
+    // إظهار فلتر الأقسام العام في تبويبي "الحذف والإضافة" و"الزيارة" فقط (الأعذار له فلتر أقسام خاص به)
     const deptFilterWrapEl = document.getElementById("deptFilterWrap");
     if (deptFilterWrapEl) {
-      deptFilterWrapEl.style.display = currentTab === "addDrop" ? "" : "none";
-      if (currentTab !== "addDrop") {
+      deptFilterWrapEl.style.display = (currentTab === "addDrop" || currentTab === "visit") ? "" : "none";
+      if (currentTab !== "addDrop" && currentTab !== "visit") {
         currentDeptFilter = "all";
       }
     }
@@ -2227,13 +2231,19 @@ async function exportExcusesToExcel() {
 
   // تحميل مكتبة SheetJS إن لم تكن محملة
   if (!window.XLSX) {
-    await new Promise((resolve, reject) => {
-      const s = document.createElement("script");
-      s.src = "https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js";
-      s.onload  = resolve;
-      s.onerror = reject;
-      document.head.appendChild(s);
-    });
+    try {
+      await new Promise((resolve, reject) => {
+        const s = document.createElement("script");
+        s.src = "https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js";
+        s.onload  = resolve;
+        s.onerror = () => reject(new Error("تعذّر تحميل مكتبة التصدير"));
+        document.head.appendChild(s);
+      });
+    } catch (err) {
+      alert("تعذّر تحميل مكتبة التصدير إلى Excel. تأكدي من اتصال الإنترنت وحاولي مرة أخرى.");
+      console.error(err);
+      return;
+    }
   }
 
   // ترتيب أحدث الطلبات أولاً
@@ -2290,6 +2300,9 @@ if (exportExcuseBtn) {
     exportExcuseBtn.innerHTML = '<i class="ti ti-loader-2 spin"></i> جاري التصدير...';
     try {
       await exportExcusesToExcel();
+    } catch (err) {
+      console.error(err);
+      alert("حدث خطأ أثناء تصدير الملف. حاولي مرة أخرى.");
     } finally {
       exportExcuseBtn.disabled = false;
       exportExcuseBtn.innerHTML = '<i class="ti ti-file-spreadsheet"></i> تصدير Excel';

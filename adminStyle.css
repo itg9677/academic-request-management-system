@@ -390,7 +390,9 @@
 }
 
 .admin-table tbody tr:hover { background: #f8fafc; }
-.admin-table tbody tr.row-active { background: #f0f4fb; }
+.admin-table tbody tr.row-active {
+  background: #e8edf7;
+}
 
 /* Student name cell */
 .student-name-cell {
@@ -567,7 +569,7 @@ mark {
 
 .sp-title {
   color: #fff;
-  font-size: 19px;
+  font-size: 16px;
   font-weight: 600;
 }
 
@@ -656,7 +658,7 @@ mark {
 
 /* Section title */
 .sp-section-title {
-  font-size: 16px;
+  font-size: 13px;
   font-weight: 600;
   color: #1a3a6b;
   margin-bottom: 10px;
@@ -681,10 +683,20 @@ mark {
   margin-bottom: 12px;
 }
 
+/* حدود مميزة تُستخدم فقط لصندوق "تفاصيل الطلب" (وليس بطاقة معلومات الطالب) */
+.sp-detail-card.sp-highlight-border {
+  border: 2px solid #c8972b;
+}
+
 .sp-detail-table {
   width: 100%;
   border-collapse: collapse;
   font-size: 13px;
+}
+
+/* جدول بيانات الطالب الأساسية فقط (الرقم الجامعي، الاسم، الجوال...) — يبقى بخط أكبر */
+.sp-student-detail-table {
+  font-size: 18px;
 }
 
 .sp-detail-table td {
