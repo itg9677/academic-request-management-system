@@ -32,6 +32,7 @@ let complaintsData       = [];
 let cStatusFilter        = "all";
 let cSearchQuery         = "";
 let cTargetFilter        = "all";
+let cTypeFilter          = "all";
 let activeComplaint      = null;
 let currentAdminUid      = null;
 let currentAdminName     = "الأدمن";
@@ -144,6 +145,15 @@ function injectComplaintsSection() {
             <option value="chemistry">قسم الكيمياء</option>
           </select>
         </div>
+        <div class="dept-filter-pill">
+          <i class="ti ti-category"></i>
+          <select id="cTypeFilter">
+            <option value="all">كل الأنواع</option>
+            <option value="شكوى">شكوى</option>
+            <option value="استفسار">استفسار</option>
+            <option value="اقتراح">اقتراح</option>
+          </select>
+        </div>
       </div>
 
       <div class="admin-table-wrap" id="cTableWrap">
@@ -219,6 +229,12 @@ function injectComplaintsSection() {
     renderComplaints();
   });
 
+  // فلتر النوع (شكوى / استفسار / اقتراح)
+  section.querySelector("#cTypeFilter").addEventListener("change", e => {
+    cTypeFilter = e.target.value;
+    renderComplaints();
+  });
+
   // إغلاق اللوحة
   section.querySelector("#cSpClose").addEventListener("click",   closeComplaintPanel);
   section.querySelector("#cSpOverlay").addEventListener("click", closeComplaintPanel);
@@ -268,6 +284,9 @@ function renderComplaints() {
         ? c.target === "college"
         : c.departmentKey === cTargetFilter
     );
+  }
+  if (cTypeFilter !== "all") {
+    filtered = filtered.filter(c => (c.type || "شكوى") === cTypeFilter);
   }
   const q = cSearchQuery.trim().toLowerCase();
   if (q) {
@@ -479,6 +498,14 @@ function switchToComplaints() {
   document.querySelectorAll(".admin-tab").forEach(t => t.classList.remove("active"));
   document.getElementById("navComplaintsAdmin")?.classList.add("active");
 
+  // إعادة تعيين الفلاتر افتراضياً على "الكل" عند فتح التبويب
+  cStatusFilter = "all";
+  const cStatsGrid = document.getElementById("cStatsGrid");
+  if (cStatsGrid) {
+    cStatsGrid.querySelectorAll("[data-cfilter]").forEach(c => c.classList.remove("active"));
+    cStatsGrid.querySelector('[data-cfilter="all"]')?.classList.add("active");
+  }
+
   // إخفاء قسم visitUploadArea وفلتر الأقسام إن ظهرا
   const visitUpload  = document.getElementById("visitUploadArea");
   const deptFilter   = document.getElementById("deptFilterWrap");
@@ -556,4 +583,4 @@ onAuthStateChanged(auth, async user => {
   injectComplaintsSection();
   patchOriginalTabs();
   subscribeComplaints();
-}); 
+});

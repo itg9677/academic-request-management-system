@@ -245,7 +245,8 @@ async function getEmployeeName(uid) {
 }
 
 function getReqDepartment(item, student) {
-  return item.assignedDepartment || (student && student.major) || null;
+  const raw = item.assignedDepartment || (student && student.major) || null;
+  return raw ? String(raw).trim() : null;
 }
 
 // ==================== بناء صفوف بيانات الطالب (كل الحقول الموجودة فعلاً) ====================
@@ -1523,8 +1524,11 @@ let currentStatsDeptFilter = "all";
 function renderDeptFilterForStats() {
   const allItems = [...tabData.addDrop, ...tabData.excuse, ...tabData.visit];
 
-  // استخراج قائمة الأقسام الموجودة فعلاً
-  const depts = new Set();
+  // الأقسام الأساسية الثابتة — تظهر دائماً في الفلتر حتى لو لا توجد طلبات لها حالياً
+  const CANONICAL_DEPTS = ["فيزياء", "كيمياء", "إحصاء", "رياضيات", "أحياء"];
+
+  // استخراج قائمة الأقسام الموجودة فعلاً (مع تنظيف الفراغات لمنع التكرار)
+  const depts = new Set(CANONICAL_DEPTS);
   allItems.forEach((item) => {
     const cfg = tabConfig.addDrop;
     const studentUid = item[cfg.studentField] || item.uid || item.studentUid;
@@ -2167,12 +2171,49 @@ document.getElementById("searchInput").addEventListener("input", (e) => {
 
 // ==================== تصدير Excel الأعذار ====================
 
+// يبني قائمة الطلبات المطابقة للفلاتر الحالية (الفصل الدراسي، القسم، نوع الاختبار، الحالة)
+function getFilteredExcuseItemsForExport() {
+  const cfg = tabConfig["excuse"];
+  let items = [...tabData.excuse];
+
+  // فلتر الفصل الدراسي
+  items = items.filter((it) => {
+    const itemSem = getItemSemester(it);
+    return selectedSemesterFilter === "current"
+      ? (!currentSemesterData || itemSem == null || itemSem === currentSemesterData.semester)
+      : (itemSem == null || itemSem === Number(selectedSemesterFilter));
+  });
+
+  // فلتر القسم
+  if (currentExcuseDept !== "all") {
+    items = items.filter((it) => {
+      const student = studentsCache[it[cfg.studentField]] || {};
+      const dept = it.assignedDepartment || student.major || student.department || "";
+      return dept === currentExcuseDept;
+    });
+  }
+
+  // فلتر نوع الاختبار
+  if (currentExcuseExamType !== "all") {
+    items = items.filter((it) => it.examType === currentExcuseExamType);
+  }
+
+  // فلتر الحالة — من فلتر التصدير الخاص، وإن لم يُحدد نستخدم فلتر البطاقات العام
+  if (currentExcuseStatus !== "all") {
+    items = items.filter((it) => getEffectiveStatus(it) === currentExcuseStatus);
+  } else if (currentStatusFilter !== "all") {
+    items = items.filter((it) => getEffectiveStatus(it) === currentStatusFilter);
+  }
+
+  return items;
+}
+
 async function exportExcusesToExcel() {
   const cfg   = tabConfig["excuse"];
-  const items = [...tabData.excuse];
+  const items = getFilteredExcuseItemsForExport();
 
   if (!items.length) {
-    alert("لا توجد بيانات أعذار للتصدير.");
+    alert("لا توجد بيانات أعذار مطابقة للفلاتر الحالية للتصدير.");
     return;
   }
 
@@ -2195,12 +2236,19 @@ async function exportExcusesToExcel() {
     });
   }
 
-  // كل طلب = صف — كل عمود في خانته المستقلة
+  // ترتيب أحدث الطلبات أولاً
+  const sortedItems = [...items].sort((a, b) => {
+    const aTime = a.createdAt?.toMillis?.() ?? 0;
+    const bTime = b.createdAt?.toMillis?.() ?? 0;
+    return bTime - aTime;
+  });
+
+  // تصدير أفقي: صف لكل طلب، وكل حقل في عمود مستقل
   const data = [
     ["الرقم الجامعي", "اسم الطالبة", "التخصص", "نوع الاختبار", "اسم المقرر", "تاريخ الغياب", "الحالة"]
   ];
 
-  items.forEach(r => {
+  sortedItems.forEach((r) => {
     const student   = studentsCache[r[cfg.studentField]] || {};
     const statusKey = getEffectiveStatus(r);
     data.push([
