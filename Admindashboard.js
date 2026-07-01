@@ -65,7 +65,6 @@ const tabData = { addDrop: [], excuse: [], visit: [], complaints: [] };
 let currentTab          = "addDrop";
 let currentStatusFilter = "all";
 let currentDeptFilter   = "all";
-let currentExcuseDept      = "all";
 let currentExcuseExamType  = "all";
 let currentExcuseStatus    = "all";
 let searchQuery         = "";
@@ -245,7 +244,27 @@ async function getEmployeeName(uid) {
 }
 
 function getReqDepartment(item, student) {
-  return item.assignedDepartment || (student && student.major) || null;
+  // القسم الأكاديمي الحقيقي (تخصص الطالبة) له الأولوية دائمًا.
+  // "assignedDepartment" يمثل الجهة المسؤولة عن معالجة الطلب فقط، وقد تكون
+  // "شؤون الطالبات" حتى لو الطالبة من قسم أكاديمي محدد (مثل أعذار الاختبار النهائي)،
+  // لذلك لا نعتمد عليه إلا إذا لم نجد أي قسم أكاديمي حقيقي.
+  const academicDept = item.major || (student && (student.major || student.department));
+  return academicDept || item.assignedDepartment || null;
+}
+
+// توحيد شكل نص القسم قبل المقارنة، حتى لا تفشل المطابقة بسبب:
+// - مسافات زايدة في البداية/النهاية
+// - اختلاف شكل الهمزة (أ/إ/آ/ٱ) مثل "إحصاء" مقابل "احصاء"
+// - التشكيل (الحركات) أو التطويل
+// - اختلاف الألف المقصورة/التاء المربوطة
+function normalizeDeptValue(v) {
+  if (v == null) return "";
+  return String(v)
+    .trim()
+    .replace(/[\u064B-\u065F\u0670\u0640]/g, "") // إزالة التشكيل والتطويل
+    .replace(/[إأآٱ]/g, "ا")                       // توحيد أشكال الألف
+    .replace(/ى/g, "ي")                            // ألف مقصورة → ياء
+    .replace(/ة/g, "ه");                           // تاء مربوطة → هاء
 }
 
 // ==================== بناء صفوف بيانات الطالب (كل الحقول الموجودة فعلاً) ====================
@@ -561,6 +580,10 @@ function getEffectiveStatus(item) {
   return item.status;
 }
 
+function getItemStudentUid(item, cfg) {
+  return item[cfg.studentField] || item.uid || item.studentUid || null;
+}
+
 async function renderTab() {
   const cfg   = tabConfig[currentTab];
   const items = tabData[currentTab];
@@ -571,7 +594,7 @@ async function renderTab() {
   if (tableWrapEl) tableWrapEl.style.display = "";
   if (searchRowEl) searchRowEl.style.display = "";
 
-  const uniqueStudentUids = [...new Set(items.map((it) => it[cfg.studentField]).filter(Boolean))];
+  const uniqueStudentUids = [...new Set(items.map((it) => getItemStudentUid(it, cfg)).filter(Boolean))];
   await Promise.all(uniqueStudentUids.map((uid) => getStudent(uid)));
 
   const uniqueEmpUids = [...new Set(items.map((it) => it.assignedEmployee).filter(Boolean))];
@@ -584,21 +607,14 @@ async function renderTab() {
       : (itemSem == null || itemSem === Number(selectedSemesterFilter));
     if (!semOk) return false;
     if (currentDeptFilter === "all") return true;
-    const student = studentsCache[it[cfg.studentField]] || {};
-    return getReqDepartment(it, student) === currentDeptFilter;
+    const student = studentsCache[getItemStudentUid(it, cfg)] || {};
+    return normalizeDeptValue(getReqDepartment(it, student)) === normalizeDeptValue(currentDeptFilter);
   });
 
  updateStatCards(filtered);
- 
-  // فلاتر خاصة بتبويب الأعذار
+
+  // فلاتر خاصة بتبويب الأعذار (فلتر القسم أصبح موحّدًا ويُطبّق أعلاه مع باقي التبويبات)
   if (currentTab === "excuse") {
-    if (currentExcuseDept !== "all") {
-      filtered = filtered.filter(it => {
-        const student = studentsCache[it[cfg.studentField]] || {};
-        const dept = it.assignedDepartment || student.major || student.department || "";
-        return dept === currentExcuseDept;
-      });
-    }
     if (currentExcuseExamType !== "all") {
       filtered = filtered.filter(it => it.examType === currentExcuseExamType);
     }
@@ -614,7 +630,7 @@ async function renderTab() {
   const q = searchQuery.trim().toLowerCase();
   if (q) {
     filtered = filtered.filter((it) => {
-      const student = studentsCache[it[cfg.studentField]] || {};
+      const student = studentsCache[getItemStudentUid(it, cfg)] || {};
       const name = (student.fullName || "").toLowerCase();
       const uid  = String(student.studentId || "").toLowerCase();
       return name.includes(q) || uid.includes(q);
@@ -624,7 +640,7 @@ async function renderTab() {
   // تجميع الطلبات بالطالب
   const byStudent = {};
   filtered.forEach((it) => {
-    const uid = it[cfg.studentField];
+    const uid = getItemStudentUid(it, cfg);
     if (!uid) return;
     if (!byStudent[uid]) byStudent[uid] = [];
     byStudent[uid].push(it);
@@ -680,7 +696,7 @@ function buildRow(tab, studentUid, requests) {
   tr.dataset.uid = studentUid;
 
   const initials = (student.fullName || "??").slice(0, 2);
-  const dept     = requests[0]?.assignedDepartment || student.major || "-";
+  const dept     = getReqDepartment(requests[0], student) || "-";
 
   // الحالة الأسوأ: جديد > قيد المراجعة > مقبول/مرفوض
   const priority = { new: 0, under_review: 1, approved: 2, rejected: 2 };
@@ -817,7 +833,7 @@ function buildOtherRequestsTable(tab, item) {
   if (currentDeptFilter !== "all") {
     others = others.filter((it) => {
       const student = studentsCache[it[cfg.studentField]] || {};
-      return getReqDepartment(it, student) === currentDeptFilter;
+      return normalizeDeptValue(getReqDepartment(it, student)) === normalizeDeptValue(currentDeptFilter);
     });
   }
 
@@ -1387,7 +1403,7 @@ function printActiveStudent() {
   if (currentDeptFilter !== "all") {
     items = items.filter((it) => {
       const st = studentsCache[it[cfg.studentField]] || {};
-      return getReqDepartment(it, st) === currentDeptFilter;
+      return normalizeDeptValue(getReqDepartment(it, st)) === normalizeDeptValue(currentDeptFilter);
     });
   }
   // فلتر القسم والمقر لطلبات الزيارة
@@ -1713,15 +1729,15 @@ function getVisitDeptName(dept) {
 
 function getVisitPlaceName(place) {
   const names = {
-    badaya: "البدايع",
+    badaya: "البدائع",
     unaizah: "عنيزة",
     rass: "الرس",
-    asyah: "الاسياح",
+    asyah: "الأسياح",
     bukayriyah: "البكيرية",
     riyadh_alkhabra: "رياض الخبراء",
     mithnab: "المذنب",
-    uqlat_suqur: "عقلة صقور",
-    nihaniyah: "النيهانية"
+    uqlat_suqur: "عقلة الصقور",
+    nihaniyah: "النبهانية"
   };
   return names[place] || place;
 }
@@ -2105,14 +2121,18 @@ document.querySelectorAll(".admin-tab").forEach((btn) => {
       }
     }
 
-    // إخفاء فلتر الأقسام في تبويبي الأعذار والزيارة (لا علاقة لهم بالقسم)
+    // فلتر الأقسام موحّد الآن — يظهر في تبويبي الحذف/الإضافة والأعذار، ويُخفى فقط في الزيارة وباقي التبويبات
     const deptFilterWrapEl = document.getElementById("deptFilterWrap");
     if (deptFilterWrapEl) {
-      deptFilterWrapEl.style.display = currentTab === "addDrop" ? "" : "none";
-      if (currentTab !== "addDrop") {
+      const showDeptFilter = currentTab === "addDrop" || currentTab === "excuse";
+      deptFilterWrapEl.style.display = showDeptFilter ? "" : "none";
+      if (!showDeptFilter) {
         currentDeptFilter = "all";
       }
     }
+    // إعادة ضبط قيمة القائمة نفسها بصريًا عند تبديل التبويب
+    const deptFilterSelEl = document.getElementById("deptFilter");
+    if (deptFilterSelEl) deptFilterSelEl.value = currentDeptFilter;
 
     // إخفاء قسم إدارة الفصل الدراسي عند فتح أي تبويب طلبات
     const semesterSectionEl = document.getElementById("semesterSection");
@@ -2250,11 +2270,6 @@ if (exportExcuseBtn) {
 }
 
 // ==================== فلاتر الأعذار الإضافية ====================
-
-document.getElementById("excuseDeptFilter")?.addEventListener("change", (e) => {
-  currentExcuseDept = e.target.value;
-  renderTab();
-});
 
 document.getElementById("excuseExamTypeFilter")?.addEventListener("change", (e) => {
   currentExcuseExamType = e.target.value;

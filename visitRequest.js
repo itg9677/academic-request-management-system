@@ -64,10 +64,10 @@ const majorKeys = {
 
 /* خريطة المقرات المتاحة لكل تخصص */
 const majorPlaces = {
-    "فيزياء":  ["الاسياح", "عنيزة", "البكيرية", "البدايع", "الرس", "المذنب", "عقلة صقور", "النيهانية"],
+    "فيزياء":  ["الأسياح", "عنيزة", "البكيرية", "البدائع", "الرس", "المذنب", "عقلة الصقور", "النبهانية"],
     "كيمياء":  ["عنيزة", "الرس"],
     "أحياء":   ["عنيزة"],
-    "رياضيات": ["الاسياح", "عنيزة", "البكيرية", "البدايع", "الرس", "المذنب", "عقلة صقور", "النيهانية", "رياض الخبراء"],
+    "رياضيات": ["الأسياح", "عنيزة", "البكيرية", "البدائع", "الرس", "المذنب", "عقلة الصقور", "النبهانية", "رياض الخبراء"],
     "إحصاء":   []
 };
 
@@ -79,7 +79,7 @@ function populatePlaceSelect(major) {
     const allowed = majorPlaces[major] || [];
 
     Array.from(placeSel.options).forEach(opt => {
-        if (!opt.value) return; // الخيار الافتراضي "اختري المقر" يبقى دايماً
+        if (!opt.value) return; // الخيار الافتراضي "اختاري المقر" يبقى دايماً
         opt.hidden   = allowed.length > 0 && !allowed.includes(opt.value);
         opt.disabled = opt.hidden;
     });
@@ -91,15 +91,15 @@ function populatePlaceSelect(major) {
 }
 
 const placeKeys = {
-    "البدايع":       "badaya",
+    "البدائع":       "badaya",
     "عنيزة":         "unaizah",
     "الرس":          "rass",
-    "الاسياح":       "asyah",
+    "الأسياح":       "asyah",
     "البكيرية":      "bukayriyah",
     "رياض الخبراء":  "riyadh_alkhabra",
     "المذنب":        "mithnab",
-    "عقلة صقور":     "uqlat_suqur",
-    "النيهانية":     "nihaniyah"
+    "عقلة الصقور":     "uqlat_suqur",
+    "النبهانية":     "nihaniyah"
 };
 
 function getVisitFormDocId(major, place) {

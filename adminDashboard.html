@@ -60,7 +60,6 @@
         <span>طلبات الزيارة</span>
         <span class="sb-badge admin-tab-badge" id="badge-visit">0</span>
       </div>
-      <!-- تبويب الشكاوى والاقتراحات يُضاف تلقائياً من complaintsAdmin.js -->
     </nav>
 
     <div class="sb-user">
@@ -302,13 +301,13 @@
       (function () {
         const deptPlaces = {
           physics:   [
-            { value: "asyah",          label: "الاسياح" },
+            { value: "asyah",          label: "الأسياح" },
             { value: "unaizah",        label: "عنيزة" },
             { value: "bukayriyah",     label: "البكيرية" },
-            { value: "badaya",         label: "البدايع" },
+            { value: "badaya",         label: "البدائع" },
             { value: "rass",           label: "الرس" },
             { value: "mithnab",        label: "المذنب" },
-            { value: "uqlat_suqur",    label: "عقلة صقور" },
+            { value: "uqlat_suqur",    label: "عقلة الصقور" },
             { value: "nihaniyah",      label: "النبهانية" },
           ],
           chemistry: [
@@ -317,13 +316,13 @@
           ],
           statistics: [],
           math: [
-            { value: "asyah",          label: "الاسياح" },
+            { value: "asyah",          label: "الأسياح" },
             { value: "unaizah",        label: "عنيزة" },
             { value: "bukayriyah",     label: "البكيرية" },
-            { value: "badaya",         label: "البدايع" },
+            { value: "badaya",         label: "البدائع" },
             { value: "rass",           label: "الرس" },
             { value: "mithnab",        label: "المذنب" },
-            { value: "uqlat_suqur",    label: "عقلة صقور" },
+            { value: "uqlat_suqur",    label: "عقلة الصقور" },
             { value: "nihaniyah",      label: "النبهانية" },
             { value: "riyadh_alkhabra",label: "رياض الخبراء" },
           ],
@@ -397,19 +396,7 @@
             <option value="rejected">مرفوض</option>
           </select>
 
-          <!-- فلاتر الأعذار — تظهر فقط في تبويب طلبات الأعذار -->
-<div class="excuse-filters-wrap" id="excuseFiltersWrap" style="display:none;">
-            <div class="dept-filter-pill">
-              <i class="ti ti-building"></i>
-              <select id="excuseDeptFilter">
-                <option value="all">كل الأقسام</option>
-                <option value="فيزياء">فيزياء</option>
-                <option value="أحياء">أحياء</option>
-                <option value="إحصاء">إحصاء</option>
-                <option value="كيمياء">كيمياء</option>
-                <option value="رياضيات">رياضيات</option>
-              </select>
-            </div>
+
 
             <div class="dept-filter-pill">
               <i class="ti ti-pencil"></i>
@@ -575,27 +562,6 @@
       font-size: 14px;
     }
     .ta-input:focus { outline: none; border-color: #1a3a6b; }
-
-    /* ===== تغيير لون "جديد" إلى أزرق غامق ===== */
-    .status-badge.s-new,
-    .admin-stat-card.stat-new,
-    .emp-stat-card.stat-new {
-      background: #1a3a6b !important;
-      color: #fff !important;
-      border-color: #1a3a6b !important;
-    }
-    .admin-stat-card.stat-new .stat-icon,
-    .emp-stat-card.stat-new .stat-icon,
-    .admin-stat-card.stat-new .stat-num,
-    .emp-stat-card.stat-new .stat-num,
-    .admin-stat-card.stat-new .stat-label,
-    .emp-stat-card.stat-new .stat-label {
-      color: #fff !important;
-    }
-
-    /* ===== تصغير الجدول — عمودياً فقط ===== */
-    .admin-table th,
-    .admin-table td { padding-top: 6px; padding-bottom: 6px; }
   </style>
 
   <script type="module" src="Admindashboard.js"></script>
