@@ -1,17 +1,30 @@
 import { auth, db, storage } from "./firebase.js";
+
+import { initializeApp, deleteApp } 
+from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+
+import { 
+  getAuth, 
+  createUserWithEmailAndPassword, 
+  sendEmailVerification,
+  fetchSignInMethodsForEmail
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
 import { getCurrentSemester, getAllSemesters, activateSemester } from "./semester.js";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
 import {
   doc, getDoc, setDoc, deleteDoc, collection, query, where, getDocs,
   updateDoc, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
 import {
   ref, uploadBytes, getDownloadURL, deleteObject
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
 
-// imports خاصة بميزة نقل صلاحية الأدمن (تطبيق Firebase ثانوي مؤقت)
-import { initializeApp, deleteApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-import { getAuth, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+
+
 
 console.log("FILE LOADED");
 
@@ -1777,18 +1790,27 @@ const firebaseConfigForTransfer = {
   appId: "1:375395162945:web:e3edb97c48a30ab6401fc0"
 };
 
+
 async function createAdminAccountSafely(email, password) {
-  // اسم فريد لتجنب تعارض مع أي instance ثانوي آخر مفتوح بنفس الجلسة
-  const secondaryApp = initializeApp(firebaseConfigForTransfer, "secondary-" + Date.now());
+  // نستخدم نفس إعدادات التطبيق المرتبط بـ auth
+  const primaryApp = auth.app;
+  const secondaryApp = initializeApp(primaryApp.options, "Secondary");
   const secondaryAuth = getAuth(secondaryApp);
 
   try {
     const cred = await createUserWithEmailAndPassword(secondaryAuth, email, password);
+
+    // إرسال رسالة التحقق
+    await sendEmailVerification(cred.user);
+
     return cred.user.uid;
+
   } finally {
-    await deleteApp(secondaryApp).catch(() => {});
+    await deleteApp(secondaryApp);
   }
 }
+
+
 
 function openTransferModal() {
   const overlayEl = document.getElementById("transferAdminOverlay");
@@ -1843,10 +1865,15 @@ async function handleTransferAdmin(e) {
       const existingDoc = dupEmailSnap.docs[0];
       newUid = existingDoc.id;
 
-      await updateDoc(doc(db, "employees", newUid), {
-        isAdmin: true,
-        adminGrantedAt: serverTimestamp()
-      });
+    await updateDoc(doc(db, "employees", newUid), {
+    fullName,
+    phone,
+    employeeNumber,
+    email,
+    isAdmin: true,
+    adminGrantedAt: serverTimestamp()
+});
+
 
     } else {
 
@@ -1856,6 +1883,12 @@ async function handleTransferAdmin(e) {
       if (!dupEmpNumSnap.empty) {
         throw new Error("هذا الرقم الوظيفي مستخدم لموظف آخر بالفعل");
       }
+// التحقق من وجود الإيميل داخل Firebase Auth
+const authMethods = await fetchSignInMethodsForEmail(auth, email);
+
+if (authMethods.length > 0 && dupEmailSnap.empty) {
+    throw new Error("هذا البريد الإلكتروني مستخدم مسبقاً في نظام الدخول");
+}
 
       // إنشاء حساب Auth جديد بدون كسر جلسة الأدمن الحالي
       newUid = await createAdminAccountSafely(email, password);
@@ -1870,6 +1903,16 @@ async function handleTransferAdmin(e) {
         createdVia: "transferAdmin"
       });
     }
+    // حذف أي وثيقة ثانية تحمل نفس الإيميل ولكن UID مختلف
+const allDocsQ = query(collection(db, "employees"), where("email", "==", email));
+const allDocsSnap = await getDocs(allDocsQ);
+
+allDocsSnap.forEach(d => {
+    if (d.id !== newUid) {
+        deleteDoc(doc(db, "employees", d.id));
+    }
+});
+
 
     // مزامنة adminUids (تستخدمها قواعد الأمان)
     await setDoc(doc(db, "adminUids", newUid), { isAdmin: true, email }, { merge: true });

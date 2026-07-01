@@ -39,6 +39,7 @@ form.addEventListener("submit", async (e) => {
         await setDoc(doc(db, "employees", user.uid), {
             fullName,
             employeeId,
+            jobNumber: employeeId,
             department,
             email,
             role: "employee",
