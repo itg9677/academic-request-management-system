@@ -1,6 +1,6 @@
 import { auth, db } from "./firebase.js";
 import {
-  collection, query, getDocs, doc, updateDoc, serverTimestamp, onSnapshot
+  collection, query, getDocs, doc, getDoc, updateDoc, serverTimestamp, onSnapshot, where
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
@@ -36,6 +36,34 @@ let activeComplaint      = null;
 let currentAdminUid      = null;
 let currentAdminName     = "الأدمن";
 let unsubscribeComplaints = null;
+let alreadyInitialized    = false;  // يمنع التهيئة المزدوجة عند تكرار onAuthStateChanged
+const studentsCache       = {};     // كاش بيانات الطلاب (الاسم والرقم الجامعي)
+
+// ── جلب بيانات الطالب (الاسم والرقم الجامعي) ────────
+async function getStudentInfo(uid) {
+  if (!uid) return null;
+  if (studentsCache[uid]) return studentsCache[uid];
+
+  try {
+    const docSnap = await getDoc(doc(db, "students", uid));
+    if (docSnap.exists()) {
+      studentsCache[uid] = { _uid: uid, ...docSnap.data() };
+      return studentsCache[uid];
+    }
+  } catch (e) {}
+
+  try {
+    const q = query(collection(db, "students"), where("studentId", "==", uid));
+    const snap = await getDocs(q);
+    if (!snap.empty) {
+      studentsCache[uid] = { _uid: uid, ...snap.docs[0].data() };
+      return studentsCache[uid];
+    }
+  } catch (e) {}
+
+  studentsCache[uid] = { _uid: uid, fullName: "-", studentId: "-" };
+  return studentsCache[uid];
+}
 
 // ── حقن التبويب في السايدبار ────────────────────────
 function injectSidebarTab() {
@@ -122,6 +150,7 @@ function injectComplaintsSection() {
         <table class="admin-table">
           <thead>
             <tr>
+              <th>الطالب</th>
               <th>النوع</th>
               <th>العنوان</th>
               <th>الجهة</th>
@@ -277,7 +306,15 @@ function renderComplaints() {
   }
   empty.style.display = "none";
 
-  filtered.forEach(c => {
+  renderRowsWithStudents(filtered, tbody);
+}
+
+async function renderRowsWithStudents(filtered, tbody) {
+  const studentInfos = await Promise.all(
+    filtered.map(c => getStudentInfo(c.studentUid))
+  );
+
+  filtered.forEach((c, i) => {
     const status    = c.status || "new";
     const targetTxt = c.target === "college"
       ? "الكلية"
@@ -286,10 +323,17 @@ function renderComplaints() {
     const dateStr   = c.createdAt?.toDate
       ? c.createdAt.toDate().toLocaleDateString("ar-SA-u-ca-gregory")
       : "-";
+    const student = studentInfos[i];
+    const studentName = student?.fullName || c.studentEmail || "-";
+    const studentNum  = student?.studentId || student?.universityId || "-";
 
     const tr = document.createElement("tr");
     tr.style.cursor = "pointer";
     tr.innerHTML = `
+      <td>
+        <div style="font-weight:600;">${esc(studentName)}</div>
+        <div style="font-size:12px;color:#64748b;">${esc(studentNum)}</div>
+      </td>
       <td><i class="ti ${icon}" style="font-size:16px;color:var(--primary);"></i> ${esc(c.type || "-")}</td>
       <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(c.subject || "-")}</td>
       <td><span class="dept-chip">${esc(targetTxt)}</span></td>
@@ -297,18 +341,21 @@ function renderComplaints() {
       <td>${dateStr}</td>
       <td><button class="detail-btn">التفاصيل <i class="ti ti-chevron-left detail-chevron"></i></button></td>
     `;
-    tr.addEventListener("click", () => openComplaintPanel(c));
+    tr.addEventListener("click", () => openComplaintPanel(c, student));
     tbody.appendChild(tr);
   });
 }
 
 // ── اللوحة الجانبية ─────────────────────────────────
-function openComplaintPanel(c) {
+function openComplaintPanel(c, student) {
   activeComplaint = c;
   const status    = c.status || "new";
   const targetTxt = c.target === "college"
     ? "الكلية"
     : (DEPT_AR[c.departmentKey] || c.targetAr || "-");
+  const stu = student || studentsCache[c.studentUid] || null;
+  const studentName = stu?.fullName || c.studentEmail || "-";
+  const studentNum  = stu?.studentId || stu?.universityId || "-";
   const dateStr   = c.createdAt?.toDate
     ? c.createdAt.toDate().toLocaleDateString("ar-SA-u-ca-gregory")
     : "-";
@@ -331,6 +378,8 @@ function openComplaintPanel(c) {
   document.getElementById("cSpBody").innerHTML = `
     <div class="sp-detail-card" style="margin-bottom:16px;">
       <table class="sp-detail-table">
+        <tr><td class="sp-detail-label">اسم الطالب</td>  <td>${esc(studentName)}</td></tr>
+        <tr><td class="sp-detail-label">الرقم الجامعي</td><td>${esc(studentNum)}</td></tr>
         <tr><td class="sp-detail-label">النوع</td>      <td>${esc(c.type || "-")}</td></tr>
         <tr><td class="sp-detail-label">الجهة المعنية</td><td>${esc(targetTxt)}</td></tr>
         <tr><td class="sp-detail-label">الحالة</td>
@@ -492,6 +541,8 @@ function patchOriginalTabs() {
 // ── تهيئة ───────────────────────────────────────────
 onAuthStateChanged(auth, async user => {
   if (!user) return;
+  if (alreadyInitialized) return;   // يمنع تشغيل التهيئة أكثر من مرة لو تكرر onAuthStateChanged
+  alreadyInitialized = true;
 
   currentAdminUid  = user.uid;
   currentAdminName = document.getElementById("adminName")?.textContent || "الأدمن";
@@ -505,4 +556,4 @@ onAuthStateChanged(auth, async user => {
   injectComplaintsSection();
   patchOriginalTabs();
   subscribeComplaints();
-});
+}); 

@@ -36,7 +36,7 @@ function getItemSemester(item) {
 const studentsCache  = {};
 const employeesCache = {};
 
-const tabData = { addDrop: [], excuse: [], visit: [] };
+const tabData = { addDrop: [], excuse: [], visit: [], complaints: [] };
 
 let currentTab          = "addDrop";
 let currentStatusFilter = "all";
@@ -140,9 +140,10 @@ const levelLabel     = {
 };
 
 const tabConfig = {
-  addDrop: { collectionName: "requests",      studentField: "studentUid", title: "طلبات الحذف والإضافة" },
-  excuse:  { collectionName: "excuses",       studentField: "studentUid", title: "طلبات رفع الأعذار"   },
-  visit:   { collectionName: "visitRequests", studentField: "uid",        title: "طلبات الزيارة"       }
+  addDrop:    { collectionName: "requests",         studentField: "studentUid", title: "طلبات الحذف والإضافة" },
+  excuse:     { collectionName: "excuses",          studentField: "studentUid", title: "طلبات رفع الأعذار"   },
+  visit:      { collectionName: "visitRequests",    studentField: "uid",        title: "طلبات الزيارة"       },
+  complaints: { collectionName: "complaints",       studentField: "studentUid", title: "الشكاوى والاقتراحات" }
 };
 
 const REJECT_REASONS = [
@@ -233,9 +234,10 @@ if (isAffairs) {
 }
 
 
-    const [excSnap, visSnap] = await Promise.all([
+    const [excSnap, visSnap, compSnap] = await Promise.all([
       getDocs(excQuery),
-      getDocs(collection(db, "visitRequests"))
+      getDocs(collection(db, "visitRequests")),
+      getDocs(collection(db, "complaints"))
     ]);
 
     tabData.excuse = excSnap.docs
@@ -245,6 +247,9 @@ if (isAffairs) {
     tabData.visit  = visSnap.docs
       .map(d => ({ id: d.id, ...d.data() }))
       .filter(r => { const sem = getItemSemester(r); return !currentSemesterData || sem == null || sem === currentSemesterData.semester; });
+
+    tabData.complaints = compSnap.docs
+      .map(d => ({ id: d.id, ...d.data() }));
 
     updateBadges();
   } catch(err) {
@@ -288,9 +293,10 @@ const q = isAffairs
 
 function updateBadges() {
   const el = (id) => document.getElementById(id);
-  if (el("badge-addDrop")) el("badge-addDrop").textContent = tabData.addDrop.length;
-  if (el("badge-excuse"))  el("badge-excuse").textContent  = tabData.excuse.length;
-  if (el("badge-visit"))   el("badge-visit").textContent   = tabData.visit.length;
+  if (el("badge-addDrop"))    el("badge-addDrop").textContent    = tabData.addDrop.length;
+  if (el("badge-excuse"))     el("badge-excuse").textContent     = tabData.excuse.length;
+  if (el("badge-visit"))      el("badge-visit").textContent      = tabData.visit.length;
+  if (el("badge-complaints")) el("badge-complaints").textContent = tabData.complaints.length;
 }
 
 function updateStatCards(filtered) {
@@ -532,6 +538,19 @@ function buildDetailRows(tab, item) {
   const courses = (item.courses || [])
     .map(c => `${esc(c.courseName || "-")} (${esc(c.courseCode || "-")}) — الشعبة: ${esc(c.section || "-")}`)
     .join("<br>") || "-";
+
+  if (tab === "complaints") {
+    const typeLabel = item.type === "complaint" ? "شكوى" : item.type === "suggestion" ? "اقتراح" : (item.type || "-");
+    return `
+      <tr><td class="sp-detail-label">النوع</td><td><strong>${esc(typeLabel)}</strong></td></tr>
+      <tr><td class="sp-detail-label">الموضوع</td><td>${esc(item.subject || item.title || "-")}</td></tr>
+      <tr><td class="sp-detail-label">التفاصيل</td><td style="white-space:pre-wrap;">${esc(item.message || item.body || item.content || "-")}</td></tr>
+      <tr><td class="sp-detail-label">تاريخ الإرسال</td><td>${formatDate(item.createdAt)}</td></tr>
+      <tr><td class="sp-detail-label">الحالة</td><td>${statusHtml}</td></tr>
+      <tr><td class="sp-detail-label">الموظف المعالج</td><td>${esc(empName)}</td></tr>
+      ${rejectRow}
+    `;
+  }
 
   return `
     <tr><td class="sp-detail-label">نوع الزيارة</td><td>${visitTypeLabel[item.visitType] || item.visitType || "-"}</td></tr>
@@ -821,7 +840,7 @@ ${isAffairs ? "هذه المادة تابعة لقسم آخر، وليست من 
     btn.addEventListener("click", () => {
       const action = btn.dataset.action;
       if (action === "rejected") {
-        openRejectModal(cfg.collectionName, item.id, async (reason) => {
+        openRejectModal(tab, item.id, async (reason) => {
           await updateRequestStatus(tab, item, "rejected", reason);
         });
       } else {
@@ -834,6 +853,10 @@ ${isAffairs ? "هذه المادة تابعة لقسم آخر، وليست من 
 
   document.getElementById("sidePanel").classList.add("open");
   document.getElementById("spOverlay").classList.add("show");
+
+  // ارتفاع اللوحة الجانبية لأعلى عند كل نقر
+  const spBodyEl = document.getElementById("spBody");
+  if (spBodyEl) spBodyEl.scrollTop = 0;
 }
 
 function closeSidePanel() {
@@ -915,6 +938,10 @@ function injectRejectModal() {
         <textarea id="rejectOtherText" placeholder="اكتب سبب الرفض..." rows="3"
           style="width:100%;border:1px solid #ddd;border-radius:8px;padding:8px 10px;font-family:inherit;font-size:0.9rem;resize:vertical;box-sizing:border-box;"></textarea>
       </div>
+      <div id="rejectFreeTextWrap" style="display:none;margin-bottom:16px;">
+        <textarea id="rejectFreeText" placeholder="اكتب سبب الرفض..." rows="4"
+          style="width:100%;border:1px solid #ddd;border-radius:8px;padding:8px 10px;font-family:inherit;font-size:0.9rem;resize:vertical;box-sizing:border-box;"></textarea>
+      </div>
       <div style="display:flex;gap:10px;justify-content:flex-end;">
         <button id="rejectCancelBtn"  style="padding:8px 20px;border:1px solid #ddd;border-radius:8px;background:#f5f5f5;cursor:pointer;font-family:inherit;">إلغاء</button>
         <button id="rejectConfirmBtn" style="padding:8px 20px;border:none;border-radius:8px;background:#dc2626;color:#fff;cursor:pointer;font-weight:700;font-family:inherit;">تأكيد الرفض</button>
@@ -932,22 +959,35 @@ function injectRejectModal() {
   modal.addEventListener("click", e => { if (e.target === modal) closeRejectModal(); });
 }
 
-function openRejectModal(colName, requestId, onConfirm) {
+function openRejectModal(tab, requestId, onConfirm) {
   const modal = document.getElementById("rejectModal");
   modal.style.display = "flex";
+
+  const isFreeTextOnly = (tab === "excuse" || tab === "visit");
+
+  document.getElementById("rejectReasonList").style.display = isFreeTextOnly ? "none" : "flex";
+  document.getElementById("rejectOtherWrap").style.display  = "none";
+  document.getElementById("rejectFreeTextWrap").style.display = isFreeTextOnly ? "block" : "none";
+
   modal.querySelectorAll('input[name="rejectReason"]').forEach(r => r.checked = false);
-  document.getElementById("rejectOtherWrap").style.display = "none";
   document.getElementById("rejectOtherText").value = "";
+  document.getElementById("rejectFreeText").value = "";
 
   document.getElementById("rejectConfirmBtn").onclick = async () => {
-    const selected = modal.querySelector('input[name="rejectReason"]:checked');
-    if (!selected) { alert("رجاءً اختر سبب الرفض"); return; }
-    if (selected.value === "other" && !document.getElementById("rejectOtherText").value.trim()) {
-      alert("رجاءً اكتب سبب الرفض"); return;
+    let reason;
+    if (isFreeTextOnly) {
+      reason = document.getElementById("rejectFreeText").value.trim();
+      if (!reason) { alert("رجاءً اكتب سبب الرفض"); return; }
+    } else {
+      const selected = modal.querySelector('input[name="rejectReason"]:checked');
+      if (!selected) { alert("رجاءً اختر سبب الرفض"); return; }
+      if (selected.value === "other" && !document.getElementById("rejectOtherText").value.trim()) {
+        alert("رجاءً اكتب سبب الرفض"); return;
+      }
+      reason = selected.value === "other"
+        ? document.getElementById("rejectOtherText").value.trim()
+        : REJECT_REASONS.find(r => r.value === selected.value).label;
     }
-    const reason = selected.value === "other"
-      ? document.getElementById("rejectOtherText").value.trim()
-      : REJECT_REASONS.find(r => r.value === selected.value).label;
     closeRejectModal();
     await onConfirm(reason);
   };

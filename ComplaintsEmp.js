@@ -12,7 +12,7 @@
 
 import { auth, db } from "./firebase.js";
 import {
-  collection, query, where, onSnapshot,
+  collection, query, where, onSnapshot, getDocs,
   doc, updateDoc, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
@@ -55,6 +55,34 @@ let currentEmpUid         = null;
 let currentEmpName        = "-";
 let currentDeptKey        = null;   // مثال: "physics"
 let unsubscribeComplaints = null;
+let alreadyInitialized    = false;  // يمنع التهيئة المزدوجة عند تكرار onAuthStateChanged
+const studentsCache       = {};     // كاش بيانات الطلاب (لعرض الاسم والرقم الجامعي)
+
+// ── جلب بيانات الطالب (الاسم والرقم الجامعي) ────────
+async function getStudentInfo(uid) {
+  if (!uid) return null;
+  if (studentsCache[uid]) return studentsCache[uid];
+
+  try {
+    const snap = await getDoc(doc(db, "students", uid));
+    if (snap.exists()) {
+      studentsCache[uid] = { _uid: uid, ...snap.data() };
+      return studentsCache[uid];
+    }
+  } catch (e) {}
+
+  try {
+    const q = query(collection(db, "students"), where("studentId", "==", uid));
+    const snap = await getDocs(q);
+    if (!snap.empty) {
+      studentsCache[uid] = { _uid: uid, ...snap.docs[0].data() };
+      return studentsCache[uid];
+    }
+  } catch (e) {}
+
+  studentsCache[uid] = { _uid: uid, fullName: "-", studentId: "-" };
+  return studentsCache[uid];
+}
 
 // ── حقن التبويب في السايدبار ────────────────────────
 function injectSidebarTab() {
@@ -130,6 +158,7 @@ function injectComplaintsSection() {
         <table class="admin-table">
           <thead>
             <tr>
+              <th>الطالب</th>
               <th>النوع</th>
               <th>العنوان</th>
               <th>الحالة</th>
@@ -232,7 +261,7 @@ function updateBadge() {
 }
 
 // ── عرض الجدول ─────────────────────────────────────
-function renderComplaints() {
+async function renderComplaints() {
   let filtered = [...complaintsData];
 
   if (cStatusFilter !== "all") {
@@ -269,34 +298,49 @@ function renderComplaints() {
   if (!filtered.length) { empty.style.display = ""; return; }
   empty.style.display = "none";
 
-  filtered.forEach(c => {
+  // نجلب بيانات كل الطلاب المعنيين دفعة واحدة (مع كاش)
+  const studentInfos = await Promise.all(
+    filtered.map(c => getStudentInfo(c.studentUid))
+  );
+
+  filtered.forEach((c, i) => {
     const status  = c.status || "new";
     const icon    = TYPE_ICON[c.type] || "ti-message";
     const dateStr = c.createdAt?.toDate
       ? c.createdAt.toDate().toLocaleDateString("ar-SA-u-ca-gregory")
       : "-";
+    const student = studentInfos[i];
+    const studentName = student?.fullName || c.studentEmail || "-";
+    const studentNum  = student?.studentId || student?.universityId || "-";
 
     const tr = document.createElement("tr");
     tr.style.cursor = "pointer";
     tr.innerHTML = `
+      <td>
+        <div style="font-weight:600;">${esc(studentName)}</div>
+        <div style="font-size:12px;color:#64748b;">${esc(studentNum)}</div>
+      </td>
       <td><i class="ti ${icon}" style="font-size:16px;color:var(--primary);"></i> ${esc(c.type || "-")}</td>
       <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(c.subject || "-")}</td>
       <td><span class="status-badge s-${status}">${COMPLAINT_STATUS_LABEL[status] || status}</span></td>
       <td>${dateStr}</td>
       <td><button class="detail-btn">عرض <i class="ti ti-chevron-left detail-chevron"></i></button></td>
     `;
-    tr.addEventListener("click", () => openPanel(c));
+    tr.addEventListener("click", () => openPanel(c, student));
     tbody.appendChild(tr);
   });
 }
 
 // ── اللوحة الجانبية ─────────────────────────────────
-function openPanel(c) {
+function openPanel(c, student) {
   activeComplaint = c;
   const status  = c.status || "new";
   const dateStr = c.createdAt?.toDate
     ? c.createdAt.toDate().toLocaleDateString("ar-SA-u-ca-gregory")
     : "-";
+  const stu = student || studentsCache[c.studentUid] || null;
+  const studentName = stu?.fullName || c.studentEmail || "-";
+  const studentNum  = stu?.studentId || stu?.universityId || "-";
   const attachHtml = c.attachmentUrl
     ? `<a href="${esc(c.attachmentUrl)}" target="_blank" rel="noopener"
          style="color:var(--primary);text-decoration:underline;">
@@ -316,6 +360,10 @@ function openPanel(c) {
   document.getElementById("ecSpBody").innerHTML = `
     <div class="sp-detail-card" style="margin-bottom:16px;">
       <table class="sp-detail-table">
+        <tr><td class="sp-detail-label">اسم الطالب</td>
+            <td>${esc(studentName)}</td></tr>
+        <tr><td class="sp-detail-label">الرقم الجامعي</td>
+            <td>${esc(studentNum)}</td></tr>
         <tr><td class="sp-detail-label">النوع</td>
             <td>${esc(c.type || "-")}</td></tr>
         <tr><td class="sp-detail-label">الحالة</td>
@@ -410,13 +458,14 @@ function switchToComplaints() {
   document.querySelectorAll(".emp-tab-btn").forEach(t => t.classList.remove("active"));
   document.getElementById("navComplaintsEmp")?.classList.add("active");
 
-  const empWelcome = document.querySelector(".emp-welcome");
-  if (empWelcome) empWelcome.style.display = "none";
+  // ملاحظة: رسالة الترحيب (.emp-welcome) تبقى ظاهرة دائماً، توحيدًا مع باقي التبويبات
 
-  const originalStats = document.querySelector(".admin-stats-grid:not(#empComplaintsSection .admin-stats-grid)");
-  const originalTable = document.querySelector(".admin-table-card:not(#empComplaintsSection .admin-table-card)");
-  if (originalStats) originalStats.style.display = "none";
-  if (originalTable) originalTable.style.display = "none";
+  document.querySelectorAll(".admin-stats-grid").forEach(el => {
+    if (!el.closest("#empComplaintsSection")) el.style.display = "none";
+  });
+  document.querySelectorAll(".admin-table-card").forEach(el => {
+    if (!el.closest("#empComplaintsSection")) el.style.display = "none";
+  });
 
   const cs = document.getElementById("empComplaintsSection");
   if (cs) cs.style.display = "";
@@ -431,10 +480,12 @@ function hideComplaintsSection() {
   const cs = document.getElementById("empComplaintsSection");
   if (cs) cs.style.display = "none";
 
-  const originalStats = document.querySelector(".admin-stats-grid:not(#empComplaintsSection .admin-stats-grid)");
-  const originalTable = document.querySelector(".admin-table-card:not(#empComplaintsSection .admin-table-card)");
-  if (originalStats) originalStats.style.display = "";
-  if (originalTable) originalTable.style.display = "";
+  document.querySelectorAll(".admin-stats-grid").forEach(el => {
+    if (!el.closest("#empComplaintsSection")) el.style.display = "";
+  });
+  document.querySelectorAll(".admin-table-card").forEach(el => {
+    if (!el.closest("#empComplaintsSection")) el.style.display = "";
+  });
 
   const empWelcome = document.querySelector(".emp-welcome");
   if (empWelcome) empWelcome.style.display = "";
@@ -457,6 +508,8 @@ function esc(str) {
 // ── تهيئة ───────────────────────────────────────────
 onAuthStateChanged(auth, async user => {
   if (!user) return;
+  if (alreadyInitialized) return;   // يمنع تشغيل التهيئة أكثر من مرة لو تكرر onAuthStateChanged
+  alreadyInitialized = true;
 
   try {
     const snap = await getDoc(doc(db, "employees", user.uid));
