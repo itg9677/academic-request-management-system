@@ -295,7 +295,7 @@
 .employee-dashboard-page .emp-detail-btn {
     padding: 5px 12px;
     border-radius: 6px;
-    font-size: 14px;
+    font-size: 13px;
     cursor: pointer;
     background: #e8edf5;
     color: #1a3a6b;
@@ -419,14 +419,15 @@
   box-shadow: 0 0 0 2px #c8972b;
 }
 
-/* Total card — dark navy */
-.stat-total {
-  background: #1a3a6b !important;
-  border-color: #1a3a6b !important;
+/* Total card — dark navy فقط عند التحديد (active)، نفس سلوك بقية الكروت */
+.admin-stat-card.stat-total.active,
+.emp-stat-card.stat-total.active {
+  background: #1a3a6b;
+  border-color: #1a3a6b;
 }
-.stat-total .stat-num   { color: #fff; }
-.stat-total .stat-label { color: rgba(255,255,255,0.7); }
-.stat-total .stat-icon  { background: #c8972b; color: #1a3a6b; }
+.stat-total.active .stat-num   { color: #fff; }
+.stat-total.active .stat-label { color: rgba(255,255,255,0.7); }
+.stat-total.active .stat-icon  { background: #c8972b; color: #1a3a6b; }
 
 /* Stat icon circle */
 .stat-icon {
@@ -645,7 +646,7 @@
   border: 1px solid #e8edf5;
   border-radius: 8px;
   padding: 6px 14px;
-  font-size: 15px;
+  font-size: 13px;
   cursor: pointer;
   color: #1f2937;
   transition: background .2s;
@@ -782,12 +783,12 @@
 
 .sp-detail-table td {
   padding: 9px 14px;
-  font-size: 10px;
+  font-size: 13px;
   border-bottom: 1px solid #e8edf5;
 }
 
 .sp-detail-table tr:last-child td { border-bottom: none; }
-.sp-detail-label { color: #6b7280; width: 40%; }
+.sp-detail-label { color: #6b7280; width: 70%; }
 
 .sp-section-title {
   font-size: 9px;
@@ -871,7 +872,7 @@
   gap: 8px;
   padding: 9px 14px;
   border-bottom: 0.5px solid #e2e8f0;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 /* هيدر التخصص — أزرق */
@@ -922,7 +923,7 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: 9px;
+  font-size: 11px;
   padding: 2px 10px;
   border-radius: 999px;
 }

@@ -69,20 +69,8 @@
 .stat-approved .stat-icon{ background: #eafaf2; color: #1a7a4a; }
 .stat-rejected .stat-icon{ background: #fef0f0; color: #c0392b; }
 
-/* لون بطاقة "جديد" يظهر فقط عند التحديد (active) — نفس أسلوب باقي البطاقات، بدون تمييز دائم */
-.admin-stat-card.stat-new.active,
-.emp-stat-card.stat-new.active {
-  background: #1a3a6b;
-  border-color: #1a3a6b;
-}
-.admin-stat-card.stat-new.active .stat-icon,
-.emp-stat-card.stat-new.active .stat-icon,
-.admin-stat-card.stat-new.active .stat-num,
-.emp-stat-card.stat-new.active .stat-num,
-.admin-stat-card.stat-new.active .stat-label,
-.emp-stat-card.stat-new.active .stat-label {
-  color: #fff;
-}
+/* ملاحظة: كرت "جديد" لا يأخذ أي تلوين خاص بعد الآن — يتصرف بالضبط
+   مثل بقية الكروت عند التحديد (نفس تأثير .admin-stat-card.active) */
 
 /* توحيد لون شارة الحالة "جديد" في كل الجداول */
 .status-badge.s-new {
@@ -491,7 +479,7 @@
   border: 1px solid #dce5f5;
   border-radius: 7px;
   padding: 7px 16px;
-  font-size: 17px;
+  font-size: 13px;
   cursor: pointer;
   font-family: inherit;
   display: inline-flex;
@@ -504,7 +492,7 @@
 .detail-btn:hover { background: #e2eaf7; }
 
 .detail-chevron {
-  font-size: 17px;
+  font-size: 13px;
   transition: transform 0.2s;
   display: inline-block;
 }

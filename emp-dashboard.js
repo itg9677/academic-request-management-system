@@ -43,6 +43,7 @@ let currentStatusFilter = "all";
 let searchQuery         = "";
 let currentDeptFilter = "all";
 let activeRequest       = null;
+let renderSeq           = 0;   // معرّف تسلسلي لكل استدعاء renderTab لمنع تداخل نتائج تبويب قديم مع تبويب جديد
 
 // ==================== التواريخ ====================
 
@@ -320,7 +321,12 @@ function updateStatCards(filtered) {
 // ==================== عرض الجدول ====================
 
 async function renderTab() {
-  const cfg   = tabConfig[currentTab];
+  // ✅ كل استدعاء لـ renderTab ياخذ رقم تسلسلي خاص فيه. لو تغيّر التبويب أو صار
+  // استدعاء أحدث قبل ما يخلص هذا الاستدعاء، نوقف تنفيذه فوراً بدل ما يكمل ويكتب
+  // بيانات تبويب قديم فوق تبويب جديد (هذا كان سبب تداخل البيانات بين التبويبات).
+  const mySeq = ++renderSeq;
+  const tab   = currentTab; // نثبّت التبويب المطلوب وقت بداية النداء
+  const cfg   = tabConfig[tab];
 
   const loadingEl   = document.getElementById("loadingState");
   const tableWrapEl = document.getElementById("tableWrap");
@@ -329,17 +335,20 @@ async function renderTab() {
   if (tableWrapEl) tableWrapEl.style.display = "none";
 
   // لو excuse أو visit نجلب من Firestore
-  if (currentTab !== "addDrop") {
+  if (tab !== "addDrop") {
     await loadExcuseAndVisit();
   }
+  if (mySeq !== renderSeq) return; // صار استدعاء أحدث أثناء الانتظار — نتوقف
 
-  const uniqueStudentUids = [...new Set(tabData[currentTab].map(it => it[cfg.studentField]).filter(Boolean))];
+  const uniqueStudentUids = [...new Set(tabData[tab].map(it => it[cfg.studentField]).filter(Boolean))];
   await Promise.all(uniqueStudentUids.map(uid => getStudent(uid)));
+  if (mySeq !== renderSeq) return;
 
-  const uniqueEmpUids = [...new Set(tabData[currentTab].map(it => it.assignedEmployee).filter(Boolean))];
+  const uniqueEmpUids = [...new Set(tabData[tab].map(it => it.assignedEmployee).filter(Boolean))];
   await Promise.all(uniqueEmpUids.map(uid => getEmployeeName(uid)));
+  if (mySeq !== renderSeq) return;
 
-  let filtered = [...tabData[currentTab]];
+  let filtered = [...tabData[tab]];
   let statsItems = [...filtered];
 
     // ✅ فلتر الأقسام — يعمل على كل التبويبات لشؤون الطالبات
@@ -401,7 +410,7 @@ updateStatCards(statsItems);
   // إظهار / إخفاء منطقة تصدير الأعذار
   const excuseExportWrap = document.getElementById("excuseExportWrap");
   if (excuseExportWrap) {
-    excuseExportWrap.style.display = (currentTab === "excuse") ? "" : "none";
+    excuseExportWrap.style.display = (tab === "excuse") ? "" : "none";
   }
 
   if (loadingEl)   loadingEl.style.display  = "none";
@@ -416,7 +425,7 @@ updateStatCards(statsItems);
   } else {
     if (emptyState) emptyState.style.display = "none";
     sortedUids.forEach(uid => {
-      tbody.appendChild(buildRow(currentTab, uid, byStudent[uid]));
+      tbody.appendChild(buildRow(tab, uid, byStudent[uid]));
     });
   }
 

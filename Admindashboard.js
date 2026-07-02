@@ -16,46 +16,15 @@ import { getAuth, createUserWithEmailAndPassword } from "https://www.gstatic.com
 console.log("FILE LOADED");
 
 // ==================== State ====================
-// ==================== تحميل بيانات الأدمن ====================
-
-onAuthStateChanged(auth, async (user) => {
-  if (!user) {
-    window.location.href = "loginPage.html"; // أو اسم صفحة تسجيل الدخول عندك
-    return;
-  }
-
-  try {
-    // جلب بيانات الموظف من Firestore
-    const snap = await getDoc(doc(db, "employees", user.uid));
-
-    if (snap.exists()) {
-      currentAdminData = {
-        docId: user.uid,
-        ...snap.data()
-      };
-
-      // حفظ اسم الموظف في الكاش
-      employeesCache[user.uid] = currentAdminData.fullName || "موظف";
-
-      // عرض الاسم في الصفحة
-      document.getElementById("adminName").textContent = currentAdminData.fullName || "";
-      document.getElementById("adminEmail").textContent = currentAdminData.email || "";
-      document.getElementById("adminNameWelcome").textContent = currentAdminData.fullName || "";
-
-      // تحميل البيانات بعد تحميل بيانات الأدمن
-      injectRejectModal();
-      loadAllData();
-
-    } else {
-      console.error("لم يتم العثور على بيانات الموظف في employees/");
-    }
-
-  } catch (err) {
-    console.error("خطأ في تحميل بيانات الأدمن:", err);
-  }
-});
+// ملاحظة: كان هنا سابقاً استدعاء onAuthStateChanged() قديم ومكرر (نسخة تحقق
+// بسيطة بالـ uid فقط) يشتغل بالتوازي مع النسخة الصحيحة والكاملة في نهاية
+// الملف (اللي تتحقق من isAdmin وتستخدم authStateReady). وجود نسختين كانا
+// يسببان تحميل مزدوج للبيانات (loadAllData مرتين) وتضارب/تداخل في العرض
+// عند فتح الصفحة أو أحياناً لاحقاً. تم حذف النسخة القديمة والإبقاء على
+// النسخة الصحيحة فقط (بالأسفل، داخل auth.authStateReady().then(...)).
 
 let currentAdminData = null;
+let navListenersAttached = false; // يمنع إضافة مستمعي الأحداث أكثر من مرة لو تكرر إطلاق onAuthStateChanged
 
 const studentsCache  = {};
 const employeesCache = {};
@@ -70,6 +39,7 @@ let currentExcuseExamType  = "all";
 let currentExcuseStatus    = "all";
 let searchQuery         = "";
 let activeRequest       = null;
+let renderSeq           = 0;   // معرّف تسلسلي لكل استدعاء renderTab لمنع تداخل بيانات تبويب قديم مع تبويب جديد
 let currentSemesterData   = null;
 let allSemestersCache     = [];   // كاش لكل الفصول (نستخدمه في inferSemesterFromDate)
 
@@ -563,20 +533,28 @@ function getEffectiveStatus(item) {
 }
 
 async function renderTab() {
-  const cfg   = tabConfig[currentTab];
-  const items = tabData[currentTab];
+  // ✅ كل استدعاء لـ renderTab ياخذ رقم تسلسلي خاص فيه. لو صار تبديل تبويب/قسم
+  // (إحصائيات، الفصل الدراسي، حذف وإضافة، أعذار، زيارة...) أو استدعاء renderTab
+  // جديد قبل ما يخلص هذا الاستدعاء القديم، نوقف تنفيذه فوراً بدل ما يكمل ويكتب
+  // بيانات تبويب قديم فوق تبويب جديد — وهذا هو سبب تداخل البيانات بين التبويبات.
+  const mySeq = ++renderSeq;
+  const tab   = currentTab; // نثبّت التبويب المطلوب وقت بداية النداء
+  const cfg   = tabConfig[tab];
+  const items = tabData[tab];
 
   // تأكد من إظهار الجدول ومنطقة البحث عند كل render
   const tableWrapEl = document.getElementById("tableWrap");
-  const searchRowEl = document.querySelector(".admin-search-row");
+  const searchRowEl = document.getElementById("mainSearchRow");
   if (tableWrapEl) tableWrapEl.style.display = "";
   if (searchRowEl) searchRowEl.style.display = "";
 
   const uniqueStudentUids = [...new Set(items.map((it) => it[cfg.studentField]).filter(Boolean))];
   await Promise.all(uniqueStudentUids.map((uid) => getStudent(uid)));
+  if (mySeq !== renderSeq) return; // صار استدعاء أحدث أثناء الانتظار — نتوقف
 
   const uniqueEmpUids = [...new Set(items.map((it) => it.assignedEmployee).filter(Boolean))];
   await Promise.all(uniqueEmpUids.map((uid) => getEmployeeName(uid)));
+  if (mySeq !== renderSeq) return;
 
   let filtered = items.filter((it) => {
     const itemSem = getItemSemester(it);
@@ -592,7 +570,7 @@ async function renderTab() {
  updateStatCards(filtered);
  
   // فلاتر خاصة بتبويب الأعذار
-  if (currentTab === "excuse") {
+  if (tab === "excuse") {
     if (currentExcuseDept !== "all") {
       filtered = filtered.filter(it => {
         const student = studentsCache[it[cfg.studentField]] || {};
@@ -651,7 +629,7 @@ async function renderTab() {
     emptyState.style.display = "none";
     sortedUids.forEach((uid) => {
       const studentRequests = byStudent[uid];
-      tbody.appendChild(buildRow(currentTab, uid, studentRequests));
+      tbody.appendChild(buildRow(tab, uid, studentRequests));
     });
   }
 
@@ -666,10 +644,10 @@ async function renderTab() {
     infoBar.style.display = "none";
   }
 
-  // إظهار / إخفاء فلاتر + زر تصدير الأعذار (مثل الموظف)
-  const excuseFiltersWrap = document.getElementById("excuseFiltersWrap");
-  if (excuseFiltersWrap) {
-    excuseFiltersWrap.style.display = (currentTab === "excuse") ? "" : "none";
+  // إظهار / إخفاء صف فلاتر الأعذار (أقسام + أنواع اختبارات + حالات + تصدير)
+  const excuseFiltersRow = document.getElementById("excuseFiltersRow");
+  if (excuseFiltersRow) {
+    if (tab === "excuse") { excuseFiltersRow.classList.add("show"); } else { excuseFiltersRow.classList.remove("show"); }
   }
 }
 
@@ -2095,7 +2073,7 @@ document.querySelectorAll(".admin-tab").forEach((btn) => {
     // إعادة إظهار الجدول ومنطقة البحث (قد تكون اختفت عند فتح الإحصائيات أو الفصل)
     const tableWrapEl2 = document.getElementById("tableWrap");
     if (tableWrapEl2) tableWrapEl2.style.display = "";
-    const searchRowEl = document.querySelector(".admin-search-row");
+    const searchRowEl = document.getElementById("mainSearchRow");
     if (searchRowEl) searchRowEl.style.display = "";
 
     // إخفاء فلتر أقسام الإحصائيات
@@ -2113,12 +2091,39 @@ document.querySelectorAll(".admin-tab").forEach((btn) => {
       }
     }
 
-    // إظهار فلتر الأقسام العام في تبويبي "الحذف والإضافة" و"الزيارة" فقط (الأعذار له فلتر أقسام خاص به)
+    // فلتر الأقسام العام — يظهر في: طلبات الحذف/الإضافة + طلبات الزيارة فقط
     const deptFilterWrapEl = document.getElementById("deptFilterWrap");
     if (deptFilterWrapEl) {
       deptFilterWrapEl.style.display = (currentTab === "addDrop" || currentTab === "visit") ? "" : "none";
       if (currentTab !== "addDrop" && currentTab !== "visit") {
         currentDeptFilter = "all";
+      }
+    }
+
+    // فلتر الفصل الدراسي — يظهر في: طلبات الحذف/الإضافة + طلبات الزيارة + طلبات الأعذار
+    const semesterFilterWrapEl = document.getElementById("semesterFilterWrap");
+    if (semesterFilterWrapEl) {
+      semesterFilterWrapEl.style.display =
+        (currentTab === "addDrop" || currentTab === "visit" || currentTab === "excuse") ? "" : "none";
+    }
+
+    // صف فلاتر الأعذار (أقسام + أنواع اختبارات + حالات + تصدير) — يظهر في الأعذار فقط
+    const excuseFiltersRowEl = document.getElementById("excuseFiltersRow");
+    if (excuseFiltersRowEl) {
+      if (currentTab === "excuse") {
+        excuseFiltersRowEl.classList.add("show");
+      } else {
+        excuseFiltersRowEl.classList.remove("show");
+        // إعادة تعيين فلاتر الأعذار عند الخروج
+        currentExcuseDept     = "all";
+        currentExcuseExamType = "all";
+        currentExcuseStatus   = "all";
+        const eDept = document.getElementById("excuseDeptFilter");
+        const eExam = document.getElementById("excuseExamTypeFilter");
+        const eStat = document.getElementById("excuseStatusExportFilter");
+        if (eDept) eDept.value = "all";
+        if (eExam) eExam.value = "all";
+        if (eStat) eStat.value = "all";
       }
     }
 
@@ -2129,6 +2134,10 @@ document.querySelectorAll(".admin-tab").forEach((btn) => {
     // إخفاء قسم الإحصائيات
     const dashboardSectionEl = document.getElementById("dashboardSection");
     if (dashboardSectionEl) dashboardSectionEl.style.display = "none";
+
+    // إظهار بطاقة الجدول
+    const requestsTableCard = document.getElementById("requestsTableCard");
+    if (requestsTableCard) requestsTableCard.style.display = "";
 
     // إظهار كاردات الفلتر (الكل / جديد / قيد المراجعة / مقبول / مرفوض)
     const statsGridEl = document.querySelector(".admin-stats-grid");
@@ -2386,14 +2395,15 @@ function getEmpName(uid) {
   return employeesCache[uid]?.fullName || uid;
 }
 
-// إظهار الإحصائيات
+// إظهار الإحصائيات — نسجّل المستمع مرة واحدة فقط حتى لو تكرر إطلاق onAuthStateChanged
+if (!navListenersAttached) {
 navStats.addEventListener("click", () => {
   dashboardSection.style.display = "";
-  statsGrid.style.display = "none";   // إخفاء فلاتر الحالة
+  statsGrid.style.display = "none";   // إخفاء كاردات الحالة
   if (semesterSection) semesterSection.style.display = "none";
 
   // إخفاء منطقة البحث والجدول
-  const searchRowEl = document.querySelector(".admin-search-row");
+  const searchRowEl = document.getElementById("mainSearchRow");
   if (searchRowEl) searchRowEl.style.display = "none";
   const tableWrapEl2 = document.getElementById("tableWrap");
   if (tableWrapEl2) tableWrapEl2.style.display = "none";
@@ -2401,6 +2411,17 @@ navStats.addEventListener("click", () => {
   if (loadingEl2) loadingEl2.style.display = "none";
   const visitUploadAreaEl = document.getElementById("visitUploadArea");
   if (visitUploadAreaEl) visitUploadAreaEl.style.display = "none";
+
+  // إخفاء كل فلاتر الطلبات
+  const _dfw = document.getElementById("deptFilterWrap");
+  if (_dfw) _dfw.style.display = "none";
+  const _sfw = document.getElementById("semesterFilterWrap");
+  if (_sfw) _sfw.style.display = "none";
+  const _efw = document.getElementById("excuseFiltersRow");
+  if (_efw) _efw.classList.remove("show");
+  // إخفاء بطاقة الجدول
+  const _rtc = document.getElementById("requestsTableCard");
+  if (_rtc) _rtc.style.display = "none";
 
   setActiveSidebarItem("navStats");
   renderDeptFilterForStats();
@@ -2410,11 +2431,11 @@ navStats.addEventListener("click", () => {
 if (navSemester) {
   navSemester.addEventListener("click", async () => {
     dashboardSection.style.display = "none";
-    statsGrid.style.display = "none";   // إخفاء فلاتر الحالة
+    statsGrid.style.display = "none";   // إخفاء كاردات الحالة
     if (semesterSection) semesterSection.style.display = "";
 
     // إخفاء منطقة البحث والجدول
-    const searchRowEl = document.querySelector(".admin-search-row");
+    const searchRowEl = document.getElementById("mainSearchRow");
     if (searchRowEl) searchRowEl.style.display = "none";
     const tableWrapEl2 = document.getElementById("tableWrap");
     if (tableWrapEl2) tableWrapEl2.style.display = "none";
@@ -2423,10 +2444,24 @@ if (navSemester) {
     const visitUploadAreaEl = document.getElementById("visitUploadArea");
     if (visitUploadAreaEl) visitUploadAreaEl.style.display = "none";
 
+    // إخفاء كل فلاتر الطلبات
+    const _dfw = document.getElementById("deptFilterWrap");
+    if (_dfw) _dfw.style.display = "none";
+    const _sfw = document.getElementById("semesterFilterWrap");
+    if (_sfw) _sfw.style.display = "none";
+    const _efw = document.getElementById("excuseFiltersRow");
+    if (_efw) _efw.classList.remove("show");
+    // إخفاء بطاقة الجدول
+    const _rtc = document.getElementById("requestsTableCard");
+    if (_rtc) _rtc.style.display = "none";
+
     setActiveSidebarItem("navSemester");
     await loadSemesterInfo();
   });
 }
+
+navListenersAttached = true;
+} // نهاية حارس navListenersAttached
 
 // ملاحظة: handler التبويبات الرئيسي موجود في قسم "أحداث الواجهة" أعلاه
 
@@ -2679,7 +2714,8 @@ function buildCharts() {
 
 // لوحة التحكم (navHome) قابلة للضغط - تعيد للتبويب الافتراضي
 const navHome = document.getElementById("navHome");
-if (navHome) {
+if (navHome && !navHome.dataset.listenerAttached) {
+  navHome.dataset.listenerAttached = "1";
   navHome.style.cursor = "pointer";
   navHome.addEventListener("click", () => {
     // إخفاء الأقسام الأخرى
@@ -2692,7 +2728,7 @@ if (navHome) {
 
     // إظهار الكاردز والجدول والبحث
     if (statsGrid) statsGrid.style.display = "";
-    const searchRowEl = document.querySelector(".admin-search-row");
+    const searchRowEl = document.getElementById("mainSearchRow");
     if (searchRowEl) searchRowEl.style.display = "";
 
     // تفعيل تبويب الحذف والإضافة (الافتراضي)
@@ -2709,6 +2745,15 @@ if (navHome) {
     // إخفاء زيارة upload area
     const visitUploadAreaEl = document.getElementById("visitUploadArea");
     if (visitUploadAreaEl) visitUploadAreaEl.style.display = "none";
+
+    // إظهار فلاتر تبويب الحذف/الإضافة (كل الأقسام + الفصل الدراسي فقط)
+    const deptFilterWrapEl = document.getElementById("deptFilterWrap");
+    if (deptFilterWrapEl) deptFilterWrapEl.style.display = "";
+    const semesterFilterWrapEl = document.getElementById("semesterFilterWrap");
+    if (semesterFilterWrapEl) semesterFilterWrapEl.style.display = "";
+    // إخفاء صف فلاتر الأعذار
+    const excuseFiltersRowEl = document.getElementById("excuseFiltersRow");
+    if (excuseFiltersRowEl) excuseFiltersRowEl.classList.remove("show");
 
     // إعادة تعيين الفلاتر
     currentStatusFilter = "all";
