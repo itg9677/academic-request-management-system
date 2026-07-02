@@ -398,6 +398,21 @@
 
 
 
+          <!-- فلاتر خاصة بتبويب الأعذار (قسم + نوع الاختبار + حالة) — تظهر فقط داخل تبويب الأعذار -->
+          <div class="excuse-filters-wrap" id="excuseFiltersWrap" style="display:none;">
+
+            <div class="dept-filter-pill" id="excuseDeptFilterWrap">
+              <i class="ti ti-filter"></i>
+              <select id="excuseDeptFilter">
+                <option value="all">كل الأقسام</option>
+                <option value="رياضيات">رياضيات</option>
+                <option value="فيزياء">فيزياء</option>
+                <option value="كيمياء">كيمياء</option>
+                <option value="أحياء">أحياء</option>
+                <option value="إحصاء">إحصاء</option>
+              </select>
+            </div>
+
             <div class="dept-filter-pill">
               <i class="ti ti-pencil"></i>
               <select id="excuseExamTypeFilter">
@@ -408,16 +423,7 @@
               </select>
             </div>
 
-            <div class="dept-filter-pill">
-              <i class="ti ti-adjustments-horizontal"></i>
-              <select id="excuseStatusExportFilter">
-                <option value="all">كل الحالات</option>
-                <option value="new">جديد</option>
-                <option value="under_review">قيد المراجعة</option>
-                <option value="approved">مقبول</option>
-                <option value="rejected">مرفوض</option>
-              </select>
-            </div>
+
 
             <button class="excel-export-btn" id="exportExcuseExcelBtn">
               <i class="ti ti-file-spreadsheet"></i>
@@ -562,15 +568,6 @@
       font-size: 14px;
     }
     .ta-input:focus { outline: none; border-color: #1a3a6b; }
-<<<<<<< HEAD
-
-    /* ملاحظة: تنسيق بطاقة/شارة "جديد" أصبح موحّداً ومُدارًا من adminStyle.css */
-
-    /* ===== تصغير الجدول — عمودياً فقط ===== */
-    .admin-table th,
-    .admin-table td { padding-top: 6px; padding-bottom: 6px; }
-=======
->>>>>>> 4cf07426418a75ade22b2923d50cabec4111f16f
   </style>
 
   <script type="module" src="Admindashboard.js"></script>

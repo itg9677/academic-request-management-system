@@ -215,8 +215,12 @@ async function getEmployeeName(uid) {
 }
 
 function getReqDepartment(item, student) {
-  const raw = item.assignedDepartment || (student && student.major) || null;
-  return raw ? String(raw).trim() : null;
+  // القسم الأكاديمي الحقيقي (تخصص الطالبة) له الأولوية دائمًا.
+  // "assignedDepartment" يمثل الجهة المسؤولة عن معالجة الطلب فقط، وقد تكون
+  // "شؤون الطالبات" حتى لو الطالبة من قسم أكاديمي محدد (مثل أعذار الاختبار النهائي)،
+  // لذلك لا نعتمد عليه إلا إذا لم نجد أي قسم أكاديمي حقيقي.
+  const academicDept = item.major || (student && (student.major || student.department));
+  return academicDept || item.assignedDepartment || null;
 }
 
 // ==================== بناء صفوف بيانات الطالب (كل الحقول الموجودة فعلاً) ====================
@@ -567,14 +571,12 @@ async function renderTab() {
     return getReqDepartment(it, student) === currentDeptFilter;
   });
 
- updateStatCards(filtered);
- 
   // فلاتر خاصة بتبويب الأعذار
   if (tab === "excuse") {
     if (currentExcuseDept !== "all") {
       filtered = filtered.filter(it => {
         const student = studentsCache[it[cfg.studentField]] || {};
-        const dept = it.assignedDepartment || student.major || student.department || "";
+        const dept = getReqDepartment(it, student) || "";
         return dept === currentExcuseDept;
       });
     }
@@ -585,6 +587,7 @@ async function renderTab() {
       filtered = filtered.filter(it => getEffectiveStatus(it) === currentExcuseStatus);
     }
   }
+updateStatCards(filtered);
 
   if (currentStatusFilter !== "all") {
     filtered = filtered.filter((it) => getEffectiveStatus(it) === currentStatusFilter);
@@ -1699,15 +1702,15 @@ function getVisitDeptName(dept) {
 
 function getVisitPlaceName(place) {
   const names = {
-    badaya: "البدايع",
+    badaya: "البدائع",
     unaizah: "عنيزة",
     rass: "الرس",
-    asyah: "الاسياح",
+    asyah: "الأسياح",
     bukayriyah: "البكيرية",
     riyadh_alkhabra: "رياض الخبراء",
     mithnab: "المذنب",
-    uqlat_suqur: "عقلة صقور",
-    nihaniyah: "النيهانية"
+    uqlat_suqur: "عقلة الصقور",
+    nihaniyah: "النبهانية"
   };
   return names[place] || place;
 }
@@ -2201,7 +2204,7 @@ function getFilteredExcuseItemsForExport() {
   if (currentExcuseDept !== "all") {
     items = items.filter((it) => {
       const student = studentsCache[it[cfg.studentField]] || {};
-      const dept = it.assignedDepartment || student.major || student.department || "";
+      const dept = getReqDepartment(it, student) || "";
       return dept === currentExcuseDept;
     });
   }
