@@ -1,58 +1,106 @@
+// complaints-admin.js
+// إدارة الشكاوى والاقتراحات في لوحة الأدمن
+
 import { auth, db } from "./firebase.js";
 import {
-  collection, query, getDocs, doc, getDoc, updateDoc, serverTimestamp, onSnapshot, where
+  collection,
+  query,
+  getDocs,
+  doc,
+  getDoc,
+  updateDoc,
+  serverTimestamp,
+  onSnapshot,
+  where,
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
-// ── خريطة مفاتيح الأقسام ───────────────────────────
+// ── ثوابت عامة ──────────────────────────────────────
+
 const DEPT_AR = {
-  physics:    "قسم الفيزياء",
+  physics: "قسم الفيزياء",
   statistics: "قسم الإحصاء",
-  math:       "قسم الرياضيات",
-  biology:    "قسم الأحياء",
-  chemistry:  "قسم الكيمياء",
-  college:    "الكلية",
+  math: "قسم الرياضيات",
+  biology: "قسم الأحياء",
+  chemistry: "قسم الكيمياء",
+  college: "الكلية",
 };
 
 const COMPLAINT_STATUS_LABEL = {
-  new:          "جديد",
+  new: "جديد",
   under_review: "قيد المراجعة",
-  resolved:     "تمت المعالجة",
-  dismissed:    "مرفوض",
+  resolved: "تمت المعالجة",
+  dismissed: "مرفوض",
 };
 
 const TYPE_ICON = {
-  "شكوى":     "ti-alert-circle",
-  "اقتراح":   "ti-bulb",
-  "استفسار":  "ti-help-circle",
+  شكوى: "ti-alert-circle",
+  اقتراح: "ti-bulb",
+  استفسار: "ti-help-circle",
 };
 
-// ── state ───────────────────────────────────────────
-let complaintsData       = [];
-let cStatusFilter        = "all";
-let cSearchQuery         = "";
-let cTargetFilter        = "all";
-let cTypeFilter          = "all";
-let activeComplaint      = null;
-let currentAdminUid      = null;
-let currentAdminName     = "الأدمن";
-let unsubscribeComplaints = null;
-let alreadyInitialized    = false;  // يمنع التهيئة المزدوجة عند تكرار onAuthStateChanged
-const studentsCache       = {};     // كاش بيانات الطلاب (الاسم والرقم الجامعي)
+// ── حالة التطبيق (State) ────────────────────────────
 
-// ── جلب بيانات الطالب (الاسم والرقم الجامعي) ────────
+let complaintsData = [];
+let cStatusFilter = "all";
+let cSearchQuery = "";
+let cTargetFilter = "all";
+let cTypeFilter = "all";
+
+let activeComplaint = null;
+let currentAdminUid = null;
+let currentAdminName = "الأدمن";
+
+let unsubscribeComplaints = null;
+let alreadyInitialized = false;
+
+const studentsCache = {}; // كاش بيانات الطلاب
+
+// ── دوال مساعدة عامة ───────────────────────────────
+
+function esc(str) {
+  if (str == null) return "";
+  return String(str).replace(/[&<>"']/g, (c) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;",
+  }[c]));
+}
+
+function getDeptLabel(complaint) {
+  if (complaint.target === "college") return "الكلية";
+  return (
+    DEPT_AR[complaint.departmentKey] ||
+    complaint.targetAr ||
+    complaint.departmentKey ||
+    "-"
+  );
+}
+
+function getStatusLabel(status) {
+  return COMPLAINT_STATUS_LABEL[status] || status;
+}
+
+// ── جلب بيانات الطالب ──────────────────────────────
+
 async function getStudentInfo(uid) {
   if (!uid) return null;
   if (studentsCache[uid]) return studentsCache[uid];
 
+  // بحث بالـ UID كـ document id
   try {
     const docSnap = await getDoc(doc(db, "students", uid));
     if (docSnap.exists()) {
       studentsCache[uid] = { _uid: uid, ...docSnap.data() };
       return studentsCache[uid];
     }
-  } catch (e) {}
+  } catch (e) {
+    console.error("getStudentInfo by doc id error:", e);
+  }
 
+  // بحث بالـ studentId كـ حقل
   try {
     const q = query(collection(db, "students"), where("studentId", "==", uid));
     const snap = await getDocs(q);
@@ -60,22 +108,25 @@ async function getStudentInfo(uid) {
       studentsCache[uid] = { _uid: uid, ...snap.docs[0].data() };
       return studentsCache[uid];
     }
-  } catch (e) {}
+  } catch (e) {
+    console.error("getStudentInfo by studentId error:", e);
+  }
 
   studentsCache[uid] = { _uid: uid, fullName: "-", studentId: "-" };
   return studentsCache[uid];
 }
 
-// ── حقن التبويب في السايدبار ────────────────────────
+// ── حقن عناصر الواجهة ──────────────────────────────
+
 function injectSidebarTab() {
   const nav = document.querySelector(".sb-nav");
   if (!nav || document.getElementById("navComplaintsAdmin")) return;
 
   const item = document.createElement("div");
-  item.className  = "sb-nav-item admin-tab";
+  item.className = "sb-nav-item admin-tab";
   item.dataset.tab = "complaints";
-  item.id          = "navComplaintsAdmin";
-  item.innerHTML   = `
+  item.id = "navComplaintsAdmin";
+  item.innerHTML = `
     <i class="ti ti-message-report"></i>
     <span>الشكاوى والاقتراحات</span>
     <span class="sb-badge admin-tab-badge" id="badge-complaints">0</span>
@@ -85,7 +136,6 @@ function injectSidebarTab() {
   item.addEventListener("click", () => switchToComplaints());
 }
 
-// ── حقن قسم HTML داخل main ─────────────────────────
 function injectComplaintsSection() {
   if (document.getElementById("complaintsSection")) return;
 
@@ -93,10 +143,9 @@ function injectComplaintsSection() {
   if (!main) return;
 
   const section = document.createElement("div");
-  section.id        = "complaintsSection";
+  section.id = "complaintsSection";
   section.style.display = "none";
   section.innerHTML = `
-
     <!-- بطاقات الإحصاء -->
     <div class="admin-stats-grid" id="cStatsGrid">
       <div class="admin-stat-card emp-stat-card stat-total active" data-cfilter="all">
@@ -206,41 +255,43 @@ function injectComplaintsSection() {
   main.appendChild(section);
 
   // أحداث البطاقات
-  section.querySelectorAll("[data-cfilter]").forEach(card => {
+  section.querySelectorAll("[data-cfilter]").forEach((card) => {
     card.addEventListener("click", () => {
       cStatusFilter = card.dataset.cfilter;
-      section.querySelectorAll("[data-cfilter]").forEach(c => c.classList.remove("active"));
+      section
+        .querySelectorAll("[data-cfilter]")
+        .forEach((c) => c.classList.remove("active"));
       card.classList.add("active");
       renderComplaints();
     });
   });
 
-  // البحث
+  // البحث مع debounce
   let debounce = null;
-  section.querySelector("#cSearchInput").addEventListener("input", e => {
+  section.querySelector("#cSearchInput").addEventListener("input", (e) => {
     cSearchQuery = e.target.value;
     clearTimeout(debounce);
     debounce = setTimeout(renderComplaints, 200);
   });
 
   // فلتر الجهة
-  section.querySelector("#cTargetFilter").addEventListener("change", e => {
+  section.querySelector("#cTargetFilter").addEventListener("change", (e) => {
     cTargetFilter = e.target.value;
     renderComplaints();
   });
 
-  // فلتر النوع (شكوى / استفسار / اقتراح)
-  section.querySelector("#cTypeFilter").addEventListener("change", e => {
+  // فلتر النوع
+  section.querySelector("#cTypeFilter").addEventListener("change", (e) => {
     cTypeFilter = e.target.value;
     renderComplaints();
   });
 
   // إغلاق اللوحة
-  section.querySelector("#cSpClose").addEventListener("click",   closeComplaintPanel);
+  section.querySelector("#cSpClose").addEventListener("click", closeComplaintPanel);
   section.querySelector("#cSpOverlay").addEventListener("click", closeComplaintPanel);
 
   // أزرار الحالة
-  ["cBtnReview","cBtnResolve","cBtnDismiss"].forEach(id => {
+  ["cBtnReview", "cBtnResolve", "cBtnDismiss"].forEach((id) => {
     section.querySelector(`#${id}`).addEventListener("click", () => {
       if (!activeComplaint) return;
       const action = section.querySelector(`#${id}`).dataset.caction;
@@ -249,50 +300,70 @@ function injectComplaintsSection() {
   });
 }
 
-// ── الاشتراك في Firestore (realtime) ───────────────
+// ── الاشتراك في الشكاوى (Realtime) ─────────────────
+
 function subscribeComplaints() {
   if (unsubscribeComplaints) unsubscribeComplaints();
 
   unsubscribeComplaints = onSnapshot(
     collection(db, "complaints"),
-    snap => {
-      complaintsData = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    (snap) => {
+      complaintsData = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
       updateComplaintsBadge();
-      if (document.getElementById("complaintsSection")?.style.display !== "none") {
+      const sectionVisible =
+        document.getElementById("complaintsSection")?.style.display !== "none";
+      if (sectionVisible) {
         renderComplaints();
       }
     },
-    err => console.error("complaints snapshot error:", err)
+    (err) => console.error("complaints snapshot error:", err)
   );
 }
 
 function updateComplaintsBadge() {
   const el = document.getElementById("badge-complaints");
-  if (el) el.textContent = complaintsData.filter(c => c.status === "new" || !c.status).length;
+  if (!el) return;
+  const newCount = complaintsData.filter(
+    (c) => c.status === "new" || !c.status
+  ).length;
+  el.textContent = newCount;
 }
 
 // ── عرض الجدول ─────────────────────────────────────
+
 function renderComplaints() {
   let filtered = [...complaintsData];
 
+  // فلتر الحالة
   if (cStatusFilter !== "all") {
-    filtered = filtered.filter(c => (c.status || "new") === cStatusFilter);
+    filtered = filtered.filter(
+      (c) => (c.status || "new") === cStatusFilter
+    );
   }
+
+  // فلتر الجهة
   if (cTargetFilter !== "all") {
-    filtered = filtered.filter(c =>
+    filtered = filtered.filter((c) =>
       cTargetFilter === "college"
         ? c.target === "college"
         : c.departmentKey === cTargetFilter
     );
   }
+
+  // فلتر النوع
   if (cTypeFilter !== "all") {
-    filtered = filtered.filter(c => (c.type || "شكوى") === cTypeFilter);
+    filtered = filtered.filter(
+      (c) => (c.type || "شكوى") === cTypeFilter
+    );
   }
+
+  // البحث بالنص
   const q = cSearchQuery.trim().toLowerCase();
   if (q) {
-    filtered = filtered.filter(c =>
-      (c.subject || "").toLowerCase().includes(q) ||
-      (c.details || "").toLowerCase().includes(q)
+    filtered = filtered.filter(
+      (c) =>
+        (c.subject || "").toLowerCase().includes(q) ||
+        (c.details || "").toLowerCase().includes(q)
     );
   }
 
@@ -307,9 +378,18 @@ function renderComplaints() {
     return tb - ta;
   });
 
-  // إحصاء البطاقات
-  const counts = { all: complaintsData.length, new: 0, under_review: 0, resolved: 0, dismissed: 0 };
-  complaintsData.forEach(c => { const s = c.status || "new"; if (counts[s] !== undefined) counts[s]++; });
+  // تحديث أرقام البطاقات
+  const counts = {
+    all: complaintsData.length,
+    new: 0,
+    under_review: 0,
+    resolved: 0,
+    dismissed: 0,
+  };
+  complaintsData.forEach((c) => {
+    const s = c.status || "new";
+    if (counts[s] !== undefined) counts[s]++;
+  });
   Object.entries(counts).forEach(([k, v]) => {
     const el = document.getElementById(`c-cnt-${k}`);
     if (el) el.textContent = v;
@@ -317,6 +397,8 @@ function renderComplaints() {
 
   const tbody = document.getElementById("cTbody");
   const empty = document.getElementById("cEmpty");
+  if (!tbody || !empty) return;
+
   tbody.innerHTML = "";
 
   if (!filtered.length) {
@@ -330,21 +412,23 @@ function renderComplaints() {
 
 async function renderRowsWithStudents(filtered, tbody) {
   const studentInfos = await Promise.all(
-    filtered.map(c => getStudentInfo(c.studentUid))
+    filtered.map((c) => getStudentInfo(c.studentUid))
   );
 
   filtered.forEach((c, i) => {
-    const status    = c.status || "new";
-    const targetTxt = c.target === "college"
-      ? "الكلية"
-      : (DEPT_AR[c.departmentKey] || c.targetAr || c.departmentKey || "-");
-    const icon      = TYPE_ICON[c.type] || "ti-message";
-    const dateStr   = c.createdAt?.toDate
-      ? c.createdAt.toDate().toLocaleDateString("ar-SA-u-ca-gregory")
+    const status = c.status || "new";
+    const targetTxt = getDeptLabel(c);
+    const icon = TYPE_ICON[c.type] || "ti-message";
+    const dateStr = c.createdAt?.toDate
+      ? c.createdAt
+          .toDate()
+          .toLocaleDateString("ar-SA-u-ca-gregory")
       : "-";
+
     const student = studentInfos[i];
     const studentName = student?.fullName || c.studentEmail || "-";
-    const studentNum  = student?.studentId || student?.universityId || "-";
+    const studentNum =
+      student?.studentId || student?.universityId || "-";
 
     const tr = document.createElement("tr");
     tr.style.cursor = "pointer";
@@ -356,38 +440,47 @@ async function renderRowsWithStudents(filtered, tbody) {
       <td><i class="ti ${icon}" style="font-size:16px;color:var(--primary);"></i> ${esc(c.type || "-")}</td>
       <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(c.subject || "-")}</td>
       <td><span class="dept-chip">${esc(targetTxt)}</span></td>
-      <td><span class="status-badge s-${status}">${COMPLAINT_STATUS_LABEL[status] || status}</span></td>
+      <td><span class="status-badge s-${status}">${getStatusLabel(status)}</span></td>
       <td>${dateStr}</td>
       <td><button class="detail-btn">التفاصيل <i class="ti ti-chevron-left detail-chevron"></i></button></td>
     `;
+
     tr.addEventListener("click", () => {
-      document.querySelectorAll(".admin-table tbody tr.row-active").forEach((r) => r.classList.remove("row-active"));
+      document
+        .querySelectorAll(".admin-table tbody tr.row-active")
+        .forEach((r) => r.classList.remove("row-active"));
       tr.classList.add("row-active");
       openComplaintPanel(c, student);
     });
+
     tbody.appendChild(tr);
   });
 }
 
 // ── اللوحة الجانبية ─────────────────────────────────
+
 function openComplaintPanel(c, student) {
   activeComplaint = c;
-  const status    = c.status || "new";
-  const targetTxt = c.target === "college"
-    ? "الكلية"
-    : (DEPT_AR[c.departmentKey] || c.targetAr || "-");
+
+  const status = c.status || "new";
+  const targetTxt = getDeptLabel(c);
   const stu = student || studentsCache[c.studentUid] || null;
   const studentName = stu?.fullName || c.studentEmail || "-";
-  const studentNum  = stu?.studentId || stu?.universityId || "-";
-  const dateStr   = c.createdAt?.toDate
-    ? c.createdAt.toDate().toLocaleDateString("ar-SA-u-ca-gregory")
+  const studentNum =
+    stu?.studentId || stu?.universityId || "-";
+  const dateStr = c.createdAt?.toDate
+    ? c.createdAt
+        .toDate()
+        .toLocaleDateString("ar-SA-u-ca-gregory")
     : "-";
+
   const attachHtml = c.attachmentUrl
     ? `<a href="${esc(c.attachmentUrl)}" target="_blank" rel="noopener"
          style="color:var(--primary);text-decoration:underline;">
          <i class="ti ti-paperclip"></i> عرض المرفق
        </a>`
     : "لا يوجد";
+
   const adminReplyHtml = c.adminReply
     ? `<div style="background:#f0f4ff;border-right:3px solid var(--primary);
                    padding:10px 14px;border-radius:6px;font-size:13px;margin-top:4px;">
@@ -395,8 +488,10 @@ function openComplaintPanel(c, student) {
        </div>`
     : "";
 
-  document.getElementById("cSpTitle").textContent = c.subject || "تفاصيل الشكوى";
-  document.getElementById("cSpSub").textContent   = c.type    || "";
+  document.getElementById("cSpTitle").textContent =
+    c.subject || "تفاصيل الشكوى";
+  document.getElementById("cSpSub").textContent =
+    c.type || "";
 
   document.getElementById("cSpBody").innerHTML = `
     <div class="sp-detail-card sp-highlight-border" style="margin-bottom:16px;">
@@ -406,7 +501,7 @@ function openComplaintPanel(c, student) {
         <tr><td class="sp-detail-label">النوع</td>      <td>${esc(c.type || "-")}</td></tr>
         <tr><td class="sp-detail-label">الجهة المعنية</td><td>${esc(targetTxt)}</td></tr>
         <tr><td class="sp-detail-label">الحالة</td>
-            <td><span class="status-badge s-${status}">${COMPLAINT_STATUS_LABEL[status] || status}</span></td></tr>
+            <td><span class="status-badge s-${status}">${getStatusLabel(status)}</span></td></tr>
         <tr><td class="sp-detail-label">تاريخ التقديم</td><td>${dateStr}</td></tr>
         <tr><td class="sp-detail-label">المرفق</td>     <td>${attachHtml}</td></tr>
       </table>
@@ -430,13 +525,15 @@ function openComplaintPanel(c, student) {
     </button>
   `;
 
-  document.getElementById("cSaveReplyBtn").addEventListener("click", saveAdminReply);
+  document
+    .getElementById("cSaveReplyBtn")
+    .addEventListener("click", saveAdminReply);
 
   // تفعيل/تعطيل أزرار الحالة
-  ["cBtnReview","cBtnResolve","cBtnDismiss"].forEach(id => {
-    const btn    = document.getElementById(id);
+  ["cBtnReview", "cBtnResolve", "cBtnDismiss"].forEach((id) => {
+    const btn = document.getElementById(id);
     const action = btn.dataset.caction;
-    btn.disabled = (status === action);
+    btn.disabled = status === action;
   });
 
   document.getElementById("cSidePanel").classList.add("open");
@@ -451,15 +548,17 @@ function closeComplaintPanel() {
   activeComplaint = null;
 }
 
-// ── تحديث الحالة ────────────────────────────────────
+// ── تحديث الحالة في Firestore ──────────────────────
+
 async function updateComplaintStatus(complaint, newStatus) {
   try {
     await updateDoc(doc(db, "complaints", complaint.id), {
-      status:              newStatus,
-      handledBy:           currentAdminUid,
-      handledByName:       currentAdminName,
-      updatedAt:           serverTimestamp(),
+      status: newStatus,
+      handledBy: currentAdminUid,
+      handledByName: currentAdminName,
+      updatedAt: serverTimestamp(),
     });
+
     complaint.status = newStatus;
     openComplaintPanel(complaint);
   } catch (err) {
@@ -468,82 +567,53 @@ async function updateComplaintStatus(complaint, newStatus) {
   }
 }
 
-// ── حفظ الرد ────────────────────────────────────────
+// ── حفظ رد الأدمن ──────────────────────────────────
+
 async function saveAdminReply() {
   if (!activeComplaint) return;
-  const reply = document.getElementById("cAdminReplyInput")?.value?.trim() || "";
-  const btn   = document.getElementById("cSaveReplyBtn");
-  btn.disabled    = true;
+
+  const reply =
+    document.getElementById("cAdminReplyInput")?.value?.trim() || "";
+  const btn = document.getElementById("cSaveReplyBtn");
+
+  btn.disabled = true;
   btn.textContent = "جاري الحفظ...";
+
   try {
     await updateDoc(doc(db, "complaints", activeComplaint.id), {
-      adminReply:    reply,
-      repliedBy:     currentAdminUid,
+      adminReply: reply,
+      repliedBy: currentAdminUid,
       repliedByName: currentAdminName,
-      repliedAt:     serverTimestamp(),
-      updatedAt:     serverTimestamp(),
+      repliedAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
     });
+
     activeComplaint.adminReply = reply;
     btn.textContent = "✓ تم الحفظ";
-    setTimeout(() => { btn.disabled = false; btn.innerHTML = '<i class="ti ti-device-floppy"></i> حفظ الرد'; }, 1500);
+
+    setTimeout(() => {
+      btn.disabled = false;
+      btn.innerHTML =
+        '<i class="ti ti-device-floppy"></i> حفظ الرد';
+    }, 1500);
   } catch (err) {
     console.error("saveAdminReply error:", err);
     alert("خطأ في الحفظ: " + err.message);
-    btn.disabled    = false;
+    btn.disabled = false;
     btn.textContent = "حفظ الرد";
   }
 }
 
-// ── التبديل لتبويب الشكاوى ──────────────────────────
-function switchToComplaints() {
-  // ملاحظة: رسالة الترحيب (.emp-welcome) تبقى ظاهرة دائماً، حتى داخل تبويب الشكاوى
+// ── إدارة التبويبات الأصلية ────────────────────────
 
-  // إخفاء كل تبويب آخر — نعيد استخدام منطق الأدمن الحالي
-  document.querySelectorAll(".admin-tab").forEach(t => t.classList.remove("active"));
-  document.getElementById("navComplaintsAdmin")?.classList.add("active");
-
-  // إعادة تعيين الفلاتر افتراضياً على "الكل" عند فتح التبويب
-  cStatusFilter = "all";
-  const cStatsGrid = document.getElementById("cStatsGrid");
-  if (cStatsGrid) {
-    cStatsGrid.querySelectorAll("[data-cfilter]").forEach(c => c.classList.remove("active"));
-    cStatsGrid.querySelector('[data-cfilter="all"]')?.classList.add("active");
-  }
-
-  // إخفاء قسم visitUploadArea وفلتر الأقسام إن ظهرا
-  const visitUpload  = document.getElementById("visitUploadArea");
-  const deptFilter   = document.getElementById("deptFilterWrap");
-  if (visitUpload) visitUpload.style.display = "none";
-  if (deptFilter)  deptFilter.style.display  = "none";
-
-  // إخفاء stats + table الأصلية (كل عنصر خارج #complaintsSection)
-  document.querySelectorAll(".admin-stats-grid").forEach(el => {
-    if (!el.closest("#complaintsSection")) el.style.display = "none";
-  });
-  document.querySelectorAll(".admin-table-card").forEach(el => {
-    if (!el.closest("#complaintsSection")) el.style.display = "none";
-  });
-
-  // إظهار قسم الشكاوى
-  const cs = document.getElementById("complaintsSection");
-  if (cs) cs.style.display = "";
-
-  // تحديث عنوان التوبار
-  const tableTitleEl = document.getElementById("tableTitle");
-  if (tableTitleEl) tableTitleEl.textContent = "الشكاوى والاقتراحات";
-
-  renderComplaints();
-}
-
-// عند العودة لأي تبويب أصلي — نخفي complaintsSection ونُظهر الأصلية
 function hideComplaintsSection() {
   const cs = document.getElementById("complaintsSection");
   if (cs) cs.style.display = "none";
 
-  document.querySelectorAll(".admin-stats-grid").forEach(el => {
+  document.querySelectorAll(".admin-stats-grid").forEach((el) => {
     if (!el.closest("#complaintsSection")) el.style.display = "";
   });
-  document.querySelectorAll(".admin-table-card").forEach(el => {
+  document.querySelectorAll(".admin-table-card").forEach((el) => {
     if (!el.closest("#complaintsSection")) el.style.display = "";
   });
 
@@ -551,36 +621,80 @@ function hideComplaintsSection() {
   if (empWelcome) empWelcome.style.display = "";
 }
 
-// ── دالة مساعدة esc ─────────────────────────────────
-function esc(str) {
-  if (str == null) return "";
-  return String(str).replace(/[&<>"']/g, c => ({
-    "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
-  }[c]));
-}
+function switchToComplaints() {
+  // تفعيل تبويب الشكاوى
+  document
+    .querySelectorAll(".admin-tab")
+    .forEach((t) => t.classList.remove("active"));
+  document
+    .getElementById("navComplaintsAdmin")
+    ?.classList.add("active");
 
-// ── إعادة توصيل التابات الأصلية ─────────────────────
-function patchOriginalTabs() {
-  document.querySelectorAll(".admin-tab[data-tab]").forEach(btn => {
-    if (btn.id === "navComplaintsAdmin") return;
-    btn.addEventListener("click", () => {
-      hideComplaintsSection();
-    }, { capture: true });
+  // إعادة الفلاتر للوضع الافتراضي
+  cStatusFilter = "all";
+  const cStatsGrid = document.getElementById("cStatsGrid");
+  if (cStatsGrid) {
+    cStatsGrid
+      .querySelectorAll("[data-cfilter]")
+      .forEach((c) => c.classList.remove("active"));
+    cStatsGrid
+      .querySelector('[data-cfilter="all"]')
+      ?.classList.add("active");
+  }
+
+  // إخفاء عناصر أخرى
+  const visitUpload = document.getElementById("visitUploadArea");
+  const deptFilter = document.getElementById("deptFilterWrap");
+  if (visitUpload) visitUpload.style.display = "none";
+  if (deptFilter) deptFilter.style.display = "none";
+
+  document.querySelectorAll(".admin-stats-grid").forEach((el) => {
+    if (!el.closest("#complaintsSection")) el.style.display = "none";
   });
+  document.querySelectorAll(".admin-table-card").forEach((el) => {
+    if (!el.closest("#complaintsSection")) el.style.display = "none";
+  });
+
+  const cs = document.getElementById("complaintsSection");
+  if (cs) cs.style.display = "";
+
+  const tableTitleEl = document.getElementById("tableTitle");
+  if (tableTitleEl) tableTitleEl.textContent = "الشكاوى والاقتراحات";
+
+  renderComplaints();
 }
 
-// ── تهيئة ───────────────────────────────────────────
-onAuthStateChanged(auth, async user => {
+function patchOriginalTabs() {
+  document
+    .querySelectorAll(".admin-tab[data-tab]")
+    .forEach((btn) => {
+      if (btn.id === "navComplaintsAdmin") return;
+      btn.addEventListener(
+        "click",
+        () => {
+          hideComplaintsSection();
+        },
+        { capture: true }
+      );
+    });
+}
+
+// ── نقطة التهيئة الرئيسية ──────────────────────────
+
+onAuthStateChanged(auth, async (user) => {
   if (!user) return;
-  if (alreadyInitialized) return;   // يمنع تشغيل التهيئة أكثر من مرة لو تكرر onAuthStateChanged
+  if (alreadyInitialized) return;
   alreadyInitialized = true;
 
-  currentAdminUid  = user.uid;
-  currentAdminName = document.getElementById("adminName")?.textContent || "الأدمن";
+  currentAdminUid = user.uid;
+  currentAdminName =
+    document.getElementById("adminName")?.textContent || "الأدمن";
 
-  // انتظر حتى يُعرض DOM بالكامل
+  // انتظار تحميل الـ DOM
   if (document.readyState === "loading") {
-    await new Promise(r => document.addEventListener("DOMContentLoaded", r));
+    await new Promise((resolve) =>
+      document.addEventListener("DOMContentLoaded", resolve)
+    );
   }
 
   injectSidebarTab();
