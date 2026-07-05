@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>نظام الخدمات الطلابية - الأدمن</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="EmpStyle.css" />
+  <link rel="stylesheet" href="adminStyle.css" />
+  <link rel="stylesheet" href="sidebarStyle.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tabler-icons/3.35.0/tabler-icons.min.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+ 
+
+</head>
+
+<body class="sidebar-layout admin-page employee-dashboard-page">
+
+  <!-- ===== Sidebar ===== -->
+
+
+  <aside class="sb-sidebar">
+    <div class="sb-brand">
+      <div class="sb-brand-icon"><i class="ti ti-shield-check"></i></div>
+      <div>
+        <div class="sb-brand-title">نظام الخدمات الطلابية</div>
+        <div class="sb-brand-sub">لوحة الإدارة</div>
+      </div>
+    </div>
+
+    <nav class="sb-nav">
+      <div class="sb-nav-item" id="navHome">
+        <i class="ti ti-layout-dashboard"></i>
+        <span>لوحة التحكم</span>
+      </div>
+
+      <div class="sb-nav-item" id="navStats" style="cursor:pointer;">
+  <i class="ti ti-chart-bar"></i>
+  <span>الإحصائيات</span>
+</div>
+
+      <div class="sb-nav-item" id="navSemester" style="cursor:pointer;">
+        <i class="ti ti-calendar"></i>
+        <span>إدارة الفصل الدراسي</span>
+      </div>
+
+      <div class="sb-nav-item admin-tab active" data-tab="addDrop">
+        <i class="ti ti-file-text"></i>
+        <span>طلبات الحذف والإضافة</span>
+        <span class="sb-badge admin-tab-badge" id="badge-addDrop">0</span>
+      </div>
+      <div class="sb-nav-item admin-tab" data-tab="excuse">
+        <i class="ti ti-note"></i>
+        <span>طلبات الأعذار</span>
+        <span class="sb-badge admin-tab-badge" id="badge-excuse">0</span>
+      </div>
+      <div class="sb-nav-item admin-tab" data-tab="visit">
+        <i class="ti ti-map-pin"></i>
+        <span>طلبات الزيارة</span>
+        <span class="sb-badge admin-tab-badge" id="badge-visit">0</span>
+      </div>
+    </nav>
+
+    <div class="sb-user">
+      <i class="ti ti-user-circle sb-user-avatar"></i>
+      <div>
+        <div class="sb-user-name"  id="adminName">...</div>
+        <div class="sb-user-email" id="adminEmail">...</div>
+      </div>
+    </div>
+
+    <!-- زر نقل صلاحية الأدمن - بنفس كلاس زر الخروج، بلون ذهبي للتمييز -->
+    <button class="sb-logout-btn" id="transferAdminBtn" style="background:#c8972b;margin-bottom:8px;">
+      <i class="ti ti-user-exchange"></i> نقل صلاحية الأدمن
+    </button>
+    <button class="sb-logout-btn" id="logoutBtn">
+      <i class="ti ti-logout"></i> تسجيل الخروج
+    </button>
+  </aside>
+
+  <!-- ===== Main ===== -->
+  <div class="sb-main">
+
+    <!-- Topbar -->
+    <div class="sb-topbar">
+      <div class="sb-topbar-title" id="tableTitle">طلبات الحذف والإضافة</div>
+
+      <div class="sb-topbar-logo">
+        <img src="images/Qassim_University_logo.svg.png" alt="جامعة القصيم" />
+      </div>
+
+      <div class="sb-topbar-dates">
+        <div class="sb-date-hijri" id="hijriDate">...</div>
+        <div class="sb-date-greg"  id="gregDate">...</div>
+      </div>
+    </div>
+
+    <main class="admin-main">
+
+      <!-- Welcome -->
+      <div class="emp-welcome">
+        <div class="emp-welcome-hi">مرحبًا بك</div>
+      <div class="emp-welcome-name"><span id="adminNameWelcome"></span></div>
+        <div class="emp-welcome-dept">
+          <i class="ti ti-shield-check"></i>
+          <span>مدير النظام</span>
+        </div>
+      </div>
+
+      <div class="admin-stats-grid">
+
+  <div class="admin-stat-card emp-stat-card stat-total active" data-filter="all" id="card-all">
+    <div class="stat-icon"><i class="ti ti-copy"></i></div>
+    <div class="stat-num" id="cnt-all">0</div>
+    <div class="stat-label">الكل</div>
+  </div>
+
+  <div class="admin-stat-card emp-stat-card stat-new" data-filter="new" id="card-new">
+    <div class="stat-icon"><i class="ti ti-sparkles"></i></div>
+    <div class="stat-num" id="cnt-new">0</div>
+    <div class="stat-label">جديد</div>
+  </div>       
+
+  <div class="admin-stat-card emp-stat-card stat-review" data-filter="under_review" id="card-under_review">
+    <div class="stat-icon"><i class="ti ti-loader-2"></i></div>
+    <div class="stat-num" id="cnt-under_review">0</div>
+    <div class="stat-label">قيد المراجعة</div>
+  </div>
+
+  <div class="admin-stat-card emp-stat-card stat-approved" data-filter="approved" id="card-approved">
+    <div class="stat-icon"><i class="ti ti-circle-check"></i></div>
+    <div class="stat-num" id="cnt-approved">0</div>
+    <div class="stat-label">مقبول</div>
+  </div>
+
+  <div class="admin-stat-card emp-stat-card stat-rejected" data-filter="rejected" id="card-rejected">
+    <div class="stat-icon"><i class="ti ti-circle-x"></i></div>
+    <div class="stat-num" id="cnt-rejected">0</div>
+    <div class="stat-label">مرفوض</div>
+  </div>
+
+</div>
+
+
+      <!-- Stats -->
+      <!-- Admin Dashboard Overview -->
+<section class="admin-dashboard" id="dashboardSection" style="display:none;">
+
+  <!-- Grid: إجماليات سريعة -->
+  <div class="admin-dashboard-grid">
+    <div class="dash-card">
+      <div class="dash-card-label">إجمالي الطلبات</div>
+      <div class="dash-card-value" id="dash-total-requests">0</div>
+      <div class="dash-card-sub">كل الأنواع وكل الأقسام</div>
+    </div>
+
+    <div class="dash-card">
+      <div class="dash-card-label">طلبات اليوم</div>
+      <div class="dash-card-value" id="dash-today-requests">0</div>
+      <div class="dash-card-sub">من منتصف الليل حتى الآن</div>
+    </div>
+
+    <div class="dash-card">
+      <div class="dash-card-label">طلبات هذا الأسبوع</div>
+      <div class="dash-card-value" id="dash-week-requests">0</div>
+      <div class="dash-card-sub">آخر 7 أيام</div>
+    </div>
+
+    <div class="dash-card">
+      <div class="dash-card-label">نسبة الطلبات المقبولة</div>
+      <div class="dash-card-value" id="dash-accepted-rate">0%</div>
+      <div class="dash-card-sub">من إجمالي الطلبات المعالجة</div>
+    </div>
+  </div>
+
+  <!-- Grid: حسب الأقسام والموظفين -->
+  <div class="admin-dashboard-grid">
+    <div class="dash-card">
+      <div class="dash-card-label">أكثر قسم لديه طلبات</div>
+      <div class="dash-card-value" id="dash-top-dept">-</div>
+      <div class="dash-card-sub" id="dash-top-dept-count">0 طلب</div>
+    </div>
+
+    <div class="dash-card">
+      <div class="dash-card-label">أكثر موظف نشاطًا</div>
+      <div class="dash-card-value" id="dash-top-employee">-</div>
+      <div class="dash-card-sub" id="dash-top-employee-count">0 طلب</div>
+    </div>
+
+    <div class="dash-card">
+      <div class="dash-card-label">طلبات قيد المراجعة</div>
+      <div class="dash-card-value" id="dash-under-review">0</div>
+      <div class="dash-card-sub">تحتاج متابعة</div>
+    </div>
+
+    <div class="dash-card">
+      <div class="dash-card-label">طلبات مرفوضة</div>
+      <div class="dash-card-value" id="dash-rejected">0</div>
+      <div class="dash-card-sub">تم رفضها من الموظفين</div>
+    </div>
+  </div>
+
+  <!-- Charts Row -->
+  <div class="dash-charts-row">
+    <div class="dash-chart-card">
+      <div class="dash-chart-title">عدد الطلبات خلال آخر 30 يوم</div>
+      <canvas id="chartRequestsByDay"></canvas>
+    </div>
+
+    <div class="dash-chart-card">
+      <div class="dash-chart-title">توزيع الطلبات حسب الأقسام</div>
+      <canvas id="chartRequestsByDept"></canvas>
+    </div>
+
+    <div class="dash-chart-card">
+      <div class="dash-chart-title">أداء الموظفين (عدد الطلبات المعالجة)</div>
+      <canvas id="chartRequestsByEmployee"></canvas>
+    </div>
+  </div>
+
+</section>
+
+<!-- ==================== إدارة الفصل الدراسي ==================== -->
+<section class="admin-dashboard" id="semesterSection" style="display:none;">
+
+  <div class="admin-table-card" style="padding:24px;">
+
+    <h3 style="margin:0 0 16px;">الفصل المفعّل حالياً في النظام</h3>
+
+    <div class="admin-dashboard-grid" style="margin-bottom:24px;">
+      <div class="dash-card">
+        <div class="dash-card-label">اسم الفصل</div>
+        <div class="dash-card-value" id="currentSemesterName">-</div>
+        <div class="dash-card-sub" id="currentSemesterDates">-</div>
+      </div>
+    </div>
+
+    <h3 style="margin:0 0 16px;">إضافة فصل (حالي أو قادم)</h3>
+    <p style="margin:0 0 14px;font-size:13px;color:#666;">
+      يمكنك إضافة فصل بتواريخ مستقبلية وسيظهر تلقائياً كـ "قادم"، وعند حلول تاريخه سيصبح "جارياً".
+    </p>
+
+    <form id="semesterForm" style="display:flex;flex-direction:column;gap:14px;max-width:420px;">
+
+      <div>
+        <label for="semName">اسم الفصل</label>
+        <input type="text" id="semName" class="ta-input" placeholder="مثال: الفصل الأول 1448" required>
+      </div>
+
+      <div>
+        <label for="semNumber">رقم الفصل</label>
+        <input type="text" id="semNumber" class="ta-input" placeholder="مثال: 14481" required>
+      </div>
+
+      <div>
+        <label for="semStart">تاريخ البداية (ميلادي)</label>
+        <input type="date" id="semStart" class="ta-input" required>
+      </div>
+
+      <div>
+        <label for="semEnd">تاريخ النهاية (ميلادي)</label>
+        <input type="date" id="semEnd" class="ta-input" required>
+      </div>
+
+      <button type="submit" class="sp-print-btn" id="activateSemesterBtn" style="background:#1a3a6b;">
+        <i class="ti ti-check"></i> حفظ الفصل
+      </button>
+    </form>
+
+    <div id="semesterMsg" style="margin-top:12px;"></div>
+
+    <h3 style="margin:28px 0 4px;">جميع الفصول</h3>
+    <p style="margin:0 0 14px;font-size:13px;color:#666;">مصنّفة تلقائياً بناءً على التواريخ</p>
+    <div id="semesterHistoryList" style="display:flex;flex-direction:column;gap:8px;"></div>
+
+  </div>
+
+</section>
+
+      <!-- Table Card -->
+      <div class="admin-table-card">
+
+        <!-- زر رفع نموذج الزيارة -->
+     <div class="visit-upload-area" id="visitUploadArea" style="display:none">
+
+    <select id="visitDeptSelect" class="admin-filter-select">
+        <option value="">اختر القسم</option>
+        <option value="physics">فيزياء</option>
+        <option value="chemistry">كيمياء</option>
+        <option value="statistics">إحصاء</option>
+        <option value="math">رياضيات</option>
+        <option value="biology">أحياء</option>
+    </select>
+
+    <select id="visitPlaceSelect" class="admin-filter-select" disabled>
+        <option value="">اختر المقر</option>
+    </select>
+
+    <script>
+      (function () {
+        const deptPlaces = {
+          physics:   [
+            { value: "asyah",          label: "الأسياح" },
+            { value: "unaizah",        label: "عنيزة" },
+            { value: "bukayriyah",     label: "البكيرية" },
+            { value: "badaya",         label: "البدائع" },
+            { value: "rass",           label: "الرس" },
+            { value: "mithnab",        label: "المذنب" },
+            { value: "uqlat_suqur",    label: "عقلة الصقور" },
+            { value: "nihaniyah",      label: "النبهانية" },
+          ],
+          chemistry: [
+            { value: "unaizah",        label: "عنيزة" },
+            { value: "rass",           label: "الرس" },
+          ],
+          statistics: [],
+          math: [
+            { value: "asyah",          label: "الأسياح" },
+            { value: "unaizah",        label: "عنيزة" },
+            { value: "bukayriyah",     label: "البكيرية" },
+            { value: "badaya",         label: "البدائع" },
+            { value: "rass",           label: "الرس" },
+            { value: "mithnab",        label: "المذنب" },
+            { value: "uqlat_suqur",    label: "عقلة الصقور" },
+            { value: "nihaniyah",      label: "النبهانية" },
+            { value: "riyadh_alkhabra",label: "رياض الخبراء" },
+          ],
+          biology: [
+            { value: "unaizah",        label: "عنيزة" },
+          ],
+        };
+
+        const deptSel  = document.getElementById("visitDeptSelect");
+        const placeSel = document.getElementById("visitPlaceSelect");
+
+        deptSel.addEventListener("change", function () {
+          const places = deptPlaces[this.value] || [];
+          placeSel.innerHTML = '<option value="">اختر المقر</option>';
+          places.forEach(function (p) {
+            const opt = document.createElement("option");
+            opt.value = p.value;
+            opt.textContent = p.label;
+            placeSel.appendChild(opt);
+          });
+          placeSel.disabled = places.length === 0;
+        });
+      })();
+    </script>
+
+    <div class="visit-upload-controls">
+
+          <button class="upload-pdf-btn" id="uploadVisitFileBtn">
+            <i class="ti ti-upload"></i> رفع نموذج الزيارة (PDF)
+          </button>
+          <span class="uploaded-file-name" id="uploadedFileName"></span>
+          <input type="file" id="visitFileInput" accept="application/pdf" style="display:none" />
+    </div>
+
+        </div>
+
+        <!-- Search + filters -->
+        <div class="admin-search-row">
+          <div class="admin-search-bar">
+            <i class="ti ti-search admin-search-icon"></i>
+            <input type="text" id="searchInput"
+              placeholder="ابحث باسم الطالب أو رقمه الجامعي..."
+              autocomplete="off" />
+          </div>
+
+          <!-- فلتر الأقسام — يظهر في تبويب الحذف/الإضافة -->
+          <div class="dept-filter-pill" id="deptFilterWrap">
+            <i class="ti ti-filter"></i>
+            <select id="deptFilter">
+              <option value="all">كل الأقسام</option>
+              <option value="رياضيات">رياضيات</option>
+              <option value="فيزياء">فيزياء</option>
+              <option value="كيمياء">كيمياء</option>
+              <option value="أحياء">أحياء</option>
+              <option value="إحصاء">إحصاء</option>
+            </select>
+          </div>
+
+          <div class="dept-filter-pill" id="semesterFilterWrap">
+            <i class="ti ti-calendar"></i>
+            <select id="semesterFilter">
+              <option value="current">الفصل الحالي</option>
+            </select>
+          </div>
+
+          <select class="admin-filter-select" id="statusFilter" style="display:none">
+            <option value="all">كل الحالات</option>
+            <option value="new">جديد</option>
+            <option value="under_review">قيد المراجعة</option>
+            <option value="approved">مقبول</option>
+            <option value="rejected">مرفوض</option>
+          </select>
+
+
+
+          <!-- فلاتر خاصة بتبويب الأعذار (قسم + نوع الاختبار + حالة) — تظهر فقط داخل تبويب الأعذار -->
+          <div class="excuse-filters-wrap" id="excuseFiltersWrap" style="display:none;">
+
+            <div class="dept-filter-pill" id="excuseDeptFilterWrap">
+              <i class="ti ti-filter"></i>
+              <select id="excuseDeptFilter">
+                <option value="all">كل الأقسام</option>
+                <option value="رياضيات">رياضيات</option>
+                <option value="فيزياء">فيزياء</option>
+                <option value="كيمياء">كيمياء</option>
+                <option value="أحياء">أحياء</option>
+                <option value="إحصاء">إحصاء</option>
+              </select>
+            </div>
+
+            <div class="dept-filter-pill">
+              <i class="ti ti-pencil"></i>
+              <select id="excuseExamTypeFilter">
+                <option value="all">كل أنواع الاختبارات</option>
+                <option value="midterm1">اختبار فصلي أول</option>
+                <option value="midterm2">اختبار فصلي ثاني</option>
+                <option value="final">اختبار نهائي</option>
+              </select>
+            </div>
+
+
+
+            <button class="excel-export-btn" id="exportExcuseExcelBtn">
+              <i class="ti ti-file-spreadsheet"></i>
+              تصدير Excel
+            </button>
+
+          </div>
+        </div>
+
+        <div class="admin-search-info" id="searchInfoBar" style="display:none"></div>
+
+        <div class="admin-loading" id="loadingState">
+          <i class="ti ti-loader-2 spin"></i> جاري التحميل...
+        </div>
+
+        <div class="admin-table-wrap" id="tableWrap" style="display:none">
+          <table class="admin-table" id="mainTable">
+            <thead>
+              <tr>
+                <th>اسم الطالب</th>
+                <th>الرقم الجامعي</th>
+                <th>القسم</th>
+                <th>عدد الطلبات</th>
+                <th>التفاصيل</th>
+              </tr>
+            </thead>
+            <tbody id="mainTbody"></tbody>
+          </table>
+          <div class="admin-empty" id="emptyState" style="display:none">
+            <i class="ti ti-inbox-off"></i>
+            <p>لا توجد طلبات مطابقة</p>
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- Side Panel -->
+  <div class="admin-side-panel" id="sidePanel">
+    <div class="sp-header">
+      <div>
+        <div class="sp-title" id="spTitle">تفاصيل الطالب</div>
+        <div class="sp-sub"   id="spSub">بيانات الطلبات</div>
+      </div>
+      <button class="sp-close-btn" id="spCloseBtn" aria-label="إغلاق">
+        <i class="ti ti-x"></i>
+      </button>
+    </div>
+    <div class="sp-body" id="spBody"></div>
+    <div class="sp-footer">
+      <button class="sp-print-btn" id="spPrintBtn">
+        <i class="ti ti-printer"></i> طباعة بيانات الطالب
+      </button>
+    </div>
+  </div>
+
+  <div class="sp-overlay" id="spOverlay"></div>
+
+  <!-- ===== Modal: نقل صلاحية الأدمن ===== -->
+  <!-- نعيد استخدام نفس كلاسات اللوحة الجانبية (sp-*) لضمان نفس الستايل،
+       فقط نحوّلها لمودال في المنتصف عبر transfer-modal-box -->
+  <div class="admin-side-panel transfer-modal-box" id="transferAdminModal" style="display:none;">
+    <div class="sp-header">
+      <div>
+        <div class="sp-title">نقل صلاحية الأدمن</div>
+        <div class="sp-sub">تسجيل بيانات الأدمن الجديد</div>
+      </div>
+      <button class="sp-close-btn" id="taCloseBtn" aria-label="إغلاق">
+        <i class="ti ti-x"></i>
+      </button>
+    </div>
+
+    <div class="sp-body">
+      <form id="transferAdminForm">
+
+        <div class="sp-detail-card" style="padding:16px;">
+          <div class="ta-field">
+            <label class="sp-detail-label">الاسم الكامل *</label>
+            <input type="text" id="ta_fullName" class="ta-input" required />
+          </div>
+
+          <div class="ta-field">
+            <label class="sp-detail-label">رقم الجوال *</label>
+            <input type="tel" id="ta_phone" class="ta-input" pattern="[0-9]{10}" placeholder="05xxxxxxxx" required />
+          </div>
+
+          <div class="ta-field">
+            <label class="sp-detail-label">الرقم الوظيفي *</label>
+            <input type="text" id="ta_employeeNumber" class="ta-input" required />
+          </div>
+
+          <div class="ta-field">
+            <label class="sp-detail-label">البريد الإلكتروني (للدخول) *</label>
+            <input type="email" id="ta_email" class="ta-input" required />
+          </div>
+
+          <div class="ta-field">
+            <label class="sp-detail-label">كلمة مرور مؤقتة *</label>
+            <input type="text" id="ta_password" class="ta-input" minlength="6" placeholder="6 أحرف على الأقل" required />
+            <small style="color:#888;font-size:12px;">سلّمها للأدمن الجديد، وينصح يغيّرها بعد أول دخول</small>
+          </div>
+        </div>
+
+        <div id="ta_error" class="sp-reject-reason" style="display:none;margin-top:10px;"></div>
+      </form>
+    </div>
+
+    <div class="sp-footer" style="display:flex;gap:10px;">
+      <button class="sp-print-btn" id="ta_submitBtn" type="submit" form="transferAdminForm" style="flex:1;background:#1a3a6b;">
+        <i class="ti ti-check"></i> تأكيد ونقل الصلاحية
+      </button>
+      <button class="sp-close-btn" id="ta_cancelBtn" type="button" style="flex:0 0 auto;">
+        إلغاء
+      </button>
+    </div>
+  </div>
+
+  <div class="sp-overlay" id="transferAdminOverlay" style="display:none;"></div>
+
+  <style>
+    /* تخصيص بسيط فقط لتحويل اللوحة الجانبية لمودال في المنتصف + تنسيق حقول الفورم */
+    .transfer-modal-box {
+      right: 50% !important;
+      top: 50% !important;
+      transform: translate(50%, -50%) !important;
+      width: 440px !important;
+      max-width: 90vw !important;
+      height: auto !important;
+      max-height: 85vh;
+      border-radius: 14px;
+      overflow-y: auto;
+    }
+    .ta-field { margin-bottom: 14px; }
+    .ta-field label { display:block; margin-bottom:6px; }
+    .ta-input {
+      width: 100%;
+      padding: 9px 12px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      font-family: inherit;
+      font-size: 14px;
+    }
+    .ta-input:focus { outline: none; border-color: #1a3a6b; }
+  </style>
+
+  <script type="module" src="Admindashboard.js"></script>
+  <script type="module" src="complaintsAdmin.js"></script>
+</body>
+</html>
