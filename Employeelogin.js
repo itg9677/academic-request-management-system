@@ -30,8 +30,8 @@ form.addEventListener("submit", async (e) => {
         // 🔍 البحث في employees collection
      const q = query(
     collection(db, "employees"),
-where("employeeId", "==", employeeId));
-
+    where("employeeNumber", "==", employeeId)
+);
 
         const snapshot = await getDocs(q);
 
