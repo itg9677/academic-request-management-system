@@ -129,8 +129,11 @@ async function submitComplaint() {
     // ── عرض شاشة النجاح ────────────────────────────
     const trackNum = "CMP-" + new Date().getFullYear() + "-" + docRef.id.slice(0, 6).toUpperCase();
     document.getElementById("tracking-num").textContent = "رقم المتابعة: " + trackNum;
-    document.getElementById("form-view").style.display   = "none";
-    document.getElementById("success-view").style.display = "block";
+    document.getElementById("success-msg").style.display = "block";
+    document.getElementById("complaint-form").reset();
+
+
+
 
   } catch (err) {
     console.error("خطأ في إرسال الشكوى:", err);

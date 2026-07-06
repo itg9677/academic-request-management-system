@@ -33,7 +33,6 @@ form.addEventListener("submit", async (e) => {
     where("employeeNumber", "==", employeeId)
 );
 
-
         const snapshot = await getDocs(q);
 
         if (snapshot.empty) {

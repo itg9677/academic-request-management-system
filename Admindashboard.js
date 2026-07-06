@@ -3,7 +3,7 @@ import { getCurrentSemester, getAllSemesters, activateSemester } from "./semeste
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import {
   doc, getDoc, setDoc, deleteDoc, collection, query, where, getDocs,
-  updateDoc, serverTimestamp
+  updateDoc, serverTimestamp, onSnapshot
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import {
   ref, uploadBytes, getDownloadURL, deleteObject
@@ -16,15 +16,50 @@ import { getAuth, createUserWithEmailAndPassword } from "https://www.gstatic.com
 console.log("FILE LOADED");
 
 // ==================== State ====================
-// ملاحظة: كان هنا سابقاً استدعاء onAuthStateChanged() قديم ومكرر (نسخة تحقق
-// بسيطة بالـ uid فقط) يشتغل بالتوازي مع النسخة الصحيحة والكاملة في نهاية
-// الملف (اللي تتحقق من isAdmin وتستخدم authStateReady). وجود نسختين كانا
-// يسببان تحميل مزدوج للبيانات (loadAllData مرتين) وتضارب/تداخل في العرض
-// عند فتح الصفحة أو أحياناً لاحقاً. تم حذف النسخة القديمة والإبقاء على
-// النسخة الصحيحة فقط (بالأسفل، داخل auth.authStateReady().then(...)).
+// ==================== تحميل بيانات الأدمن ====================
+
+onAuthStateChanged(auth, async (user) => {
+  if (!user) {
+    window.location.href = "loginPage.html"; // أو اسم صفحة تسجيل الدخول عندك
+    return;
+  }
+
+  try {
+    // جلب بيانات الموظف من Firestore
+    const snap = await getDoc(doc(db, "employees", user.uid));
+
+    if (snap.exists()) {
+      currentAdminData = {
+        docId: user.uid,
+        ...snap.data()
+      };
+
+      // حفظ اسم الموظف في الكاش
+      employeesCache[user.uid] = currentAdminData.fullName || "موظف";
+
+      // عرض الاسم في الصفحة
+      document.getElementById("adminName").textContent = currentAdminData.fullName || "";
+      document.getElementById("adminEmail").textContent = currentAdminData.email || "";
+      document.getElementById("adminNameWelcome").textContent = currentAdminData.fullName || "";
+
+      // تحميل البيانات بعد تحميل بيانات الأدمن
+      injectRejectModal();
+      loadAllData();
+
+      // تفعيل قسم الشكاوى والاقتراحات
+      injectComplaintsSection();
+      subscribeComplaints();
+
+    } else {
+      console.error("لم يتم العثور على بيانات الموظف في employees/");
+    }
+
+  } catch (err) {
+    console.error("خطأ في تحميل بيانات الأدمن:", err);
+  }
+});
 
 let currentAdminData = null;
-let navListenersAttached = false; // يمنع إضافة مستمعي الأحداث أكثر من مرة لو تكرر إطلاق onAuthStateChanged
 
 const studentsCache  = {};
 const employeesCache = {};
@@ -39,7 +74,6 @@ let currentExcuseExamType  = "all";
 let currentExcuseStatus    = "all";
 let searchQuery         = "";
 let activeRequest       = null;
-let renderSeq           = 0;   // معرّف تسلسلي لكل استدعاء renderTab لمنع تداخل بيانات تبويب قديم مع تبويب جديد
 let currentSemesterData   = null;
 let allSemestersCache     = [];   // كاش لكل الفصول (نستخدمه في inferSemesterFromDate)
 
@@ -163,7 +197,7 @@ const statusLabel = {
   rejected:     "مرفوض"
 };
 
-const reqTypeLabel   = { add: "اضافة", drop: "حذف", edit: "تعديل شعبة" };
+const reqTypeLabel   = { add: "اضافة", drop: "حذف", edit: "تعديل شعبة", remove: "حذف", change: "تعديل شعبة" };
 const visitTypeLabel = { internal: "داخلية", external: "خارجية" };
 const examTypeLabel  = { midterm1: "اختبار فصلي أول", midterm2: "اختبار فصلي ثاني", final: "اختبار نهائي" };
 const levelLabel     = {
@@ -268,10 +302,7 @@ async function loadAllEmployeeNames() {
 
   try {
 
-    const reqQuery = query(
-      collection(db, "requests"),
-      where("requestType", "in", ["add", "drop", "edit"])
-    );
+    const reqQuery = collection(db, "requests");
 
     const [reqSnap, excSnap, visSnap, compSnap] = await Promise.all([
       getDocs(reqQuery),
@@ -537,28 +568,20 @@ function getEffectiveStatus(item) {
 }
 
 async function renderTab() {
-  // ✅ كل استدعاء لـ renderTab ياخذ رقم تسلسلي خاص فيه. لو صار تبديل تبويب/قسم
-  // (إحصائيات، الفصل الدراسي، حذف وإضافة، أعذار، زيارة...) أو استدعاء renderTab
-  // جديد قبل ما يخلص هذا الاستدعاء القديم، نوقف تنفيذه فوراً بدل ما يكمل ويكتب
-  // بيانات تبويب قديم فوق تبويب جديد — وهذا هو سبب تداخل البيانات بين التبويبات.
-  const mySeq = ++renderSeq;
-  const tab   = currentTab; // نثبّت التبويب المطلوب وقت بداية النداء
-  const cfg   = tabConfig[tab];
-  const items = tabData[tab];
+  const cfg   = tabConfig[currentTab];
+  const items = tabData[currentTab];
 
   // تأكد من إظهار الجدول ومنطقة البحث عند كل render
   const tableWrapEl = document.getElementById("tableWrap");
-  const searchRowEl = document.getElementById("mainSearchRow");
+  const searchRowEl = document.querySelector(".admin-search-row");
   if (tableWrapEl) tableWrapEl.style.display = "";
   if (searchRowEl) searchRowEl.style.display = "";
 
   const uniqueStudentUids = [...new Set(items.map((it) => it[cfg.studentField]).filter(Boolean))];
   await Promise.all(uniqueStudentUids.map((uid) => getStudent(uid)));
-  if (mySeq !== renderSeq) return; // صار استدعاء أحدث أثناء الانتظار — نتوقف
 
   const uniqueEmpUids = [...new Set(items.map((it) => it.assignedEmployee).filter(Boolean))];
   await Promise.all(uniqueEmpUids.map((uid) => getEmployeeName(uid)));
-  if (mySeq !== renderSeq) return;
 
   let filtered = items.filter((it) => {
     const itemSem = getItemSemester(it);
@@ -572,7 +595,7 @@ async function renderTab() {
   });
 
   // فلاتر خاصة بتبويب الأعذار
-  if (tab === "excuse") {
+  if (currentTab === "excuse") {
     if (currentExcuseDept !== "all") {
       filtered = filtered.filter(it => {
         const student = studentsCache[it[cfg.studentField]] || {};
@@ -632,7 +655,7 @@ updateStatCards(filtered);
     emptyState.style.display = "none";
     sortedUids.forEach((uid) => {
       const studentRequests = byStudent[uid];
-      tbody.appendChild(buildRow(tab, uid, studentRequests));
+      tbody.appendChild(buildRow(currentTab, uid, studentRequests));
     });
   }
 
@@ -647,10 +670,10 @@ updateStatCards(filtered);
     infoBar.style.display = "none";
   }
 
-  // إظهار / إخفاء صف فلاتر الأعذار (أقسام + أنواع اختبارات + حالات + تصدير)
-  const excuseFiltersRow = document.getElementById("excuseFiltersRow");
-  if (excuseFiltersRow) {
-    if (tab === "excuse") { excuseFiltersRow.classList.add("show"); } else { excuseFiltersRow.classList.remove("show"); }
+  // إظهار / إخفاء فلاتر + زر تصدير الأعذار (مثل الموظف)
+  const excuseFiltersWrap = document.getElementById("excuseFiltersWrap");
+  if (excuseFiltersWrap) {
+    excuseFiltersWrap.style.display = (currentTab === "excuse") ? "" : "none";
   }
 }
 
@@ -719,7 +742,7 @@ const empName = employeesCache[item.assignedEmployee] || "-";
       <tr><td class="sp-detail-label">نوع الطلب</td><td>${reqTypeLabel[item.requestType] || item.requestType || "-"}</td></tr>
       <tr><td class="sp-detail-label">المقرر</td><td>${esc(item.courseName || "-")} (${esc(item.courseCode || "-")})</td></tr>
     `;
-    if (item.requestType === "edit") {
+    if (item.requestType === "edit" || item.requestType === "change") {
       rows += `<tr><td class="sp-detail-label">الشعبة المطلوبة</td><td>${esc(item.requestedSection || "-")}</td></tr>`;
     }
     rows += `
@@ -741,6 +764,7 @@ const empName = employeesCache[item.assignedEmployee] || "-";
       ? `<tr><td class="sp-detail-label">سبب الرفض</td><td><span class="sp-reject-reason">${esc(item.rejectReason)}</span></td></tr>` : "";
     return `
       <tr><td class="sp-detail-label">رمز المقرر</td><td>${esc(item.courseCode || "-")}</td></tr>
+      <tr><td class="sp-detail-label">رقم الشعبة</td><td>${esc(item.sectionNumber || "-")}</td></tr>
       <tr><td class="sp-detail-label">نوع الاختبار</td><td><strong>${examTypeLabel[item.examType] || esc(item.examType || "-")}</strong></td></tr>
       <tr><td class="sp-detail-label">تاريخ الاختبار</td><td>${esc(item.examDate || "-")}</td></tr>
       <tr><td class="sp-detail-label">سبب الغياب</td><td>${esc(item.reason || item.notes || "-")}</td></tr>
@@ -1419,7 +1443,7 @@ function printActiveStudent() {
       <tr>
         <td>${reqTypeLabel[r.requestType] || r.requestType || "-"}</td>
         <td>${esc(r.courseName || "")} (${esc(r.courseCode || "")})</td>
-        <td>${r.requestType === "edit" ? esc(r.requestedSection || "-") : "-"}</td>
+        <td>${(r.requestType === "edit" || r.requestType === "change") ? esc(r.requestedSection || "-") : "-"}</td>
         <td>${esc(r.notes || "-")}</td>
         <td>${statusLabel[getEffectiveStatus(r)] || getEffectiveStatus(r)}${rejectNote}</td>
         <td>${esc(empName)}</td>
@@ -2061,13 +2085,591 @@ document.getElementById("transferAdminBtn")?.addEventListener("click", openTrans
 document.getElementById("ta_cancelBtn")?.addEventListener("click", closeTransferModal);
 document.getElementById("transferAdminForm")?.addEventListener("submit", handleTransferAdmin);
 
+// ==================== الشكاوى والاقتراحات (مدمج من ComplaintsAdmin.js) ====================
+
+const DEPT_AR = {
+  physics: "قسم الفيزياء",
+  statistics: "قسم الإحصاء",
+  math: "قسم الرياضيات",
+  biology: "قسم الأحياء",
+  chemistry: "قسم الكيمياء",
+  college: "الكلية",
+};
+
+const COMPLAINT_STATUS_LABEL = {
+  new: "جديد",
+  under_review: "قيد المراجعة",
+  resolved: "تمت المعالجة",
+  dismissed: "مرفوض",
+};
+
+const TYPE_ICON = {
+  شكوى: "ti-alert-circle",
+  اقتراح: "ti-bulb",
+  استفسار: "ti-help-circle",
+};
+
+let complaintsData      = [];
+let cStatusFilter       = "all";
+let cSearchQuery        = "";
+let cTargetFilter       = "all";
+let cTypeFilter         = "all";
+let activeComplaint     = null;
+let unsubscribeComplaints = null;
+
+function getDeptLabel(complaint) {
+  if (complaint.target === "college") return "الكلية";
+  return (
+    DEPT_AR[complaint.departmentKey] ||
+    complaint.targetAr ||
+    complaint.departmentKey ||
+    "-"
+  );
+}
+
+function getComplaintStatusLabel(status) {
+  return COMPLAINT_STATUS_LABEL[status] || status;
+}
+
+// يعيد استخدام كاش الطلاب ودالة getStudent الموجودة أصلاً، مع محاولة إضافية
+// بالبحث عن studentId كحقل في حال لم يُعثر على الطالبة بمعرّف المستند مباشرة
+async function getComplaintStudentInfo(uid) {
+  if (!uid) return null;
+  const cached = await getStudent(uid);
+  if (cached && cached.fullName && cached.fullName !== "-") return cached;
+
+  try {
+    const q = query(collection(db, "students"), where("studentId", "==", uid));
+    const snap = await getDocs(q);
+    if (!snap.empty) {
+      studentsCache[uid] = { _uid: uid, ...snap.docs[0].data() };
+      return studentsCache[uid];
+    }
+  } catch (e) {
+    console.error("getComplaintStudentInfo by studentId error:", e);
+  }
+  return cached;
+}
+
+// ── حقن قسم الشكاوى في الصفحة ──────────────────────
+
+function injectComplaintsSection() {
+  if (document.getElementById("complaintsSection")) return;
+
+  const main = document.querySelector(".admin-main");
+  if (!main) return;
+
+  const section = document.createElement("div");
+  section.id = "complaintsSection";
+  section.style.display = "none";
+  section.innerHTML = `
+    <!-- بطاقات الإحصاء -->
+    <div class="admin-stats-grid" id="cStatsGrid">
+      <div class="admin-stat-card emp-stat-card stat-total active" data-cfilter="all">
+        <div class="stat-icon"><i class="ti ti-copy"></i></div>
+        <div class="stat-num" id="c-cnt-all">0</div>
+        <div class="stat-label">الكل</div>
+      </div>
+      <div class="admin-stat-card emp-stat-card stat-new" data-cfilter="new">
+        <div class="stat-icon"><i class="ti ti-sparkles"></i></div>
+        <div class="stat-num" id="c-cnt-new">0</div>
+        <div class="stat-label">جديد</div>
+      </div>
+      <div class="admin-stat-card emp-stat-card stat-review" data-cfilter="under_review">
+        <div class="stat-icon"><i class="ti ti-loader-2"></i></div>
+        <div class="stat-num" id="c-cnt-under_review">0</div>
+        <div class="stat-label">قيد المراجعة</div>
+      </div>
+      <div class="admin-stat-card emp-stat-card stat-approved" data-cfilter="resolved">
+        <div class="stat-icon"><i class="ti ti-circle-check"></i></div>
+        <div class="stat-num" id="c-cnt-resolved">0</div>
+        <div class="stat-label">تمت المعالجة</div>
+      </div>
+      <div class="admin-stat-card emp-stat-card stat-rejected" data-cfilter="dismissed">
+        <div class="stat-icon"><i class="ti ti-circle-x"></i></div>
+        <div class="stat-num" id="c-cnt-dismissed">0</div>
+        <div class="stat-label">مرفوض</div>
+      </div>
+    </div>
+
+    <!-- الجدول -->
+    <div class="admin-table-card">
+      <div class="admin-search-row">
+        <div class="admin-search-bar">
+          <i class="ti ti-search admin-search-icon"></i>
+          <input type="text" id="cSearchInput" placeholder="ابحث بالعنوان..." autocomplete="off" />
+        </div>
+        <div class="dept-filter-pill">
+          <i class="ti ti-filter"></i>
+          <select id="cTargetFilter">
+            <option value="all">كل الجهات</option>
+            <option value="college">الكلية</option>
+            <option value="physics">قسم الفيزياء</option>
+            <option value="statistics">قسم الإحصاء</option>
+            <option value="math">قسم الرياضيات</option>
+            <option value="biology">قسم الأحياء</option>
+            <option value="chemistry">قسم الكيمياء</option>
+          </select>
+        </div>
+        <div class="dept-filter-pill">
+          <i class="ti ti-category"></i>
+          <select id="cTypeFilter">
+            <option value="all">كل الأنواع</option>
+            <option value="شكوى">شكوى</option>
+            <option value="استفسار">استفسار</option>
+            <option value="اقتراح">اقتراح</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="admin-table-wrap" id="cTableWrap">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>الطالب</th>
+              <th>النوع</th>
+              <th>العنوان</th>
+              <th>الجهة</th>
+              <th>الحالة</th>
+              <th>التاريخ</th>
+              <th>التفاصيل</th>
+            </tr>
+          </thead>
+          <tbody id="cTbody"></tbody>
+        </table>
+        <div class="admin-empty" id="cEmpty" style="display:none">
+          <i class="ti ti-inbox-off"></i>
+          <p>لا توجد شكاوى مطابقة</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- اللوحة الجانبية للشكوى -->
+    <div class="admin-side-panel" id="cSidePanel">
+      <div class="sp-header">
+        <div>
+          <div class="sp-title" id="cSpTitle">تفاصيل الشكوى</div>
+          <div class="sp-sub"  id="cSpSub"></div>
+        </div>
+        <button class="sp-close-btn" id="cSpClose"><i class="ti ti-x"></i></button>
+      </div>
+      <div class="sp-body" id="cSpBody"></div>
+      <div class="sp-footer" style="display:flex; gap:10px; flex-wrap:wrap;">
+        <button class="sp-action-btn sp-review"   data-caction="under_review" id="cBtnReview">
+          <i class="ti ti-loader-2"></i> قيد المراجعة
+        </button>
+        <button class="sp-action-btn sp-approve"  data-caction="resolved"     id="cBtnResolve">
+          <i class="ti ti-circle-check"></i> تمت المعالجة
+        </button>
+        <button class="sp-action-btn sp-reject"   data-caction="dismissed"    id="cBtnDismiss">
+          <i class="ti ti-circle-x"></i> رفض
+        </button>
+      </div>
+    </div>
+    <div class="sp-overlay" id="cSpOverlay"></div>
+  `;
+
+  main.appendChild(section);
+
+  // أحداث البطاقات
+  section.querySelectorAll("[data-cfilter]").forEach((card) => {
+    card.addEventListener("click", () => {
+      cStatusFilter = card.dataset.cfilter;
+      section
+        .querySelectorAll("[data-cfilter]")
+        .forEach((c) => c.classList.remove("active"));
+      card.classList.add("active");
+      renderComplaints();
+    });
+  });
+
+  // البحث مع debounce
+  let debounce = null;
+  section.querySelector("#cSearchInput").addEventListener("input", (e) => {
+    cSearchQuery = e.target.value;
+    clearTimeout(debounce);
+    debounce = setTimeout(renderComplaints, 200);
+  });
+
+  // فلتر الجهة
+  section.querySelector("#cTargetFilter").addEventListener("change", (e) => {
+    cTargetFilter = e.target.value;
+    renderComplaints();
+  });
+
+  // فلتر النوع
+  section.querySelector("#cTypeFilter").addEventListener("change", (e) => {
+    cTypeFilter = e.target.value;
+    renderComplaints();
+  });
+
+  // إغلاق اللوحة
+  section.querySelector("#cSpClose").addEventListener("click", closeComplaintPanel);
+  section.querySelector("#cSpOverlay").addEventListener("click", closeComplaintPanel);
+
+  // أزرار الحالة
+  ["cBtnReview", "cBtnResolve", "cBtnDismiss"].forEach((id) => {
+    section.querySelector(`#${id}`).addEventListener("click", () => {
+      if (!activeComplaint) return;
+      const action = section.querySelector(`#${id}`).dataset.caction;
+      updateComplaintStatus(activeComplaint, action);
+    });
+  });
+}
+
+// ── الاشتراك في الشكاوى (Realtime) ─────────────────
+
+function subscribeComplaints() {
+  if (unsubscribeComplaints) unsubscribeComplaints();
+
+  unsubscribeComplaints = onSnapshot(
+    collection(db, "complaints"),
+    (snap) => {
+      complaintsData = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      updateComplaintsBadge();
+      const sectionVisible =
+        document.getElementById("complaintsSection")?.style.display !== "none";
+      if (sectionVisible) {
+        renderComplaints();
+      }
+    },
+    (err) => console.error("complaints snapshot error:", err)
+  );
+}
+
+function updateComplaintsBadge() {
+  const el = document.getElementById("badge-complaints");
+  if (!el) return;
+  const newCount = complaintsData.filter(
+    (c) => c.status === "new" || !c.status
+  ).length;
+  el.textContent = newCount;
+}
+
+// ── عرض الجدول ─────────────────────────────────────
+
+function renderComplaints() {
+  let filtered = [...complaintsData];
+
+  if (cStatusFilter !== "all") {
+    filtered = filtered.filter((c) => (c.status || "new") === cStatusFilter);
+  }
+
+  if (cTargetFilter !== "all") {
+    filtered = filtered.filter((c) =>
+      cTargetFilter === "college"
+        ? c.target === "college"
+        : c.departmentKey === cTargetFilter
+    );
+  }
+
+  if (cTypeFilter !== "all") {
+    filtered = filtered.filter((c) => (c.type || "شكوى") === cTypeFilter);
+  }
+
+  const q = cSearchQuery.trim().toLowerCase();
+  if (q) {
+    filtered = filtered.filter(
+      (c) =>
+        (c.subject || "").toLowerCase().includes(q) ||
+        (c.details || "").toLowerCase().includes(q)
+    );
+  }
+
+  filtered.sort((a, b) => {
+    const order = { new: 0, under_review: 1, resolved: 2, dismissed: 2 };
+    const oa = order[a.status || "new"] ?? 3;
+    const ob = order[b.status || "new"] ?? 3;
+    if (oa !== ob) return oa - ob;
+    const ta = a.createdAt?.toMillis?.() ?? 0;
+    const tb = b.createdAt?.toMillis?.() ?? 0;
+    return tb - ta;
+  });
+
+  const counts = {
+    all: complaintsData.length,
+    new: 0,
+    under_review: 0,
+    resolved: 0,
+    dismissed: 0,
+  };
+  complaintsData.forEach((c) => {
+    const s = c.status || "new";
+    if (counts[s] !== undefined) counts[s]++;
+  });
+  Object.entries(counts).forEach(([k, v]) => {
+    const el = document.getElementById(`c-cnt-${k}`);
+    if (el) el.textContent = v;
+  });
+
+  const tbody = document.getElementById("cTbody");
+  const empty = document.getElementById("cEmpty");
+  if (!tbody || !empty) return;
+
+  tbody.innerHTML = "";
+
+  if (!filtered.length) {
+    empty.style.display = "";
+    return;
+  }
+  empty.style.display = "none";
+
+  renderComplaintRows(filtered, tbody);
+}
+
+async function renderComplaintRows(filtered, tbody) {
+  const studentInfos = await Promise.all(
+    filtered.map((c) => getComplaintStudentInfo(c.studentUid))
+  );
+
+  filtered.forEach((c, i) => {
+    const status = c.status || "new";
+    const targetTxt = getDeptLabel(c);
+    const icon = TYPE_ICON[c.type] || "ti-message";
+    const dateStr = c.createdAt?.toDate
+      ? c.createdAt.toDate().toLocaleDateString("ar-SA-u-ca-gregory")
+      : "-";
+
+    const student = studentInfos[i];
+    const studentName = student?.fullName || c.studentEmail || "-";
+    const studentNum = student?.studentId || student?.universityId || "-";
+
+    const tr = document.createElement("tr");
+    tr.style.cursor = "pointer";
+    tr.innerHTML = `
+      <td>
+        <div style="font-weight:600;">${esc(studentName)}</div>
+        <div style="font-size:12px;color:#64748b;">${esc(studentNum)}</div>
+      </td>
+      <td><i class="ti ${icon}" style="font-size:16px;color:var(--primary);"></i> ${esc(c.type || "-")}</td>
+      <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(c.subject || "-")}</td>
+      <td><span class="dept-chip">${esc(targetTxt)}</span></td>
+      <td><span class="status-badge s-${status}">${getComplaintStatusLabel(status)}</span></td>
+      <td>${dateStr}</td>
+      <td><button class="detail-btn">التفاصيل <i class="ti ti-chevron-left detail-chevron"></i></button></td>
+    `;
+
+    tr.addEventListener("click", () => {
+      document
+        .querySelectorAll(".admin-table tbody tr.row-active")
+        .forEach((r) => r.classList.remove("row-active"));
+      tr.classList.add("row-active");
+      openComplaintPanel(c, student);
+    });
+
+    tbody.appendChild(tr);
+  });
+}
+
+// ── اللوحة الجانبية ─────────────────────────────────
+
+function openComplaintPanel(c, student) {
+  activeComplaint = c;
+  const status = c.status || "new";
+  const targetTxt = getDeptLabel(c);
+  const stu = student || studentsCache[c.studentUid] || null;
+  const studentName = stu?.fullName || c.studentEmail || "-";
+  const studentNum = stu?.studentId || stu?.universityId || "-";
+  const dateStr = c.createdAt?.toDate
+    ? c.createdAt.toDate().toLocaleDateString("ar-SA-u-ca-gregory")
+    : "-";
+
+  const attachHtml = c.attachmentUrl
+    ? `<a href="${esc(c.attachmentUrl)}" target="_blank" rel="noopener"
+         style="color:var(--primary);text-decoration:underline;">
+         <i class="ti ti-paperclip"></i> عرض المرفق
+       </a>`
+    : "لا يوجد";
+
+  const adminReplyHtml = c.adminReply
+    ? `<div style="background:#f0f4ff;border-right:3px solid var(--primary);
+                   padding:10px 14px;border-radius:6px;font-size:13px;margin-top:4px;">
+         ${esc(c.adminReply)}
+       </div>`
+    : "";
+
+  document.getElementById("cSpTitle").textContent = c.subject || "تفاصيل الشكوى";
+  document.getElementById("cSpSub").textContent = c.type || "";
+
+  document.getElementById("cSpBody").innerHTML = `
+    <div class="sp-detail-card sp-highlight-border" style="margin-bottom:16px;">
+      <table class="sp-detail-table">
+        <tr><td class="sp-detail-label">اسم الطالب</td>  <td>${esc(studentName)}</td></tr>
+        <tr><td class="sp-detail-label">الرقم الجامعي</td><td>${esc(studentNum)}</td></tr>
+        <tr><td class="sp-detail-label">النوع</td>      <td>${esc(c.type || "-")}</td></tr>
+        <tr><td class="sp-detail-label">الجهة المعنية</td><td>${esc(targetTxt)}</td></tr>
+        <tr><td class="sp-detail-label">الحالة</td>
+            <td><span class="status-badge s-${status}">${getComplaintStatusLabel(status)}</span></td></tr>
+        <tr><td class="sp-detail-label">تاريخ التقديم</td><td>${dateStr}</td></tr>
+        <tr><td class="sp-detail-label">المرفق</td>     <td>${attachHtml}</td></tr>
+      </table>
+    </div>
+
+    <div class="sp-section-title">التفاصيل</div>
+    <div class="sp-detail-card" style="font-size:14px;line-height:1.8;margin-bottom:16px;">
+      ${esc(c.details || "-")}
+    </div>
+
+    <div class="sp-section-title">رد / ملاحظة الأدمن</div>
+    ${adminReplyHtml}
+    <textarea id="cAdminReplyInput" rows="3"
+      style="width:100%;padding:10px 12px;border:1px solid #d1d5db;border-radius:8px;
+             font-family:inherit;font-size:14px;margin-top:8px;resize:vertical;box-sizing:border-box;"
+      placeholder="اكتب ردك أو ملاحظتك هنا...">${esc(c.adminReply || "")}</textarea>
+    <button id="cSaveReplyBtn"
+      style="margin-top:8px;padding:9px 18px;background:var(--primary);color:#fff;
+             border:none;border-radius:8px;cursor:pointer;font-family:inherit;font-size:14px;">
+      <i class="ti ti-device-floppy"></i> حفظ الرد
+    </button>
+  `;
+
+  document.getElementById("cSaveReplyBtn").addEventListener("click", saveComplaintReply);
+
+  ["cBtnReview", "cBtnResolve", "cBtnDismiss"].forEach((id) => {
+    const btn = document.getElementById(id);
+    const action = btn.dataset.caction;
+    btn.disabled = status === action;
+  });
+
+  document.getElementById("cSidePanel").classList.add("open");
+  document.getElementById("cSpOverlay").classList.add("show");
+  document.querySelector(".admin-main").classList.add("panel-open");
+}
+
+function closeComplaintPanel() {
+  document.getElementById("cSidePanel").classList.remove("open");
+  document.getElementById("cSpOverlay").classList.remove("show");
+  document.querySelector(".admin-main").classList.remove("panel-open");
+  activeComplaint = null;
+}
+
+// ── تحديث الحالة في Firestore ──────────────────────
+
+async function updateComplaintStatus(complaint, newStatus) {
+  try {
+    await updateDoc(doc(db, "complaints", complaint.id), {
+      status: newStatus,
+      handledBy: currentAdminData?.docId || null,
+      handledByName: currentAdminData?.fullName || "الأدمن",
+      updatedAt: serverTimestamp(),
+    });
+
+    complaint.status = newStatus;
+    openComplaintPanel(complaint);
+  } catch (err) {
+    console.error("updateComplaintStatus error:", err);
+    alert("حدث خطأ: " + err.message);
+  }
+}
+
+// ── حفظ رد الأدمن ──────────────────────────────────
+
+async function saveComplaintReply() {
+  if (!activeComplaint) return;
+
+  const reply = document.getElementById("cAdminReplyInput")?.value?.trim() || "";
+  const btn = document.getElementById("cSaveReplyBtn");
+
+  btn.disabled = true;
+  btn.textContent = "جاري الحفظ...";
+
+  try {
+    await updateDoc(doc(db, "complaints", activeComplaint.id), {
+      adminReply: reply,
+      repliedBy: currentAdminData?.docId || null,
+      repliedByName: currentAdminData?.fullName || "الأدمن",
+      repliedAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+
+    activeComplaint.adminReply = reply;
+    btn.textContent = "✓ تم الحفظ";
+
+    setTimeout(() => {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="ti ti-device-floppy"></i> حفظ الرد';
+    }, 1500);
+  } catch (err) {
+    console.error("saveComplaintReply error:", err);
+    alert("خطأ في الحفظ: " + err.message);
+    btn.disabled = false;
+    btn.textContent = "حفظ الرد";
+  }
+}
+
+// ── إظهار / إخفاء قسم الشكاوى (متكامل مع نظام التبويبات العام) ──
+
+function showComplaintsSection() {
+  const cs = document.getElementById("complaintsSection");
+  if (!cs) return;
+
+  // إخفاء عناصر التبويبات العامة (الجدول الرئيسي وبطاقاته وفلاتره)
+  const tableWrapEl = document.getElementById("tableWrap");
+  if (tableWrapEl) tableWrapEl.style.display = "none";
+  document.querySelectorAll(".admin-stats-grid").forEach((el) => {
+    if (!el.closest("#complaintsSection")) el.style.display = "none";
+  });
+  document.querySelectorAll(".admin-table-card").forEach((el) => {
+    if (!el.closest("#complaintsSection")) el.style.display = "none";
+  });
+  document.querySelectorAll(".admin-search-row").forEach((el) => {
+    if (!el.closest("#complaintsSection")) el.style.display = "none";
+  });
+
+  const visitUploadAreaEl = document.getElementById("visitUploadArea");
+  if (visitUploadAreaEl) visitUploadAreaEl.style.display = "none";
+  const deptFilterWrapEl = document.getElementById("deptFilterWrap");
+  if (deptFilterWrapEl) deptFilterWrapEl.style.display = "none";
+  const excuseFiltersWrapEl = document.getElementById("excuseFiltersWrap");
+  if (excuseFiltersWrapEl) excuseFiltersWrapEl.style.display = "none";
+
+  // إخفاء أقسام لوحة التحكم/الإحصائيات/الفصل الدراسي
+  const dashboardSectionEl = document.getElementById("dashboardSection");
+  if (dashboardSectionEl) dashboardSectionEl.style.display = "none";
+  const semesterSectionEl = document.getElementById("semesterSection");
+  if (semesterSectionEl) semesterSectionEl.style.display = "none";
+  const filterBar = document.getElementById("statsDeptFilterBar");
+  if (filterBar) filterBar.style.display = "none";
+
+  const tableTitleEl = document.getElementById("tableTitle");
+  if (tableTitleEl) tableTitleEl.textContent = "الشكاوى والاقتراحات";
+
+  cs.style.display = "";
+  renderComplaints();
+}
+
+function hideComplaintsSection() {
+  const cs = document.getElementById("complaintsSection");
+  if (cs) cs.style.display = "none";
+
+  // إعادة إظهار عناصر الجدول العام التي أخفتها showComplaintsSection()
+  // (لو ما رجعناها هنا، تبقى مخفية للأبد بعد أول زيارة لتبويب الشكاوى)
+  document.querySelectorAll(".admin-table-card").forEach((el) => {
+    if (!el.closest("#complaintsSection")) el.style.display = "";
+  });
+  document.querySelectorAll(".admin-stats-grid").forEach((el) => {
+    if (!el.closest("#complaintsSection")) el.style.display = "";
+  });
+}
+
 // ==================== أحداث الواجهة ====================
 
 document.querySelectorAll(".admin-tab").forEach((btn) => {
   btn.addEventListener("click", () => {
     currentTab = btn.dataset.tab;
+
     document.querySelectorAll(".admin-tab").forEach((t) => t.classList.remove("active"));
     btn.classList.add("active");
+    document.querySelectorAll(".sb-nav-item").forEach((i) => i.classList.remove("active"));
+    btn.classList.add("active");
+
+    // تبويب الشكاوى له قسمه المستقل الخاص، لا يمر بمنطق الجدول العام
+    if (currentTab === "complaints") {
+      showComplaintsSection();
+      return;
+    }
+    hideComplaintsSection();
+
     currentStatusFilter = "all";
     document.getElementById("statusFilter").value = "all";
     document.querySelectorAll(".admin-stat-card").forEach((c) => c.classList.remove("active"));
@@ -2076,7 +2678,7 @@ document.querySelectorAll(".admin-tab").forEach((btn) => {
     // إعادة إظهار الجدول ومنطقة البحث (قد تكون اختفت عند فتح الإحصائيات أو الفصل)
     const tableWrapEl2 = document.getElementById("tableWrap");
     if (tableWrapEl2) tableWrapEl2.style.display = "";
-    const searchRowEl = document.getElementById("mainSearchRow");
+    const searchRowEl = document.querySelector(".admin-search-row");
     if (searchRowEl) searchRowEl.style.display = "";
 
     // إخفاء فلتر أقسام الإحصائيات
@@ -2094,39 +2696,12 @@ document.querySelectorAll(".admin-tab").forEach((btn) => {
       }
     }
 
-    // فلتر الأقسام العام — يظهر في: طلبات الحذف/الإضافة + طلبات الزيارة فقط
+    // إظهار فلتر الأقسام العام في تبويبي "الحذف والإضافة" و"الزيارة" فقط (الأعذار له فلتر أقسام خاص به)
     const deptFilterWrapEl = document.getElementById("deptFilterWrap");
     if (deptFilterWrapEl) {
       deptFilterWrapEl.style.display = (currentTab === "addDrop" || currentTab === "visit") ? "" : "none";
       if (currentTab !== "addDrop" && currentTab !== "visit") {
         currentDeptFilter = "all";
-      }
-    }
-
-    // فلتر الفصل الدراسي — يظهر في: طلبات الحذف/الإضافة + طلبات الزيارة + طلبات الأعذار
-    const semesterFilterWrapEl = document.getElementById("semesterFilterWrap");
-    if (semesterFilterWrapEl) {
-      semesterFilterWrapEl.style.display =
-        (currentTab === "addDrop" || currentTab === "visit" || currentTab === "excuse") ? "" : "none";
-    }
-
-    // صف فلاتر الأعذار (أقسام + أنواع اختبارات + حالات + تصدير) — يظهر في الأعذار فقط
-    const excuseFiltersRowEl = document.getElementById("excuseFiltersRow");
-    if (excuseFiltersRowEl) {
-      if (currentTab === "excuse") {
-        excuseFiltersRowEl.classList.add("show");
-      } else {
-        excuseFiltersRowEl.classList.remove("show");
-        // إعادة تعيين فلاتر الأعذار عند الخروج
-        currentExcuseDept     = "all";
-        currentExcuseExamType = "all";
-        currentExcuseStatus   = "all";
-        const eDept = document.getElementById("excuseDeptFilter");
-        const eExam = document.getElementById("excuseExamTypeFilter");
-        const eStat = document.getElementById("excuseStatusExportFilter");
-        if (eDept) eDept.value = "all";
-        if (eExam) eExam.value = "all";
-        if (eStat) eStat.value = "all";
       }
     }
 
@@ -2137,10 +2712,6 @@ document.querySelectorAll(".admin-tab").forEach((btn) => {
     // إخفاء قسم الإحصائيات
     const dashboardSectionEl = document.getElementById("dashboardSection");
     if (dashboardSectionEl) dashboardSectionEl.style.display = "none";
-
-    // إظهار بطاقة الجدول
-    const requestsTableCard = document.getElementById("requestsTableCard");
-    if (requestsTableCard) requestsTableCard.style.display = "";
 
     // إظهار كاردات الفلتر (الكل / جديد / قيد المراجعة / مقبول / مرفوض)
     const statsGridEl = document.querySelector(".admin-stats-grid");
@@ -2267,21 +2838,22 @@ async function exportExcusesToExcel() {
 
   // تصدير أفقي: صف لكل طلب، وكل حقل في عمود مستقل
   const data = [
-    ["الرقم الجامعي", "اسم الطالبة", "التخصص", "نوع الاختبار", "اسم المقرر", "تاريخ الغياب", "الحالة"]
-  ];
+  ["الرقم الجامعي", "اسم الطالبة", "التخصص", "نوع الاختبار", "اسم المقرر", "رقم الشعبة", "تاريخ الغياب", "الحالة"]
+];
 
   sortedItems.forEach((r) => {
     const student   = studentsCache[r[cfg.studentField]] || {};
     const statusKey = getEffectiveStatus(r);
-    data.push([
-      student.studentId  || student.universityId || "-",
-      student.fullName   || "-",
-      student.major      || student.department   || "-",
-      examTypeLabel[r.examType] || r.examType    || "-",
-      r.courseName       || r.courseCode         || "-",
-      r.absenceDate      || r.examDate           || "-",
-      statusLabel[statusKey]    || statusKey
-    ]);
+ data.push([
+  student.studentId || student.universityId || "-",
+  student.fullName || "-",
+  student.major || student.department || "-",
+  examTypeLabel[r.examType] || r.examType || "-",
+  r.courseName || r.courseCode || "-",
+  r.sectionNumber || "-",
+  r.absenceDate || r.examDate || "-",
+  statusLabel[statusKey] || statusKey
+]);
   });
 
   const ws = window.XLSX.utils.aoa_to_sheet(data);
@@ -2398,15 +2970,15 @@ function getEmpName(uid) {
   return employeesCache[uid]?.fullName || uid;
 }
 
-// إظهار الإحصائيات — نسجّل المستمع مرة واحدة فقط حتى لو تكرر إطلاق onAuthStateChanged
-if (!navListenersAttached) {
+// إظهار الإحصائيات
 navStats.addEventListener("click", () => {
+  hideComplaintsSection();
   dashboardSection.style.display = "";
-  statsGrid.style.display = "none";   // إخفاء كاردات الحالة
+  statsGrid.style.display = "none";   // إخفاء فلاتر الحالة
   if (semesterSection) semesterSection.style.display = "none";
 
   // إخفاء منطقة البحث والجدول
-  const searchRowEl = document.getElementById("mainSearchRow");
+  const searchRowEl = document.querySelector(".admin-search-row");
   if (searchRowEl) searchRowEl.style.display = "none";
   const tableWrapEl2 = document.getElementById("tableWrap");
   if (tableWrapEl2) tableWrapEl2.style.display = "none";
@@ -2415,17 +2987,6 @@ navStats.addEventListener("click", () => {
   const visitUploadAreaEl = document.getElementById("visitUploadArea");
   if (visitUploadAreaEl) visitUploadAreaEl.style.display = "none";
 
-  // إخفاء كل فلاتر الطلبات
-  const _dfw = document.getElementById("deptFilterWrap");
-  if (_dfw) _dfw.style.display = "none";
-  const _sfw = document.getElementById("semesterFilterWrap");
-  if (_sfw) _sfw.style.display = "none";
-  const _efw = document.getElementById("excuseFiltersRow");
-  if (_efw) _efw.classList.remove("show");
-  // إخفاء بطاقة الجدول
-  const _rtc = document.getElementById("requestsTableCard");
-  if (_rtc) _rtc.style.display = "none";
-
   setActiveSidebarItem("navStats");
   renderDeptFilterForStats();
 });
@@ -2433,12 +2994,13 @@ navStats.addEventListener("click", () => {
 // إظهار قسم إدارة الفصل الدراسي
 if (navSemester) {
   navSemester.addEventListener("click", async () => {
+    hideComplaintsSection();
     dashboardSection.style.display = "none";
-    statsGrid.style.display = "none";   // إخفاء كاردات الحالة
+    statsGrid.style.display = "none";   // إخفاء فلاتر الحالة
     if (semesterSection) semesterSection.style.display = "";
 
     // إخفاء منطقة البحث والجدول
-    const searchRowEl = document.getElementById("mainSearchRow");
+    const searchRowEl = document.querySelector(".admin-search-row");
     if (searchRowEl) searchRowEl.style.display = "none";
     const tableWrapEl2 = document.getElementById("tableWrap");
     if (tableWrapEl2) tableWrapEl2.style.display = "none";
@@ -2447,24 +3009,10 @@ if (navSemester) {
     const visitUploadAreaEl = document.getElementById("visitUploadArea");
     if (visitUploadAreaEl) visitUploadAreaEl.style.display = "none";
 
-    // إخفاء كل فلاتر الطلبات
-    const _dfw = document.getElementById("deptFilterWrap");
-    if (_dfw) _dfw.style.display = "none";
-    const _sfw = document.getElementById("semesterFilterWrap");
-    if (_sfw) _sfw.style.display = "none";
-    const _efw = document.getElementById("excuseFiltersRow");
-    if (_efw) _efw.classList.remove("show");
-    // إخفاء بطاقة الجدول
-    const _rtc = document.getElementById("requestsTableCard");
-    if (_rtc) _rtc.style.display = "none";
-
     setActiveSidebarItem("navSemester");
     await loadSemesterInfo();
   });
 }
-
-navListenersAttached = true;
-} // نهاية حارس navListenersAttached
 
 // ملاحظة: handler التبويبات الرئيسي موجود في قسم "أحداث الواجهة" أعلاه
 
@@ -2717,10 +3265,11 @@ function buildCharts() {
 
 // لوحة التحكم (navHome) قابلة للضغط - تعيد للتبويب الافتراضي
 const navHome = document.getElementById("navHome");
-if (navHome && !navHome.dataset.listenerAttached) {
-  navHome.dataset.listenerAttached = "1";
+if (navHome) {
   navHome.style.cursor = "pointer";
   navHome.addEventListener("click", () => {
+    // إخفاء قسم الشكاوى إن كان ظاهرًا
+    hideComplaintsSection();
     // إخفاء الأقسام الأخرى
     if (dashboardSection) dashboardSection.style.display = "none";
     if (semesterSection)  semesterSection.style.display  = "none";
@@ -2731,7 +3280,7 @@ if (navHome && !navHome.dataset.listenerAttached) {
 
     // إظهار الكاردز والجدول والبحث
     if (statsGrid) statsGrid.style.display = "";
-    const searchRowEl = document.getElementById("mainSearchRow");
+    const searchRowEl = document.querySelector(".admin-search-row");
     if (searchRowEl) searchRowEl.style.display = "";
 
     // تفعيل تبويب الحذف والإضافة (الافتراضي)
@@ -2748,15 +3297,6 @@ if (navHome && !navHome.dataset.listenerAttached) {
     // إخفاء زيارة upload area
     const visitUploadAreaEl = document.getElementById("visitUploadArea");
     if (visitUploadAreaEl) visitUploadAreaEl.style.display = "none";
-
-    // إظهار فلاتر تبويب الحذف/الإضافة (كل الأقسام + الفصل الدراسي فقط)
-    const deptFilterWrapEl = document.getElementById("deptFilterWrap");
-    if (deptFilterWrapEl) deptFilterWrapEl.style.display = "";
-    const semesterFilterWrapEl = document.getElementById("semesterFilterWrap");
-    if (semesterFilterWrapEl) semesterFilterWrapEl.style.display = "";
-    // إخفاء صف فلاتر الأعذار
-    const excuseFiltersRowEl = document.getElementById("excuseFiltersRow");
-    if (excuseFiltersRowEl) excuseFiltersRowEl.classList.remove("show");
 
     // إعادة تعيين الفلاتر
     currentStatusFilter = "all";
@@ -2792,6 +3332,10 @@ if (navHome && !navHome.dataset.listenerAttached) {
       await initSemesterData();
       injectRejectModal();
       await loadAllData();
+
+      // تفعيل قسم الشكاوى والاقتراحات (يبني عناصره ويشترك بالتحديث اللحظي)
+      injectComplaintsSection();
+      subscribeComplaints();
 
     } catch (err) {
       console.error("Auth error:", err);

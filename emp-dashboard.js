@@ -533,6 +533,7 @@ function buildDetailRows(tab, item) {
       : "لا يوجد";
     return `
       <tr><td class="sp-detail-label">رمز المقرر</td><td>${esc(item.courseCode || "-")}</td></tr>
+      <tr><td class="sp-detail-label">رقم الشعبة</td><td>${esc(item.sectionNumber || "-")}</td></tr>
       <tr><td class="sp-detail-label">نوع الاختبار</td><td><strong>${examTypeLabel[item.examType] || esc(item.examType || "-")}</strong></td></tr>
       <tr><td class="sp-detail-label">تاريخ الغياب</td><td>${esc(item.absenceDate || item.examDate || "-")}</td></tr>
       <tr><td class="sp-detail-label">سبب الغياب</td><td>${esc(item.reason || item.notes || "-")}</td></tr>
@@ -1224,19 +1225,33 @@ document.getElementById("logoutBtn")?.addEventListener("click", async () => {
 
 async function exportExcusesToExcel() {
   const cfg   = tabConfig["excuse"];
-  const items = [...tabData.excuse];
+  let items = [...tabData.excuse];
 
   if (!items.length) {
     alert("لا توجد بيانات أعذار للتصدير.");
     return;
   }
 
-  // جلب بيانات أي طالبة غير موجودة في الكاش
+  // جلب بيانات أي طالبة غير موجودة في الكاش (قبل الفلترة عشان نقدر نفلتر على التخصص)
   const missingUids = [...new Set(
     items.map(it => it[cfg.studentField]).filter(uid => uid && !studentsCache[uid])
   )];
   if (missingUids.length) {
     await Promise.all(missingUids.map(uid => getStudent(uid)));
+  }
+
+  // ✅ تطبيق فلتر القسم الحالي (نفس منطق الجدول) قبل التصدير
+  if (isAffairs && currentDeptFilter !== "all") {
+    items = items.filter(it => {
+      const student      = studentsCache[it[cfg.studentField]] || {};
+      const studentMajor = student.major || student.department || "";
+      return studentMajor === currentDeptFilter || it.major === currentDeptFilter;
+    });
+  }
+
+  if (!items.length) {
+    alert("لا توجد بيانات أعذار مطابقة للفلتر الحالي.");
+    return;
   }
 
   // تحميل مكتبة SheetJS إن لم تكن محملة
@@ -1251,22 +1266,23 @@ async function exportExcusesToExcel() {
   }
 
   // كل طلب = صف — كل عمود في خانته المستقلة
-  const data = [
-    ["الرقم الجامعي", "اسم الطالبة", "التخصص", "نوع الاختبار", "اسم المقرر", "تاريخ الغياب", "الحالة"]
-  ];
+ const data = [
+  ["الرقم الجامعي", "اسم الطالبة", "التخصص", "نوع الاختبار", "اسم المقرر", "رقم الشعبة", "تاريخ الغياب", "الحالة"]
+];
 
   items.forEach(r => {
     const student   = studentsCache[r[cfg.studentField]] || {};
     const statusKey = getEffectiveStatus(r);
-    data.push([
-      student.studentId  || student.universityId || "-",
-      student.fullName   || "-",
-      student.major      || student.department   || "-",
-      examTypeLabel[r.examType] || r.examType    || "-",
-      r.courseName       || r.courseCode         || "-",
-      r.absenceDate      || r.examDate           || "-",
-      statusLabel[statusKey]    || statusKey
-    ]);
+  data.push([
+  student.studentId || student.universityId || "-",
+  student.fullName || "-",
+  student.major || student.department || "-",
+  examTypeLabel[r.examType] || r.examType || "-",
+  r.courseName || r.courseCode || "-",
+  r.sectionNumber || "-",
+  r.absenceDate || r.examDate || "-",
+  statusLabel[statusKey] || statusKey
+]);
   });
 
   const ws = window.XLSX.utils.aoa_to_sheet(data);

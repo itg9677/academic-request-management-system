@@ -39,7 +39,7 @@ function getStatusInfo(status) {
       return { text: "قيد المراجعة", cls: "status-review" };
     case "new":
     default:
-      return { text: "جديدة", cls: "status-review" };
+      return { text: "جديد", cls: "status-review" };
   }
 }
 
