@@ -25,7 +25,7 @@ window.addCourseRow = function () {
     row.id      = `row_${courseCounter}`;
 
     row.innerHTML = `
-        <td>${courseCounter}</td>
+        <td class="row-number">${courseCounter}</td>
 
         <td>
             <input type="text" name="courseName_${courseCounter}" placeholder="اسم المادة">
@@ -36,12 +36,39 @@ window.addCourseRow = function () {
         </td>
 
         <td>
-            <input type="text" name="section_${courseCounter}" placeholder="الشعبة">
+            <div class="section-cell">
+                <input type="text" name="section_${courseCounter}" placeholder="الشعبة">
+                <button type="button" class="btn-remove-course" aria-label="حذف المادة" onclick="removeCourseRow('row_${courseCounter}')">✕</button>
+            </div>
         </td>
     `;
 
     tbody.appendChild(row);
     courseCounter++;
+};
+
+/* ==========================
+   حذف صف مادة
+========================== */
+window.removeCourseRow = function (rowId) {
+
+    const tbody = document.getElementById("coursesBody");
+
+    if (tbody.children.length <= 1) {
+        alert("لازم يبقى مادة واحدة على الأقل");
+        return;
+    }
+
+    const row = document.getElementById(rowId);
+    if (!row) return;
+
+    row.remove();
+
+    // إعادة ترقيم عمود "م" فقط، بدون المساس بأسماء الحقول
+    Array.from(tbody.children).forEach((r, index) => {
+        const numCell = r.querySelector(".row-number");
+        if (numCell) numCell.textContent = index + 1;
+    });
 };
 
 /* ==========================
@@ -238,7 +265,7 @@ document.getElementById("submitBtn")
     const visitPlace = document.getElementById("visitPlace").value;
     const reason     = document.getElementById("reason").value;
 
-    if (!visitType || !level || !visitPlace || !reason) {
+    if (!visitType || !level || !reason || (visitType === "internal" && !visitPlace)) {
         alert("رجاءً تعبئة جميع الحقول");
         return;
     }

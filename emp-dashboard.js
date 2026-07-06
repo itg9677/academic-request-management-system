@@ -1215,19 +1215,33 @@ document.getElementById("logoutBtn")?.addEventListener("click", async () => {
 
 async function exportExcusesToExcel() {
   const cfg   = tabConfig["excuse"];
-  const items = [...tabData.excuse];
+  let items = [...tabData.excuse];
 
   if (!items.length) {
     alert("لا توجد بيانات أعذار للتصدير.");
     return;
   }
 
-  // جلب بيانات أي طالبة غير موجودة في الكاش
+  // جلب بيانات أي طالبة غير موجودة في الكاش (قبل الفلترة عشان نقدر نفلتر على التخصص)
   const missingUids = [...new Set(
     items.map(it => it[cfg.studentField]).filter(uid => uid && !studentsCache[uid])
   )];
   if (missingUids.length) {
     await Promise.all(missingUids.map(uid => getStudent(uid)));
+  }
+
+  // ✅ تطبيق فلتر القسم الحالي (نفس منطق الجدول) قبل التصدير
+  if (isAffairs && currentDeptFilter !== "all") {
+    items = items.filter(it => {
+      const student      = studentsCache[it[cfg.studentField]] || {};
+      const studentMajor = student.major || student.department || "";
+      return studentMajor === currentDeptFilter || it.major === currentDeptFilter;
+    });
+  }
+
+  if (!items.length) {
+    alert("لا توجد بيانات أعذار مطابقة للفلتر الحالي.");
+    return;
   }
 
   // تحميل مكتبة SheetJS إن لم تكن محملة

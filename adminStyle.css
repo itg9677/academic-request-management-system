@@ -360,7 +360,7 @@
 .admin-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 15px;
+  font-size: 17px;
 }
 
 .admin-table thead th {
@@ -371,7 +371,7 @@
   border-bottom: 1px solid #e2e8f0;
   text-align: right;
   white-space: nowrap;
-  font-size: 14px;
+  font-size: 17px;
 }
 
 .admin-table tbody td {
@@ -635,7 +635,7 @@ mark {
 }
 
 .sp-phone {
-  font-size: 13px;
+  font-size: 17px;
   color: #2e7d52;
   margin-top: 2px;
 }
@@ -647,14 +647,14 @@ mark {
 }
 
 .sp-info-item {
-  font-size: 13px;
+  font-size: 17px;
   color: #64748b;
   display: flex;
   align-items: center;
   gap: 4px;
 }
 
-.sp-info-item i { color: #c8972b; font-size: 14px; }
+.sp-info-item i { color: #c8972b; font-size: 17px; }
 
 /* Section title */
 .sp-section-title {
@@ -691,7 +691,7 @@ mark {
 .sp-detail-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 13px;
+  font-size: 18px;
 }
 
 /* جدول بيانات الطالب الأساسية فقط (الرقم الجامعي، الاسم، الجوال...) — يبقى بخط أكبر */
@@ -725,7 +725,7 @@ mark {
   flex: 1;
   padding: 10px 8px;
   border-radius: 7px;
-  font-size: 13px;
+  font-size: 17px;
   font-family: inherit;
   cursor: pointer;
   border: 1px solid;
@@ -760,7 +760,7 @@ mark {
 .sp-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 13px;
+  font-size: 17px;
 }
 
 .sp-table th {
@@ -1021,3 +1021,21 @@ mark {
 .sidebar-layout .admin-main.panel-open {
   padding-left: 0;
 }
+/* تكبير خط تفاصيل الطلب */
+.sp-detail-table td,
+.sp-detail-label,
+.sp-detail-table {
+  font-size: 16px !important;
+  line-height: 1.9 !important;
+}
+.sp-detail-card tr:first-child td {
+  font-size: 20px !important;
+  font-weight: 700 !important;
+}
+/* تكبير عنوان الأقسام داخل جدول الطلبات (مواد التخصص – مواد أخرى ومشتركة) */
+.sp-table th {
+  font-size: 20px !important;
+  font-weight: 700 !important;
+  color: #1a3a6b !important;
+}
+
