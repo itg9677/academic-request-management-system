@@ -129,13 +129,14 @@ form.addEventListener("submit", async (e) => {
 
     try {
         const courseCode = document.getElementById("courseSelect").value;
+        const sectionNumber = document.getElementById("sectionNumber").value.trim();
         const examDate   = document.getElementById("examDate").value;
         const examType   = document.getElementById("examType").value;
         const reason     = document.getElementById("reason").value.trim();
         const file       = document.getElementById("fileInput").files[0];
 
-        if (!courseCode || !examDate || !examType || !reason) {
-            alert("يرجى تعبئة جميع الحقول");
+if (!courseCode || !sectionNumber || !examDate || !examType || !reason) {
+                alert("يرجى تعبئة جميع الحقول");
             return;
         }
 
@@ -175,6 +176,7 @@ form.addEventListener("submit", async (e) => {
             universityId:      studentData.universityId || "",
             major:             studentData.major        || "",
             courseCode,
+            sectionNumber,
             examDate,
             examType,
             reason,
