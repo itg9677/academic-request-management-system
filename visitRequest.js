@@ -24,8 +24,10 @@ window.addCourseRow = function () {
     const row   = document.createElement("tr");
     row.id      = `row_${courseCounter}`;
 
+    const displayNumber = tbody.children.length + 1;
+
     row.innerHTML = `
-        <td class="row-number">${courseCounter}</td>
+        <td class="row-number">${displayNumber}</td>
 
         <td>
             <input type="text" name="courseName_${courseCounter}" placeholder="اسم المادة">
