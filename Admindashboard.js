@@ -2598,20 +2598,29 @@ function openComplaintPanel(c, student) {
       style="width:100%;padding:10px 12px;border:1px solid #d1d5db;border-radius:8px;
              font-family:inherit;font-size:14px;margin-top:8px;resize:vertical;box-sizing:border-box;"
       placeholder="اكتب ردك أو ملاحظتك هنا...">${esc(c.adminReply || "")}</textarea>
-    <button id="cSaveReplyBtn"
-      style="margin-top:8px;padding:9px 18px;background:var(--primary);color:#fff;
-             border:none;border-radius:8px;cursor:pointer;font-family:inherit;font-size:14px;">
-      <i class="ti ti-device-floppy"></i> حفظ الرد
-    </button>
+   
   `;
+const replyInput = document.getElementById("cAdminReplyInput");
+const resolveBtn = document.getElementById("cBtnResolve");
 
-  document.getElementById("cSaveReplyBtn").addEventListener("click", saveComplaintReply);
+const originalReply = (c.adminReply || "").trim();
 
-  ["cBtnReview", "cBtnResolve", "cBtnDismiss"].forEach((id) => {
-    const btn = document.getElementById(id);
-    const action = btn.dataset.caction;
-    btn.disabled = status === action;
+// إذا كانت الشكوى معالجة مسبقاً
+if ((c.status || "new") === "resolved") {
+  resolveBtn.disabled = true;
+
+  replyInput.addEventListener("input", () => {
+    const currentReply = replyInput.value.trim();
+
+    // يتفعل الزر إذا تغير الرد
+    resolveBtn.disabled = currentReply === originalReply;
   });
+}
+
+["cBtnReview", "cBtnResolve", "cBtnDismiss"].forEach((id) => {
+  const btn = document.getElementById(id);
+  btn.disabled = false;
+});
 
   document.getElementById("cSidePanel").classList.add("open");
   document.getElementById("cSpOverlay").classList.add("show");
@@ -2629,53 +2638,46 @@ function closeComplaintPanel() {
 
 async function updateComplaintStatus(complaint, newStatus) {
   try {
-    await updateDoc(doc(db, "complaints", complaint.id), {
+    const reply =
+      document.getElementById("cAdminReplyInput")?.value?.trim() || "";
+
+    // عند المعالجة أو الرفض يجب وجود رد
+    if (
+      (newStatus === "resolved" || newStatus === "dismissed") &&
+      !reply
+    ) {
+      alert("يجب كتابة رد قبل اعتماد الحالة.");
+      return;
+    }
+
+    const updateData = {
       status: newStatus,
       handledBy: currentAdminData?.docId || null,
       handledByName: currentAdminData?.fullName || "الأدمن",
       updatedAt: serverTimestamp(),
-    });
+    };
+
+    // حفظ الرد تلقائياً إذا تمت المعالجة أو الرفض
+    if (newStatus === "resolved" || newStatus === "dismissed") {
+      updateData.adminReply = reply;
+      updateData.repliedBy = currentAdminData?.docId || null;
+      updateData.repliedByName =
+        currentAdminData?.fullName || "الأدمن";
+      updateData.repliedAt = serverTimestamp();
+    }
+
+    await updateDoc(
+      doc(db, "complaints", complaint.id),
+      updateData
+    );
 
     complaint.status = newStatus;
+    complaint.adminReply = reply;
+
     openComplaintPanel(complaint);
   } catch (err) {
     console.error("updateComplaintStatus error:", err);
     alert("حدث خطأ: " + err.message);
-  }
-}
-
-// ── حفظ رد الأدمن ──────────────────────────────────
-
-async function saveComplaintReply() {
-  if (!activeComplaint) return;
-
-  const reply = document.getElementById("cAdminReplyInput")?.value?.trim() || "";
-  const btn = document.getElementById("cSaveReplyBtn");
-
-  btn.disabled = true;
-  btn.textContent = "جاري الحفظ...";
-
-  try {
-    await updateDoc(doc(db, "complaints", activeComplaint.id), {
-      adminReply: reply,
-      repliedBy: currentAdminData?.docId || null,
-      repliedByName: currentAdminData?.fullName || "الأدمن",
-      repliedAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    });
-
-    activeComplaint.adminReply = reply;
-    btn.textContent = "✓ تم الحفظ";
-
-    setTimeout(() => {
-      btn.disabled = false;
-      btn.innerHTML = '<i class="ti ti-device-floppy"></i> حفظ الرد';
-    }, 1500);
-  } catch (err) {
-    console.error("saveComplaintReply error:", err);
-    alert("خطأ في الحفظ: " + err.message);
-    btn.disabled = false;
-    btn.textContent = "حفظ الرد";
   }
 }
 
