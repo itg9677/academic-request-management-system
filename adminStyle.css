@@ -441,6 +441,10 @@
 .s-approved     { background: #eafaf2; color: #1a7a4a; }
 .s-rejected     { background: #fef0f0; color: #c0392b; }
 
+/* حالات الشكاوى والاقتراحات (جديد يستخدم لون s-new الموحّد أعلاه) */
+.s-resolved     { background: #eafaf2; color: #1a7a4a; }
+.s-dismissed    { background: #fef0f0; color: #c0392b; }
+
 /* Chips */
 .emp-chip {
   background: #e8edf7;
@@ -1026,4 +1030,3 @@ mark {
   font-weight: 700 !important;
   color: #1a3a6b !important;
 }
-

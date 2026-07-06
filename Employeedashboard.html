@@ -43,8 +43,22 @@
       background: #1a3a6b !important;
       color: #fff !important;
     }
-    /* ملاحظة: كرت "جديد" في الإحصائيات لا يأخذ أي تلوين خاص —
-       يتصرف بالضبط مثل بقية الكروت عند التحديد (active) */
+
+    /* ===== كروت الإحصائيات (الكل / جديد / ...) — نفس سلوك صفحة الأدمن بالضبط:
+       بدون تلوين خاص دائم، تتلون فقط عند التحديد (active) ===== */
+    .admin-stat-card.emp-stat-card {
+      background: #fff !important;
+      border: 1.5px solid #e2e8f0 !important;
+    }
+    .admin-stat-card.emp-stat-card.active {
+      border: 2px solid #1a3a6b !important;
+      background: #f0f4fb !important;
+    }
+    .emp-stat-card.stat-total .stat-icon    { background: #e8edf7 !important; color: #1a3a6b !important; }
+    .emp-stat-card.stat-new .stat-icon      { background: #e8f0fe !important; color: #1a73e8 !important; }
+    .emp-stat-card.stat-review .stat-icon   { background: #eef2ff !important; color: #3730a3 !important; }
+    .emp-stat-card.stat-approved .stat-icon { background: #eafaf2 !important; color: #1a7a4a !important; }
+    .emp-stat-card.stat-rejected .stat-icon { background: #fef0f0 !important; color: #c0392b !important; }
 
     /* ===== تصغير الجدول — عمودياً فقط ===== */
     .admin-table th,

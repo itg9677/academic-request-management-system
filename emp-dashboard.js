@@ -787,7 +787,7 @@ function openSidePanel(tab, item) {
     </div>
 
     <div class="sp-section-title">تفاصيل الطلب</div>
-    <div class="sp-detail-card">
+    <div class="sp-detail-card sp-highlight-border">
       <table class="sp-detail-table">${buildDetailRows(tab, item)}</table>
     </div>
 

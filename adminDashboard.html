@@ -181,7 +181,7 @@
 
   <!-- Grid: حسب الأقسام والموظفين -->
   <div class="admin-dashboard-grid">
-    <div class="dash-card">
+    <div class="dash-card" id="dash-top-dept-card">
       <div class="dash-card-label">أكثر قسم لديه طلبات</div>
       <div class="dash-card-value" id="dash-top-dept">-</div>
       <div class="dash-card-sub" id="dash-top-dept-count">0 طلب</div>
@@ -213,7 +213,7 @@
       <canvas id="chartRequestsByDay"></canvas>
     </div>
 
-    <div class="dash-chart-card">
+    <div class="dash-chart-card" id="dash-dept-chart-card">
       <div class="dash-chart-title">توزيع الطلبات حسب الأقسام</div>
       <canvas id="chartRequestsByDept"></canvas>
     </div>
@@ -229,7 +229,7 @@
 <!-- ==================== إدارة الفصل الدراسي ==================== -->
 <section class="admin-dashboard" id="semesterSection" style="display:none;">
 
-  <div class="admin-table-card" style="padding:24px;">
+  <div class="admin-table-card" style="padding:24px;max-width:760px;margin:0 auto;">
 
     <h3 style="margin:0 0 16px;">الفصل المفعّل حالياً في النظام</h3>
 
@@ -270,6 +270,9 @@
 
       <button type="submit" class="sp-print-btn" id="activateSemesterBtn" style="background:#1a3a6b;">
         <i class="ti ti-check"></i> حفظ الفصل
+      </button>
+      <button type="button" id="cancelEditSemesterBtn" style="display:none;background:none;border:none;color:#888;text-decoration:underline;cursor:pointer;font-family:inherit;font-size:13px;">
+        إلغاء التعديل
       </button>
     </form>
 
@@ -450,7 +453,7 @@
               <tr>
                 <th>اسم الطالب</th>
                 <th>الرقم الجامعي</th>
-                <th>القسم</th>
+                <th id="colDept">القسم</th>
                 <th>عدد الطلبات</th>
                 <th>التفاصيل</th>
               </tr>

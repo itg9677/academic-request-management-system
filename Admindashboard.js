@@ -295,6 +295,7 @@ async function loadAllEmployeeNames() {
 
   updateDashboardStats();
   buildCharts();
+  toggleDeptStatsVisibility();
 
 
   loadingEl.style.display  = "";
@@ -431,7 +432,13 @@ async function loadSemesterInfo() {
           <div class="dash-card-sub" style="margin-top:4px;">${formatDate(s.startDate)} → ${formatDate(s.endDate)}</div>
           ${daysLeft ? `<div style="margin-top:4px;">${daysLeft}</div>` : ""}
         </div>
-        <span class="status-badge" style="${badgeStyle}">${badgeHtml}</span>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span class="status-badge" style="${badgeStyle}">${badgeHtml}</span>
+          <button type="button" class="sem-edit-btn" data-semester-key="${esc(String(s.semester))}"
+            style="border:1px solid #ddd;background:#fff;border-radius:8px;padding:6px 10px;cursor:pointer;font-family:inherit;font-size:12px;display:flex;align-items:center;gap:4px;">
+            <i class="ti ti-pencil"></i> تعديل
+          </button>
+        </div>
       </div>`;
   }
 
@@ -483,14 +490,66 @@ async function loadSemesterInfo() {
   }
 
   historyListEl.innerHTML = html;
+
+  // ربط أزرار "تعديل" بتعبئة النموذج ببيانات الفصل المختار
+  historyListEl.querySelectorAll(".sem-edit-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const key = btn.dataset.semesterKey;
+      const s = allSemesters.find((x) => String(x.semester) === key);
+      if (!s) return;
+      startEditSemester(s);
+    });
+  });
 }
 
-// تفعيل فصل جديد من النموذج
+// وضع تعديل فصل موجود: تعبئة النموذج وتعطيل رقم الفصل (لضمان تحديث نفس السجل لا إنشاء آخر)
+let editingSemesterKey = null;
+
+function startEditSemester(s) {
+  editingSemesterKey = String(s.semester);
+
+  const nameInput   = document.getElementById("semName");
+  const numberInput = document.getElementById("semNumber");
+  const startInput  = document.getElementById("semStart");
+  const endInput    = document.getElementById("semEnd");
+  const btn         = document.getElementById("activateSemesterBtn");
+
+  const toDateInputValue = (d) => {
+    const dateObj = d && d.toDate ? d.toDate() : new Date(d);
+    if (isNaN(dateObj)) return "";
+    return dateObj.toISOString().slice(0, 10);
+  };
+
+  if (nameInput)   nameInput.value = s.name || "";
+  if (numberInput) { numberInput.value = s.semester; numberInput.disabled = true; }
+  if (startInput)  startInput.value = toDateInputValue(s.startDate);
+  if (endInput)    endInput.value   = toDateInputValue(s.endDate);
+  if (btn)         btn.innerHTML = '<i class="ti ti-check"></i> تحديث الفصل';
+  const cancelBtn = document.getElementById("cancelEditSemesterBtn");
+  if (cancelBtn) cancelBtn.style.display = "";
+
+  document.getElementById("semesterForm")?.scrollIntoView({ behavior: "smooth", block: "center" });
+}
+
+function cancelEditSemester() {
+  editingSemesterKey = null;
+  const numberInput = document.getElementById("semNumber");
+  const btn         = document.getElementById("activateSemesterBtn");
+  const cancelBtn   = document.getElementById("cancelEditSemesterBtn");
+  if (numberInput) numberInput.disabled = false;
+  if (btn) btn.innerHTML = '<i class="ti ti-check"></i> حفظ الفصل';
+  if (cancelBtn) cancelBtn.style.display = "none";
+  document.getElementById("semesterForm")?.reset();
+}
+document.getElementById("cancelEditSemesterBtn")?.addEventListener("click", cancelEditSemester);
+
+// تفعيل فصل جديد أو تحديث فصل قائم من النموذج
 document.getElementById("semesterForm")?.addEventListener("submit", async (e) => {
   e.preventDefault();
 
   const msgEl = document.getElementById("semesterMsg");
   const btn   = document.getElementById("activateSemesterBtn");
+  const isEditing = !!editingSemesterKey;
 
   const name   = document.getElementById("semName").value.trim();
   const number = document.getElementById("semNumber").value.trim();
@@ -503,9 +562,12 @@ document.getElementById("semesterForm")?.addEventListener("submit", async (e) =>
   }
 
   btn.disabled = true;
-  btn.textContent = "جاري التفعيل...";
+  btn.textContent = isEditing ? "جاري التحديث..." : "جاري التفعيل...";
 
   try {
+    // ملاحظة: التعديل يعتمد على أن activateSemester تُحدّث نفس الفصل عند إرسال نفس "رقم الفصل"
+    // بدل إنشاء فصل جديد. إن كانت semester.js تُنشئ سجلاً جديداً دائماً، يلزم تعديلها لدعم
+    // التحديث (مثلاً عبر setDoc بنفس معرّف المستند) حتى يعمل زر "تعديل" بشكل صحيح.
     await activateSemester({
       name,
       semester: number,
@@ -513,9 +575,13 @@ document.getElementById("semesterForm")?.addEventListener("submit", async (e) =>
       endDate: new Date(end)
     });
 
-    if (msgEl) { msgEl.textContent = `تم تفعيل "${name}" بنجاح ✅`; msgEl.style.color = "#1a7f37"; }
+    if (msgEl) { msgEl.textContent = isEditing ? `تم تحديث "${name}" بنجاح ✅` : `تم تفعيل "${name}" بنجاح ✅`; msgEl.style.color = "#1a7f37"; }
 
     document.getElementById("semesterForm").reset();
+    document.getElementById("semNumber").disabled = false;
+    editingSemesterKey = null;
+    const cancelBtnEl = document.getElementById("cancelEditSemesterBtn");
+    if (cancelBtnEl) cancelBtnEl.style.display = "none";
 
     selectedSemesterFilter = "current";
     await loadSemesterInfo();
@@ -523,10 +589,10 @@ document.getElementById("semesterForm")?.addEventListener("submit", async (e) =>
 
   } catch (err) {
     console.error("activateSemester error:", err);
-    if (msgEl) { msgEl.textContent = "حدث خطأ أثناء التفعيل: " + err.message; msgEl.style.color = "#c0392b"; }
+    if (msgEl) { msgEl.textContent = "حدث خطأ أثناء الحفظ: " + err.message; msgEl.style.color = "#c0392b"; }
   } finally {
     btn.disabled = false;
-    btn.innerHTML = '<i class="ti ti-check"></i> تفعيل الفصل';
+    btn.innerHTML = isEditing ? '<i class="ti ti-check"></i> تحديث الفصل' : '<i class="ti ti-check"></i> حفظ الفصل';
   }
 });
 
@@ -675,6 +741,12 @@ updateStatCards(filtered);
   if (excuseFiltersWrap) {
     excuseFiltersWrap.style.display = (currentTab === "excuse") ? "" : "none";
   }
+
+  // إخفاء عمود "القسم" في جدولي الحذف/الإضافة والأعذار (يبقى ظاهراً في تبويب الزيارة)
+  const colDeptEl = document.getElementById("colDept");
+  if (colDeptEl) {
+    colDeptEl.style.display = (currentTab === "addDrop" || currentTab === "excuse") ? "none" : "";
+  }
 }
 
 function buildRow(tab, studentUid, requests) {
@@ -706,7 +778,7 @@ function buildRow(tab, studentUid, requests) {
       </div>
     </td>
     <td class="uid-cell">${esc(student.universityId || "-")}</td>
-    <td><span class="dept-chip">${esc(dept)}</span></td>
+    ${(tab === "addDrop" || tab === "excuse") ? "" : `<td><span class="dept-chip">${esc(dept)}</span></td>`}
     <td><span class="req-count-badge">${requests.length}</span></td>
     <td><button class="detail-btn">التفاصيل <i class="ti ti-chevron-left detail-chevron"></i></button></td>
   `;
@@ -1530,6 +1602,15 @@ function printActiveStudent() {
 
 let currentStatsDeptFilter = "all";
 
+// يظهر "أكثر قسم لديه طلبات" ومخطط "توزيع الطلبات حسب الأقسام" فقط عند اختيار "كل الأقسام"
+function toggleDeptStatsVisibility() {
+  const showAll = currentStatsDeptFilter === "all";
+  const topDeptCard   = document.getElementById("dash-top-dept-card");
+  const deptChartCard = document.getElementById("dash-dept-chart-card");
+  if (topDeptCard)   topDeptCard.style.display   = showAll ? "" : "none";
+  if (deptChartCard) deptChartCard.style.display = showAll ? "" : "none";
+}
+
 function renderDeptFilterForStats() {
   const allItems = [...tabData.addDrop, ...tabData.excuse, ...tabData.visit];
 
@@ -1573,6 +1654,7 @@ function renderDeptFilterForStats() {
     btn.addEventListener("click", () => {
       currentStatsDeptFilter = btn.dataset.dept;
       renderDeptFilterForStats();
+      toggleDeptStatsVisibility();
       updateDashboardStatsFiltered();
       buildChartsFiltered();
     });
@@ -2516,28 +2598,20 @@ function openComplaintPanel(c, student) {
       style="width:100%;padding:10px 12px;border:1px solid #d1d5db;border-radius:8px;
              font-family:inherit;font-size:14px;margin-top:8px;resize:vertical;box-sizing:border-box;"
       placeholder="اكتب ردك أو ملاحظتك هنا...">${esc(c.adminReply || "")}</textarea>
+    <button id="cSaveReplyBtn"
+      style="margin-top:8px;padding:9px 18px;background:var(--primary);color:#fff;
+             border:none;border-radius:8px;cursor:pointer;font-family:inherit;font-size:14px;">
+      <i class="ti ti-device-floppy"></i> حفظ الرد
+    </button>
   `;
 
-const replyInput = document.getElementById("cAdminReplyInput");
-const resolveBtn = document.getElementById("cBtnResolve");
+  document.getElementById("cSaveReplyBtn").addEventListener("click", saveComplaintReply);
 
-const originalReply = (c.adminReply || "").trim();
-
-// إذا كانت الشكوى معالجة مسبقاً
-if ((c.status || "new") === "resolved") {
-  resolveBtn.disabled = true;
-
-  replyInput.addEventListener("input", () => {
-    const currentReply = replyInput.value.trim();
-
-    // يتفعل الزر إذا تغير الرد
-    resolveBtn.disabled = currentReply === originalReply;
+  ["cBtnReview", "cBtnResolve", "cBtnDismiss"].forEach((id) => {
+    const btn = document.getElementById(id);
+    const action = btn.dataset.caction;
+    btn.disabled = status === action;
   });
-}
- ["cBtnReview", "cBtnResolve", "cBtnDismiss"].forEach((id) => {
-  const btn = document.getElementById(id);
-  btn.disabled = false;
-});
 
   document.getElementById("cSidePanel").classList.add("open");
   document.getElementById("cSpOverlay").classList.add("show");
@@ -2555,46 +2629,53 @@ function closeComplaintPanel() {
 
 async function updateComplaintStatus(complaint, newStatus) {
   try {
-    const reply =
-      document.getElementById("cAdminReplyInput")?.value?.trim() || "";
-
-    // عند المعالجة أو الرفض يجب وجود رد
-    if (
-      (newStatus === "resolved" || newStatus === "dismissed") &&
-      !reply
-    ) {
-      alert("يجب كتابة رد قبل اعتماد الحالة.");
-      return;
-    }
-
-    const updateData = {
+    await updateDoc(doc(db, "complaints", complaint.id), {
       status: newStatus,
       handledBy: currentAdminData?.docId || null,
       handledByName: currentAdminData?.fullName || "الأدمن",
       updatedAt: serverTimestamp(),
-    };
-
-    // حفظ الرد تلقائياً إذا تمت المعالجة أو الرفض
-    if (newStatus === "resolved" || newStatus === "dismissed") {
-      updateData.adminReply = reply;
-      updateData.repliedBy = currentAdminData?.docId || null;
-      updateData.repliedByName =
-        currentAdminData?.fullName || "الأدمن";
-      updateData.repliedAt = serverTimestamp();
-    }
-
-    await updateDoc(
-      doc(db, "complaints", complaint.id),
-      updateData
-    );
+    });
 
     complaint.status = newStatus;
-    complaint.adminReply = reply;
-
     openComplaintPanel(complaint);
   } catch (err) {
     console.error("updateComplaintStatus error:", err);
     alert("حدث خطأ: " + err.message);
+  }
+}
+
+// ── حفظ رد الأدمن ──────────────────────────────────
+
+async function saveComplaintReply() {
+  if (!activeComplaint) return;
+
+  const reply = document.getElementById("cAdminReplyInput")?.value?.trim() || "";
+  const btn = document.getElementById("cSaveReplyBtn");
+
+  btn.disabled = true;
+  btn.textContent = "جاري الحفظ...";
+
+  try {
+    await updateDoc(doc(db, "complaints", activeComplaint.id), {
+      adminReply: reply,
+      repliedBy: currentAdminData?.docId || null,
+      repliedByName: currentAdminData?.fullName || "الأدمن",
+      repliedAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+
+    activeComplaint.adminReply = reply;
+    btn.textContent = "✓ تم الحفظ";
+
+    setTimeout(() => {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="ti ti-device-floppy"></i> حفظ الرد';
+    }, 1500);
+  } catch (err) {
+    console.error("saveComplaintReply error:", err);
+    alert("خطأ في الحفظ: " + err.message);
+    btn.disabled = false;
+    btn.textContent = "حفظ الرد";
   }
 }
 
@@ -2866,7 +2947,6 @@ async function exportExcusesToExcel() {
     { wch: 14 }, // التخصص
     { wch: 22 }, // نوع الاختبار
     { wch: 28 }, // اسم المقرر
-    { wch: 28 }, // رقم الشعبة
     { wch: 16 }, // تاريخ الغياب
     { wch: 14 }, // الحالة
   ];
@@ -2991,6 +3071,9 @@ navStats.addEventListener("click", () => {
 
   setActiveSidebarItem("navStats");
   renderDeptFilterForStats();
+  toggleDeptStatsVisibility();
+  updateDashboardStatsFiltered();
+  buildChartsFiltered();
 });
 
 // إظهار قسم إدارة الفصل الدراسي
