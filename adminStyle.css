@@ -904,10 +904,13 @@ mark {
    إضافات لوحة الأدمن — تصميم جديد
    ============================================ */
 
-/* إلغاء max-width لاستخدام كامل العرض */
+/* المحتوى الرئيسي يبقى في المنتصف بعيداً عن السايدبار، بدل الالتصاق به */
 .sidebar-layout .admin-main {
-  max-width: 100%;
-  padding: 0;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 20px 24px;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 /* إصلاح ألوان السايدبار — تعارض مع adminStyle */
