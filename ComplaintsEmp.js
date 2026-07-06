@@ -386,14 +386,9 @@ function openPanel(c, student) {
       style="width:100%;padding:10px 12px;border:1px solid #d1d5db;border-radius:8px;
              font-family:inherit;font-size:14px;margin-top:8px;resize:vertical;box-sizing:border-box;"
       placeholder="اكتب ردك أو ملاحظتك هنا...">${esc(c.adminReply || "")}</textarea>
-    <button id="ecSaveReplyBtn"
-      style="margin-top:8px;padding:9px 18px;background:var(--primary);color:#fff;
-             border:none;border-radius:8px;cursor:pointer;font-family:inherit;font-size:14px;">
-      <i class="ti ti-device-floppy"></i> حفظ الرد
-    </button>
+ 
   `;
 
-  document.getElementById("ecSaveReplyBtn").addEventListener("click", saveReply);
 
   ["ecBtnReview","ecBtnResolve","ecBtnDismiss"].forEach(id => {
     const btn    = document.getElementById(id);
@@ -414,44 +409,50 @@ function closePanel() {
 
 async function updateComplaintStatus(complaint, newStatus) {
   try {
-    await updateDoc(doc(db, "complaints", complaint.id), {
-      status:        newStatus,
-      handledBy:     currentEmpUid,
+
+    const reply =
+      document.getElementById("ecReplyInput")?.value?.trim() || "";
+
+    // يجب كتابة رد عند المعالجة أو الرفض
+    if (
+      (newStatus === "resolved" || newStatus === "dismissed") &&
+      !reply
+    ) {
+      alert("يجب كتابة رد قبل اعتماد الحالة.");
+      return;
+    }
+
+    const updateData = {
+      status: newStatus,
+      handledBy: currentEmpUid,
       handledByName: currentEmpName,
-      updatedAt:     serverTimestamp(),
-    });
+      updatedAt: serverTimestamp(),
+    };
+
+    // حفظ الرد تلقائياً
+    if (newStatus === "resolved" || newStatus === "dismissed") {
+      updateData.adminReply = reply;
+      updateData.repliedBy = currentEmpUid;
+      updateData.repliedByName = currentEmpName;
+      updateData.repliedAt = serverTimestamp();
+    }
+
+    await updateDoc(
+      doc(db, "complaints", complaint.id),
+      updateData
+    );
+
     complaint.status = newStatus;
+    complaint.adminReply = reply;
+
     openPanel(complaint);
+
   } catch (err) {
     console.error("updateComplaintStatus error:", err);
     alert("حدث خطأ: " + err.message);
   }
 }
 
-async function saveReply() {
-  if (!activeComplaint) return;
-  const reply = document.getElementById("ecReplyInput")?.value?.trim() || "";
-  const btn   = document.getElementById("ecSaveReplyBtn");
-  btn.disabled    = true;
-  btn.textContent = "جاري الحفظ...";
-  try {
-    await updateDoc(doc(db, "complaints", activeComplaint.id), {
-      adminReply:    reply,
-      repliedBy:     currentEmpUid,
-      repliedByName: currentEmpName,
-      repliedAt:     serverTimestamp(),
-      updatedAt:     serverTimestamp(),
-    });
-    activeComplaint.adminReply = reply;
-    btn.textContent = "✓ تم الحفظ";
-    setTimeout(() => { btn.disabled = false; btn.innerHTML = '<i class="ti ti-device-floppy"></i> حفظ الرد'; }, 1500);
-  } catch (err) {
-    console.error("saveReply error:", err);
-    alert("خطأ في الحفظ: " + err.message);
-    btn.disabled    = false;
-    btn.textContent = "حفظ الرد";
-  }
-}
 
 // ── التبديل لتبويب الشكاوى ──────────────────────────
 function switchToComplaints() {
