@@ -47,6 +47,10 @@ window.addCourseRow = function () {
 
     tbody.appendChild(row);
     courseCounter++;
+
+    // إخفاء رسالة الخطأ فور ما الطالب يبدأ يعبي اسم المادة
+    row.querySelector(`[name="courseName_${row.id.split("_")[1]}"]`)
+        ?.addEventListener("input", () => showCoursesError(false));
 };
 
 /* ==========================
@@ -252,6 +256,25 @@ onAuthStateChanged(auth, async (user) => {
 });
 
 /* ==========================
+   التحقق من وجود مادة واحدة على الأقل معبأة
+========================== */
+function hasAtLeastOneFilledCourse() {
+    const rows = document.querySelectorAll("#coursesBody tr");
+
+    return Array.from(rows).some(row => {
+        const n = row.id.split("_")[1];
+        const name = document.querySelector(`[name="courseName_${n}"]`)?.value.trim();
+        return !!name;
+    });
+}
+
+function showCoursesError(show) {
+    const errorEl = document.getElementById("coursesError");
+    if (!errorEl) return;
+    errorEl.classList.toggle("hidden", !show);
+}
+
+/* ==========================
    إرسال الطلب
 ========================== */
 document.getElementById("submitBtn")
@@ -274,10 +297,13 @@ document.getElementById("submitBtn")
 
     const rows = document.querySelectorAll("#coursesBody tr");
 
-    if (rows.length === 0) {
-        alert("رجاءً إضافة مادة واحدة على الأقل");
+    if (rows.length === 0 || !hasAtLeastOneFilledCourse()) {
+        showCoursesError(true);
+        document.getElementById("coursesError").scrollIntoView({ behavior: "smooth", block: "center" });
         return;
     }
+
+    showCoursesError(false);
 
     const courses = [];
 
