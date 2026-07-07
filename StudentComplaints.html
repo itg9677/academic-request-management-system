@@ -72,18 +72,31 @@
       align-items: center !important; gap: 12px !important; flex-wrap: wrap !important;
       margin-top: 16px; width: 100%;
     }
+    /* يمنع أي زر داخل .actions من وراثة margin/min-width من قاعدة button العامة
+       في visitRequest.css، واللي كانت تسبب الفراغ بين الأزرار */
+    .actions button {
+      margin: 0 !important;
+      min-width: 0 !important;
+      width: auto !important;
+    }
+    .btn-submit {
+      background: var(--primary); color: #fff; border: none; padding: 12px 40px;
+      border-radius: 10px; font-size: 15px; font-weight: bold;
+      font-family: 'Tajawal', Arial, sans-serif; cursor: pointer; transition: .3s;
+    }
+    .btn-submit:hover { background: var(--secondary); transform: none; }
     .btn-home {
       background: #6c757d; color: #fff; border: none; padding: 12px 25px;
       border-radius: 10px; font-size: 15px; font-weight: bold;
       font-family: 'Tajawal', Arial, sans-serif; cursor: pointer; transition: .3s;
     }
-    .btn-home:hover { background: #5a6168; }
+    .btn-home:hover { background: #5a6168; transform: none; }
     .btn-track {
       background: var(--secondary, #c8972b); color: #fff; border: none;
       padding: 12px 25px; border-radius: 10px; font-size: 15px; font-weight: bold;
       font-family: 'Tajawal', Arial, sans-serif; cursor: pointer; transition: .3s;
     }
-    .btn-track:hover { opacity: .9; }
+    .btn-track:hover { opacity: .9; transform: none; }
 
     @media (max-width: 768px) {
       .radio-group { flex-direction: column; }
@@ -168,9 +181,10 @@
           </div>
 
           <div class="actions">
-            <button type="button" onclick="submitForm()">إرسال الطلب</button>
-            <button type="button" class="btn-home" onclick="window.location.href='StudentMainPage.html'">العودة للصفحة الرئيسية</button>
-            <button type="button" class="btn-track" onclick="window.location.href='PreviousComplaints.html'">متابعة الطلبات السابقة</button>
+            <button type="button" class="btn-submit" onclick="submitForm()">إرسال الطلب</button>
+          
+            <button type="button" class="btn-track" onclick="window.location.href='PreviousComplaints.html'">متابعة الطلبات السابقة</button> 
+           <button type="button" class="btn-home" onclick="window.location.href='StudentMainPage.html'">العودة للصفحة الرئيسية</button>
           </div>
         </div>
 

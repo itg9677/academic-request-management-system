@@ -4,6 +4,7 @@
 :root{
     --primary:#1a3a6b;
     --secondary:#c8972b;
+    --primary-pale:#eef3fb;
     --background:#f4f6fa;
     --white:#ffffff;
     --border:#d6dce6;
@@ -15,8 +16,10 @@
    الأساس
 ===================================================== */
 *{
+    margin:0;
+    padding:0;
     box-sizing:border-box;
-    font-family:'Tajawal',Arial,sans-serif;
+    font-family:Arial,sans-serif;
 }
 
 body{
@@ -24,10 +27,6 @@ body{
     background:var(--background);
     min-height:100vh;
     color:var(--text);
-    display:flex;
-    flex-direction:column;
-    align-items:center;
-    justify-content:center;
 }
 
 /* =====================================================
@@ -36,7 +35,6 @@ body{
 .container{
     width:100%;
     max-width:450px;
-    margin:0 auto;
     background:var(--white);
     padding:25px;
     border-radius:16px;
@@ -145,6 +143,84 @@ textarea:focus{
 }
 
 /* =====================================================
+   صف أزرار الإجراءات الموحّد
+   (إرسال / متابعة الطلبات السابقة / العودة للرئيسية)
+   يُستخدم في كل صفحات النماذج
+===================================================== */
+.actions{
+    display:flex;
+    flex-direction:row;
+    justify-content:center;
+    align-items:center;
+    gap:12px;
+    flex-wrap:wrap;
+    margin-top:20px;
+    width:100%;
+}
+
+.btn-submit{
+    background:var(--primary);
+    color:#fff;
+    border:none;
+    padding:12px 40px;
+    border-radius:10px;
+    font-size:15px;
+    font-weight:bold;
+    font-family:inherit;
+    cursor:pointer;
+    transition:.3s;
+}
+
+.btn-submit:hover{
+    background:var(--secondary);
+}
+
+.btn-track{
+    background:var(--secondary);
+    color:#fff;
+    border:none;
+    padding:12px 25px;
+    border-radius:10px;
+    font-size:15px;
+    font-weight:bold;
+    font-family:inherit;
+    cursor:pointer;
+    transition:.3s;
+}
+
+.btn-track:hover{
+    opacity:.9;
+}
+
+.btn-home{
+    background:#6c757d;
+    color:#fff;
+    border:none;
+    padding:12px 25px;
+    border-radius:10px;
+    font-size:15px;
+    font-weight:bold;
+    font-family:inherit;
+    cursor:pointer;
+    transition:.3s;
+}
+
+.btn-home:hover{
+    background:#5a6168;
+}
+
+@media (max-width:600px){
+    .actions{
+        flex-direction:row;
+    }
+    .btn-submit,
+    .btn-track,
+    .btn-home{
+        flex:1 1 auto;
+    }
+}
+
+/* =====================================================
    الموبايل
 ===================================================== */
 @media (max-width:600px){
@@ -230,31 +306,6 @@ textarea:focus{
     color:var(--secondary);
 }
 /* =====================================================
-/* =====================================================
-   صفحة الطالب الرئيسية
-===================================================== */
-
-:root{
-    --primary:#1a3a6b;
-    --secondary:#c8972b;
-    --background:#f4f6fa;
-    --white:#ffffff;
-    --border:#d6dce6;
-    --text:#1f2937;
-}
-
-/* ===================================
-   إعدادات عامة
-=================================== */
-
-*{
-    margin:0;
-    padding:0;
-    box-sizing:border-box;
-    font-family:'Tajawal',Arial,sans-serif;
-}
-
-/* =====================================================
    صفحة الطالب الرئيسية
 ===================================================== */
 
@@ -267,10 +318,6 @@ textarea:focus{
 /* ==========================
    Header
 ========================== */
-/* ==========================
-   Header
-========================== */
-
 
 .top-header{
     background:#fff;
@@ -609,22 +656,7 @@ textarea:focus{
     font-size: 14px;
 }
 
-.absence-page button{
-    width:100%;
-    padding:12px;
-    background:var(--primary);
-    color:white;
-    border:none;
-    border-radius:10px;
-    cursor:pointer;
-    font-size:15px;
-    font-weight:600;
-    transition:.3s;
-}
-
-.absence-page button:hover {
-    background: #0f2a4d;
-}
+/* أزرار الإجراءات في هذه الصفحة موحّدة عبر .actions/.btn-submit/.btn-track/.btn-home في الأعلى */
 
 /* =====================================================
    صفحة متابعة الطلبات السابقة
