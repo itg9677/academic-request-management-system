@@ -54,7 +54,7 @@ onAuthStateChanged(auth, async (user) => {
         if (snapshot.empty) {
             excusesContainer.innerHTML = `
                 <tr>
-                    <td colspan="3">لا توجد طلبات سابقة</td>
+                    <td colspan="4">لا توجد طلبات سابقة</td>
                 </tr>
             `;
             return;
@@ -100,12 +100,16 @@ onAuthStateChanged(auth, async (user) => {
                     examTypeArabic = data.examType || "-";
             }
 
+            /* =========================
+               بناء الصف
+            ========================= */
             const row = document.createElement("tr");
 
             row.innerHTML = `
                 <td>${data.courseCode || "-"}</td>
                 <td>${examTypeArabic}</td>
                 <td>${statusText}</td>
+                <td>${data.rejectReason || "-"}</td>
             `;
 
             excusesContainer.appendChild(row);
@@ -117,7 +121,7 @@ onAuthStateChanged(auth, async (user) => {
 
         excusesContainer.innerHTML = `
             <tr>
-                <td colspan="3">
+                <td colspan="4">
                     حدث خطأ أثناء تحميل الطلبات
                 </td>
             </tr>
