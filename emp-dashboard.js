@@ -198,7 +198,13 @@ async function getStudent(uid) {
     }
   } catch(e) {}
 
-  studentsCache[uid] = { _uid: uid, fullName: "-", studentId: "-", email: "-", major: "-" };
+ studentsCache[uid] = { 
+  _uid: uid,
+  studentId: "-", 
+  email: "-", 
+  major: "-" 
+};
+
   return studentsCache[uid];
 }
 
@@ -460,7 +466,7 @@ function buildRow(tab, studentUid, requests) {
       <div class="student-name-cell">
         <div class="student-avatar">${esc(initials)}</div>
         <div>
-          <div class="student-name-text">${esc(student.fullName || "-")}</div>
+<div class="student-name-text">-</div>
           <div class="student-major-text">${esc(student.major || "")}</div>
         </div>
       </div>
@@ -751,6 +757,9 @@ function openSidePanel(tab, item) {
   activeRequest = { tab, item };
   const cfg     = tabConfig[tab];
   const student = studentsCache[item[cfg.studentField]] || {};
+  console.log("STUDENT FIELDS:", student);
+
+
   const sk      = getEffectiveStatus(item);
   const isSharedCourse = item.assignedDepartment?.trim() === "شؤون الطالبات";
   const hasDeptField   = typeof item.assignedDepartment === "string";
@@ -1274,9 +1283,9 @@ async function exportExcusesToExcel() {
   items.forEach(r => {
     const student   = studentsCache[r[cfg.studentField]] || {};
     const statusKey = getEffectiveStatus(r);
-  data.push([
+data.push([
   student.studentId || student.universityId || "-",
-  student.fullName || "-",
+  "-", // ← حذف اسم الطالبة نهائيًا
   student.major || student.department || "-",
   examTypeLabel[r.examType] || r.examType || "-",
   r.courseName || r.courseCode || "-",
@@ -1284,6 +1293,8 @@ async function exportExcusesToExcel() {
   r.absenceDate || r.examDate || "-",
   statusLabel[statusKey] || statusKey
 ]);
+
+
   });
 
   const ws = window.XLSX.utils.aoa_to_sheet(data);

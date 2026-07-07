@@ -232,7 +232,12 @@ async function getStudent(uid) {
       ? { _uid: uid, ...snap.data() }
       : { _uid: uid, fullName: "-", studentId: "-", email: "-", major: "-" };
   } catch (e) {
-    studentsCache[uid] = { _uid: uid, fullName: "-", studentId: "-", email: "-", major: "-" };
+studentsCache[uid] = { 
+  _uid: uid,
+  studentId: "-", 
+  email: "-", 
+  major: "-" 
+};
   }
   return studentsCache[uid];
 }
@@ -259,10 +264,22 @@ function getReqDepartment(item, student) {
 }
 
 // ==================== بناء صفوف بيانات الطالب (كل الحقول الموجودة فعلاً) ====================
-
 function buildStudentAllFields(student) {
   return Object.entries(student)
-    .filter(([key]) => !hiddenFields.includes(key))
+    .filter(([key, value]) => {
+      const label = fieldLabels[key] || key;
+
+      return (
+        !hiddenFields.includes(key) &&
+        key !== "fullName" &&
+        key !== "email" &&
+        key !== "name" &&
+        key !== "studentName" &&
+        key !== "displayName" &&
+        key !== "username" &&
+        label !== "الاسم الكامل"
+      );
+    })
     .map(([key, value]) => {
       const label        = fieldLabels[key] || key;
       const displayValue = formatFieldValue(value);
@@ -273,6 +290,9 @@ function buildStudentAllFields(student) {
     })
     .join("");
 }
+
+
+
 
 // ==================== تحميل البيانات ====================
 
