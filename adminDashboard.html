@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>نظام الخدمات الطلابية - الأدمن</title>
   <link rel="icon" href="data:,">
+
+  <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css" />
   <link rel="stylesheet" href="EmpStyle.css" />
   <link rel="stylesheet" href="adminStyle.css" />
@@ -229,12 +231,12 @@
 <!-- ==================== إدارة الفصل الدراسي ==================== -->
 <section class="admin-dashboard" id="semesterSection" style="display:none;align-items:center;">
 
-  <div class="admin-table-card" style="padding:24px;max-width:760px !important;width:100% !important;margin:0 auto !important;display:block !important;">
+  <div class="admin-table-card" style="padding:24px;max-width:760px !important;width:100% !important;margin:0 auto !important;display:block !important;text-align:center;">
 
     <h3 style="margin:0 0 16px;">الفصل المفعّل حالياً في النظام</h3>
 
-    <div class="admin-dashboard-grid" style="margin-bottom:24px;">
-      <div class="dash-card">
+    <div class="admin-dashboard-grid" style="margin:0 auto 24px;grid-template-columns:1fr;justify-items:center;">
+      <div class="dash-card" style="width:100%;max-width:320px;">
         <div class="dash-card-label">اسم الفصل</div>
         <div class="dash-card-value" id="currentSemesterName">-</div>
         <div class="dash-card-sub" id="currentSemesterDates">-</div>
@@ -246,26 +248,26 @@
       يمكنك إضافة فصل بتواريخ مستقبلية وسيظهر تلقائياً كـ "قادم"، وعند حلول تاريخه سيصبح "جارياً".
     </p>
 
-    <form id="semesterForm" style="display:flex;flex-direction:column;gap:14px;max-width:420px;">
+    <form id="semesterForm" style="display:flex;flex-direction:column;align-items:center;gap:14px;max-width:420px;margin:0 auto;text-align:center;">
 
-      <div>
+      <div style="width:100%;">
         <label for="semName">اسم الفصل</label>
-        <input type="text" id="semName" class="ta-input" placeholder="مثال: الفصل الأول 1448" required>
+        <input type="text" id="semName" class="ta-input" placeholder="مثال: الفصل الأول 1448" required style="text-align:center;">
       </div>
 
-      <div>
+      <div style="width:100%;">
         <label for="semNumber">رقم الفصل</label>
-        <input type="text" id="semNumber" class="ta-input" placeholder="مثال: 14481" required>
+        <input type="text" id="semNumber" class="ta-input" placeholder="مثال: 14481" required style="text-align:center;">
       </div>
 
-      <div>
+      <div style="width:100%;">
         <label for="semStart">تاريخ البداية (ميلادي)</label>
-        <input type="date" id="semStart" class="ta-input" required>
+        <input type="date" id="semStart" class="ta-input" required style="text-align:center;">
       </div>
 
-      <div>
+      <div style="width:100%;">
         <label for="semEnd">تاريخ النهاية (ميلادي)</label>
-        <input type="date" id="semEnd" class="ta-input" required>
+        <input type="date" id="semEnd" class="ta-input" required style="text-align:center;">
       </div>
 
       <button type="submit" class="sp-print-btn" id="activateSemesterBtn" style="background:#1a3a6b;">
@@ -280,7 +282,7 @@
 
     <h3 style="margin:28px 0 4px;">جميع الفصول</h3>
     <p style="margin:0 0 14px;font-size:13px;color:#666;">مصنّفة تلقائياً بناءً على التواريخ</p>
-    <div id="semesterHistoryList" style="display:flex;flex-direction:column;gap:8px;"></div>
+    <div id="semesterHistoryList" style="display:flex;flex-direction:column;align-items:stretch;gap:8px;text-align:right;"></div>
 
   </div>
 

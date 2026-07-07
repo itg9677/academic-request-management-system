@@ -1020,16 +1020,16 @@ mark {
 .sp-detail-table td,
 .sp-detail-label,
 .sp-detail-table {
-  font-size: 16px !important;
+  font-size: 15px !important;
   line-height: 1.9 !important;
 }
 .sp-detail-card tr:first-child td {
-  font-size: 20px !important;
+  font-size: 15px !important;
   font-weight: 700 !important;
 }
 /* تكبير عنوان الأقسام داخل جدول الطلبات (مواد التخصص – مواد أخرى ومشتركة) */
 .sp-table th {
-  font-size: 20px !important;
+  font-size: 17px !important;
   font-weight: 700 !important;
   color: #1a3a6b !important;
 }

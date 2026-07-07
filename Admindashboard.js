@@ -450,7 +450,7 @@ async function loadSemesterInfo() {
     if (currentSemesterData) {
       const type = classifySemester(currentSemesterData);
       const typeLabel = type === "active" ? " — جارٍ حالياً ✅" : type === "upcoming" ? " — قادم 🔜" : " — منتهٍ ⚠️";
-      datesEl.textContent = `${formatDate(currentSemesterData.startDate)} → ${formatDate(currentSemesterData.endDate)}${typeLabel}`;
+      datesEl.textContent = `${formatDate(currentSemesterData.startDate)} ← ${formatDate(currentSemesterData.endDate)}${typeLabel}`;
     } else {
       datesEl.textContent = "-";
     }

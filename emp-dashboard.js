@@ -120,7 +120,7 @@ const fieldLabels = {
 
 const hiddenFields = [
   "_uid", "password", "token", "fcmToken", "pushToken",
-  "deviceId", "emailVerified", "role", "createdAt"
+  "deviceId", "emailVerified", "role", "createdAt", "email"
 ];
 
 const statusLabel = {
