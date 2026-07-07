@@ -519,6 +519,7 @@ function buildDetailRows(tab, item) {
     }
     rows += `
       <tr><td class="sp-detail-label">ملاحظات الطالب</td><td>${esc(item.notes || "-")}</td></tr>
+      
       <tr><td class="sp-detail-label">تاريخ الطلب</td><td>${formatDate(item.createdAt)}</td></tr>
       <tr><td class="sp-detail-label">الحالة</td><td>${statusHtml}</td></tr>
       <tr><td class="sp-detail-label">الموظف المعالج</td><td>${esc(empName)}</td></tr>
