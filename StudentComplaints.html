@@ -38,6 +38,16 @@
     .upload-area span { color: var(--primary); font-weight: bold; }
     input[type="file"] { display: none; }
 
+    .btn-remove-file {
+      display: inline-flex; align-items: center; gap: 6px;
+      margin-top: 10px; background: #fbeaea; color: #a32d2d;
+      border: none; border-radius: 8px; padding: 6px 14px;
+      font-size: 13px; font-weight: bold;
+      font-family: 'Tajawal', Arial, sans-serif; cursor: pointer;
+      transition: background .2s ease;
+    }
+    .btn-remove-file:hover { background: #f7c1c1; }
+
     .success-view {
       display: none; text-align: center; padding: 3rem 1rem;
     }
@@ -163,6 +173,9 @@
             <div class="upload-area" id="upload-area" onclick="document.getElementById('file-input').click()">
               <svg viewBox="0 0 24 24"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
               <p id="upload-text">اضغط لرفع ملف أو صورة<br><span>PDF, JPG, PNG, DOCX</span> — حتى 10 ميجا</p>
+              <button type="button" id="remove-file-btn" class="btn-remove-file" style="display:none;" onclick="event.stopPropagation(); removeFile();">
+                <span aria-hidden="true">✕</span> إزالة الملف
+              </button>
             </div>
             <input type="file" id="file-input" accept=".pdf,.jpg,.jpeg,.png,.docx" onchange="handleFile(this)" />
           </div>

@@ -33,6 +33,21 @@
 .btn-remove-course:hover {
     background: #f7c1c1;
 }
+.courses-error {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: #fbeaea;
+    color: #a32d2d;
+    border: 1px solid #f0999b;
+    border-radius: 6px;
+    padding: 10px 14px;
+    font-size: 13px;
+    margin-top: 10px;
+}
+.courses-error.hidden {
+    display: none;
+}
 </style>
 </head>
 
@@ -153,6 +168,10 @@
         <button type="button" class="btn-add-course" onclick="addCourseRow()">
             <span class="plus">+</span> إضافة مادة
         </button>
+
+        <div id="coursesError" class="courses-error hidden">
+            رجاءً إضافة بيانات مادة واحدة على الأقل (اسم المادة والرمز والشعبة) قبل إرسال الطلب
+        </div>
 
         <br><br>
         <button id="submitBtn">إرسال الطلب</button>
