@@ -65,6 +65,21 @@
     /* ===== تصغير الجدول — عمودياً فقط ===== */
     .admin-table th,
     .admin-table td { padding-top: 6px; padding-bottom: 6px; }
+    /* ===== إلغاء تلوين "الكل" الداكن القديم من EmpStyle.css — نفس شكل الأدمن بالضبط ===== */
+    .admin-stat-card.emp-stat-card.stat-total.active {
+      background: #f0f4fb !important;
+      border-color: #1a3a6b !important;
+    }
+    .emp-stat-card.stat-total.active .stat-num {
+      color: #1a3a6b !important;
+    }
+    .emp-stat-card.stat-total.active .stat-label {
+      color: #64748b !important;
+    }
+    .emp-stat-card.stat-total.active .stat-icon {
+      background: #e8edf7 !important;
+      color: #1a3a6b !important;
+    }
   </style>
 </head>
 <body class="sidebar-layout admin-page employee-dashboard-page">
