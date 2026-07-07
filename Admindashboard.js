@@ -2285,7 +2285,7 @@ function injectComplaintsSection() {
         <div class="dept-filter-pill">
           <i class="ti ti-filter"></i>
           <select id="cTargetFilter">
-            <option value="all">كل الجهات</option>
+            <option value="all">جميع الجهات</option>
             <option value="college">الكلية</option>
             <option value="physics">قسم الفيزياء</option>
             <option value="statistics">قسم الإحصاء</option>
@@ -2297,7 +2297,7 @@ function injectComplaintsSection() {
         <div class="dept-filter-pill">
           <i class="ti ti-category"></i>
           <select id="cTypeFilter">
-            <option value="all">كل الأنواع</option>
+            <option value="all">الكُل</option>
             <option value="شكوى">شكوى</option>
             <option value="استفسار">استفسار</option>
             <option value="اقتراح">اقتراح</option>
