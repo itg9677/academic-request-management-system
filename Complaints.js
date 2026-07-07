@@ -161,6 +161,19 @@ window.handleFile = function (input) {
   }
   document.getElementById("upload-area").classList.add("has-file");
   document.getElementById("upload-text").innerHTML = "✓ &nbsp;" + file.name;
+  document.getElementById("remove-file-btn").style.display = "inline-flex";
+};
+
+// =====================================================
+//  إزالة المرفق قبل الإرسال
+// =====================================================
+window.removeFile = function () {
+  const fileInput = document.getElementById("file-input");
+  fileInput.value = "";
+  document.getElementById("upload-area").classList.remove("has-file");
+  document.getElementById("upload-text").innerHTML =
+    'اضغط لرفع ملف أو صورة<br><span style="color:var(--primary);font-weight:bold;">PDF, JPG, PNG, DOCX</span> — حتى 10 ميجا';
+  document.getElementById("remove-file-btn").style.display = "none";
 };
 
 window.resetForm = function () {
@@ -175,4 +188,5 @@ window.resetForm = function () {
     'اضغط لرفع ملف أو صورة<br><span style="color:var(--primary);font-weight:bold;">PDF, JPG, PNG, DOCX</span> — حتى 10 ميجا';
   const firstType = document.querySelector('input[name="type"]');
   if (firstType) firstType.checked = true;
+  document.getElementById("remove-file-btn").style.display = "none";
 };
