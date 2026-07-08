@@ -2045,7 +2045,6 @@ const firebaseConfigForTransfer = {
 };
 
 async function createAdminAccountSafely(email, password) {
-  // اسم فريد لتجنب تعارض مع أي instance ثانوي آخر مفتوح بنفس الجلسة
   const secondaryApp = initializeApp(firebaseConfigForTransfer, "secondary-" + Date.now());
   const secondaryAuth = getAuth(secondaryApp);
 
@@ -2062,11 +2061,20 @@ function openTransferModal() {
   const modalEl   = document.getElementById("transferAdminModal");
   const errorEl   = document.getElementById("ta_error");
   const formEl    = document.getElementById("transferAdminForm");
+
   if (!overlayEl || !modalEl) return;
+
   overlayEl.style.display = "block";
   modalEl.style.display   = "block";
+
   if (errorEl) errorEl.style.display = "none";
   if (formEl) formEl.reset();
+
+  // الملاحظة تحت الإيميل
+  const noteEl = document.getElementById("ta_email_note");
+  if (noteEl) {
+    noteEl.textContent = "الرجاء استخدام نفس الإيميل المسجل مسبقًا لنفس الموظف";
+  }
 }
 
 function closeTransferModal() {
@@ -2096,16 +2104,10 @@ async function handleTransferAdmin(e) {
     let newUid;
     let employeeAlreadyExists = false;
 
-    // البحث عن موظف موجود بنفس الإيميل
-    const dupEmailQ = query(
-      collection(db, "employees"),
-      where("email", "==", email)
-    );
+    const dupEmailQ = query(collection(db, "employees"), where("email", "==", email));
     const dupEmailSnap = await getDocs(dupEmailQ);
 
     if (!dupEmailSnap.empty) {
-
-      // الموظف موجود مسبقاً → نرقّيه لأدمن فقط (بدون إنشاء حساب جديد)
       employeeAlreadyExists = true;
       const existingDoc = dupEmailSnap.docs[0];
       newUid = existingDoc.id;
@@ -2117,14 +2119,12 @@ async function handleTransferAdmin(e) {
 
     } else {
 
-      // تأكد ما يوجد رقم وظيفي مكرر قبل إنشاء حساب جديد
       const dupEmpNumQ = query(collection(db, "employees"), where("employeeNumber", "==", employeeNumber));
       const dupEmpNumSnap = await getDocs(dupEmpNumQ);
       if (!dupEmpNumSnap.empty) {
         throw new Error("هذا الرقم الوظيفي مستخدم لموظف آخر بالفعل");
       }
 
-      // إنشاء حساب Auth جديد بدون كسر جلسة الأدمن الحالي
       newUid = await createAdminAccountSafely(email, password);
 
       await setDoc(doc(db, "employees", newUid), {
@@ -2138,10 +2138,8 @@ async function handleTransferAdmin(e) {
       });
     }
 
-    // مزامنة adminUids (تستخدمها قواعد الأمان)
     await setDoc(doc(db, "adminUids", newUid), { isAdmin: true, email }, { merge: true });
 
-    // سحب صلاحية الأدمن الحالي
     if (currentAdminData?.docId) {
       await updateDoc(doc(db, "employees", currentAdminData.docId), {
         isAdmin: false,
@@ -2150,7 +2148,6 @@ async function handleTransferAdmin(e) {
       await deleteDoc(doc(db, "adminUids", currentAdminData.uid)).catch(() => {});
     }
 
-    // تسجيل عملية النقل بسجل تاريخي
     await setDoc(doc(collection(db, "adminTransferLogs")), {
       fromAdminId:      currentAdminData?.docId || null,
       fromAdminName:    currentAdminData?.fullName || null,
