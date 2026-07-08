@@ -1096,7 +1096,7 @@ function printActiveStudent() {
     }).join("");
   }
   const styleBlock = `
-  body{font-family:Arial,sans-serif;padding:30px;direction:rtl;}
+  body{font-family:'Tajawal',Arial,sans-serif;padding:30px;direction:rtl;}
   h2{color:#1a2d5a;border-bottom:3px solid #c9a84c;padding-bottom:8px;}
   h3{color:#1a2d5a;margin-top:24px;}
   .info-table{width:100%;border-collapse:collapse;margin-top:10px;font-size:14px;}
@@ -1114,6 +1114,7 @@ function printActiveStudent() {
 <head>
   <meta charset="UTF-8"/>
   <title>طباعة بيانات الطالب</title>
+  <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700&display=swap" rel="stylesheet">
   <style>${styleBlock}</style>
 </head>
 <body>
