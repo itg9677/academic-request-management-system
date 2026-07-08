@@ -2701,7 +2701,7 @@ function openComplaintPanel(c, student) {
     </div>
 
     <div class="sp-section-title">التفاصيل</div>
-    <div class="sp-detail-card" style="font-size:14px;line-height:1.8;margin-bottom:16px;">
+    <div class="sp-detail-card" style="font-size:20px;line-height:1.8;margin-bottom:16px;">
       ${esc(c.details || "-")}
     </div>
 
