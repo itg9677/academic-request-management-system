@@ -801,7 +801,7 @@ function buildRow(tab, studentUid, requests) {
     <td class="uid-cell">${esc(student.universityId || "-")}</td>
     ${(tab === "addDrop" || tab === "excuse") ? "" : `<td><span class="dept-chip">${esc(dept)}</span></td>`}
     <td><span class="req-count-badge">${requests.length}</span></td>
-    <td><button class="detail-btn">التفاصيل <i class="ti ti-chevron-left detail-chevron"></i></button></td>
+    <td><button class="detail-btn">عرض <i class="ti ti-chevron-left detail-chevron"></i></button></td>
   `;
 
   // فتح اللوحة بأول طلب مطابق للفلتر الحالي (الأعلى أولوية)
