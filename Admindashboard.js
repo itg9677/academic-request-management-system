@@ -764,10 +764,6 @@ updateStatCards(filtered);
   }
 
   // إخفاء عمود "القسم" في جدولي الحذف/الإضافة والأعذار (يبقى ظاهراً في تبويب الزيارة)
-  const colDeptEl = document.getElementById("colDept");
-  if (colDeptEl) {
-    colDeptEl.style.display = (currentTab === "addDrop" || currentTab === "excuse") ? "none" : "";
-  }
 }
 
 function buildRow(tab, studentUid, requests) {
@@ -778,7 +774,6 @@ function buildRow(tab, studentUid, requests) {
   tr.dataset.uid = studentUid;
 
   const initials = (student.fullName || "??").slice(0, 2);
-  const dept     = requests[0]?.assignedDepartment || student.major || "-";
 
   // الحالة الأسوأ: جديد > قيد المراجعة > مقبول/مرفوض
   const priority = { new: 0, under_review: 1, approved: 2, rejected: 2 };
@@ -799,7 +794,6 @@ function buildRow(tab, studentUid, requests) {
       </div>
     </td>
     <td class="uid-cell">${esc(student.universityId || "-")}</td>
-    ${(tab === "addDrop" || tab === "excuse") ? "" : `<td><span class="dept-chip">${esc(dept)}</span></td>`}
     <td><span class="req-count-badge">${requests.length}</span></td>
     <td><button class="detail-btn">عرض <i class="ti ti-chevron-left detail-chevron"></i></button></td>
   `;
@@ -1630,9 +1624,10 @@ function printActiveStudent() {
 
 // ==================== رفع/عرض نموذج الزيارة (PDF) - متاح فقط داخل تبويب الزيارة ====================
 
-// ==================== فلترة الأقسام في صفحة الإحصائيات ====================
+// ==================== فلترة الأقسام + الفصل الدراسي في صفحة الإحصائيات ====================
 
 let currentStatsDeptFilter = "all";
+let currentStatsSemesterFilter = "current"; // "current" أو رقم فصل محدد من الأرشيف
 
 // يظهر "أكثر قسم لديه طلبات" ومخطط "توزيع الطلبات حسب الأقسام" فقط عند اختيار "كل الأقسام"
 function toggleDeptStatsVisibility() {
@@ -1641,6 +1636,18 @@ function toggleDeptStatsVisibility() {
   const deptChartCard = document.getElementById("dash-dept-chart-card");
   if (topDeptCard)   topDeptCard.style.display   = showAll ? "" : "none";
   if (deptChartCard) deptChartCard.style.display = showAll ? "" : "none";
+}
+
+// يبني قائمة خيارات الفصل الدراسي (الحالي + الأرشيف) لفلتر الإحصائيات
+function buildStatsSemesterOptionsHtml() {
+  const options = [
+    `<option value="current">الفصل الحالي${currentSemesterData?.name ? " - " + esc(currentSemesterData.name) : ""}</option>`
+  ];
+  allSemestersCache.forEach((s) => {
+    if (currentSemesterData && s.semester === currentSemesterData.semester) return;
+    options.push(`<option value="${esc(String(s.semester))}">${esc(s.name || s.semester)}</option>`);
+  });
+  return options.join("");
 }
 
 function renderDeptFilterForStats() {
@@ -1671,7 +1678,7 @@ function renderDeptFilterForStats() {
   }
 
   const deptList = ["all", ...depts];
-  filterBar.innerHTML = deptList.map((d) => `
+  const deptPillsHtml = deptList.map((d) => `
     <button class="stats-dept-pill ${currentStatsDeptFilter === d ? "active" : ""}"
       data-dept="${d}"
       style="padding:7px 16px;border-radius:20px;border:2px solid ${currentStatsDeptFilter === d ? "#1a3a6b" : "#ddd"};
@@ -1681,6 +1688,28 @@ function renderDeptFilterForStats() {
       ${d === "all" ? "كل الأقسام" : d}
     </button>
   `).join("");
+
+  const semesterSelectHtml = `
+    <div class="dept-filter-pill" id="statsSemesterFilterWrap">
+      <i class="ti ti-calendar"></i>
+      <select id="statsSemesterFilter">
+        ${buildStatsSemesterOptionsHtml()}
+      </select>
+    </div>
+  `;
+
+  filterBar.innerHTML = semesterSelectHtml + deptPillsHtml;
+
+  const semSelect = document.getElementById("statsSemesterFilter");
+  if (semSelect) {
+    semSelect.value = currentStatsSemesterFilter;
+    semSelect.addEventListener("change", (e) => {
+      currentStatsSemesterFilter = e.target.value;
+      toggleDeptStatsVisibility();
+      updateDashboardStatsFiltered();
+      buildChartsFiltered();
+    });
+  }
 
   filterBar.querySelectorAll(".stats-dept-pill").forEach((btn) => {
     btn.addEventListener("click", () => {
@@ -1696,7 +1725,16 @@ function renderDeptFilterForStats() {
 }
 
 function getFilteredStatsItems() {
-  const allItems = [...tabData.addDrop, ...tabData.excuse, ...tabData.visit];
+  let allItems = [...tabData.addDrop, ...tabData.excuse, ...tabData.visit];
+
+  // فلتر الفصل الدراسي
+  allItems = allItems.filter((item) => {
+    const itemSem = getItemSemester(item);
+    return currentStatsSemesterFilter === "current"
+      ? (!currentSemesterData || itemSem == null || itemSem === currentSemesterData.semester)
+      : (itemSem == null || itemSem === Number(currentStatsSemesterFilter));
+  });
+
   if (currentStatsDeptFilter === "all") return allItems;
   return allItems.filter((item) => {
     const cfg = tabConfig.addDrop;

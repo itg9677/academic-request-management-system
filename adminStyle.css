@@ -1038,3 +1038,24 @@ mark {
   font-weight: 700 !important;
   color: #1a3a6b !important;
 }
+/* ===== زر تصدير Excel (تبويب الأعذار) — لون أخضر ===== */
+.excel-export-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 16px;
+  background: #1a6b3c;
+  color: #fff;
+  border: none;
+  border-radius: 20px;
+  font-family: inherit;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.18s, transform 0.12s;
+  white-space: nowrap;
+}
+.excel-export-btn:hover  { background: #155c32; }
+.excel-export-btn:active { transform: scale(0.97); }
+.excel-export-btn i      { font-size: 1rem; }
+.excel-export-btn:disabled { opacity: 0.55; cursor: not-allowed; }
