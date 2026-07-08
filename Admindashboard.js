@@ -2405,7 +2405,7 @@ function injectComplaintsSection() {
               <th>الجهة</th>
               <th>الحالة</th>
               <th>التاريخ</th>
-              <th>عرض</th>
+              <th>التفاصيل</th>
             </tr>
           </thead>
           <tbody id="cTbody"></tbody>
@@ -2619,7 +2619,7 @@ async function renderComplaintRows(filtered, tbody) {
       <td><span class="dept-chip">${esc(targetTxt)}</span></td>
       <td><span class="status-badge s-${status}">${getComplaintStatusLabel(status)}</span></td>
       <td>${dateStr}</td>
-      <td><button class="detail-btn">التفاصيل <i class="ti ti-chevron-left detail-chevron"></i></button></td>
+      <td><button class="detail-btn">عرض <i class="ti ti-chevron-left detail-chevron"></i></button></td>
     `;
 
     tr.addEventListener("click", () => {
