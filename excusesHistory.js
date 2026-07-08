@@ -68,13 +68,16 @@ onAuthStateChanged(auth, async (user) => {
                تحويل الحالة للعربي
             ========================= */
             let statusText = "قيد المراجعة";
+            let statusClass = "status-review";
 
             if (data.status === "approved") {
                 statusText = "مقبول";
+                statusClass = "status-approved";
             }
 
             if (data.status === "rejected") {
                 statusText = "مرفوض";
+                statusClass = "status-rejected";
             }
 
             /* =========================
@@ -108,7 +111,7 @@ onAuthStateChanged(auth, async (user) => {
             row.innerHTML = `
                 <td>${data.courseCode || "-"}</td>
                 <td>${examTypeArabic}</td>
-                <td>${statusText}</td>
+                <td><span class="status ${statusClass}">${statusText}</span></td>
                 <td>${data.rejectReason || "-"}</td>
             `;
 

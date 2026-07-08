@@ -63,13 +63,16 @@ onAuthStateChanged(auth, async (user) => {
             const data = visitDoc.data();
 
             let statusText = "قيد المراجعة";
+            let statusClass = "status-review";
 
             if (data.status === "approved") {
                 statusText = "مقبول";
+                statusClass = "status-approved";
             }
 
             if (data.status === "rejected") {
                 statusText = "مرفوض";
+                statusClass = "status-rejected";
             }
 
             let visitTypeText = "-";
@@ -87,7 +90,7 @@ onAuthStateChanged(auth, async (user) => {
                     <td>${count++}</td>
                     <td>${visitTypeText}</td>
                     <td>${data.visitPlace || "-"}</td>
-                    <td>${statusText}</td>
+                    <td><span class="status ${statusClass}">${statusText}</span></td>
                 </tr>
             `;
         });
