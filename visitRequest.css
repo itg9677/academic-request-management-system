@@ -219,32 +219,6 @@ button:hover{
     transform:translateY(-2px);
 }
 
-/* =====================================================
-   الجوال
-===================================================== */
-@media (max-width:768px){
-
-    .request-form{
-        padding:20px;
-    }
-
-    h1{
-        font-size:22px;
-    }
-
-    .radio-group{
-        flex-direction:column;
-    }
-
-    .radio-card{
-        width:100%;
-    }
-
-    .logo-container img{
-        width:220px;
-    }
-}
-
     .courses-table-wrapper {
         margin-top: 20px;
         overflow-x: auto;
@@ -390,3 +364,88 @@ button:hover{
         box-shadow: 0 0 0 3px rgba(26,58,107,.15);
         background: white;
     }
+
+/* =====================================================
+   الجوال (يجب أن تبقى هذه القواعد في نهاية الملف
+   حتى لا تُلغيها أي قواعد لاحقة بنفس درجة التحديد)
+===================================================== */
+@media (max-width:768px){
+
+    .page{
+        padding:15px;
+    }
+
+    .request-form{
+        padding:18px 16px;
+        border-radius:14px;
+    }
+
+    h1{
+        font-size:20px;
+        margin-bottom:18px;
+    }
+
+    .form-grid{
+        grid-template-columns:1fr;
+        gap:14px;
+        margin-bottom:16px;
+    }
+
+    .radio-group{
+        flex-direction:column;
+        gap:10px;
+    }
+
+    .radio-card{
+        min-width:0;
+        padding:12px;
+    }
+
+    .logo-container img{
+        width:170px;
+    }
+
+    .science-pattern{
+        width:100%;
+        margin:8px auto 14px;
+    }
+
+    .section-divider{
+        font-size:.9rem !important;
+        margin:14px 0 8px !important;
+    }
+
+    .courses-table{
+        font-size:.78rem !important;
+    }
+
+    .courses-table th,
+    .courses-table td{
+        padding:6px !important;
+    }
+
+    .btn-add-course{
+        width:100%;
+        justify-content:center;
+    }
+
+    .form-group textarea{
+        min-height:100px;
+    }
+
+    button{
+        min-width:0;
+    }
+}
+
+@media (max-width:400px){
+
+    .courses-table{
+        font-size:.7rem !important;
+    }
+
+    .courses-table th,
+    .courses-table td{
+        padding:5px 4px !important;
+    }
+}

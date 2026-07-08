@@ -104,6 +104,17 @@
 .courses-error.hidden {
     display: none;
 }
+@media (max-width: 600px) {
+    .actions {
+        flex-direction: column !important;
+    }
+    .btn-submit,
+    .btn-track,
+    .btn-home {
+        width: 100% !important;
+        padding: 12px 20px !important;
+    }
+}
 </style>
 </head>
 
@@ -231,8 +242,8 @@
 
         <br><br>
         <div class="actions">
+                        <button type="button" class="btn-track" onclick="window.location.href='VisitsHistory.html'">متابعة الطلبات السابقة</button>
             <button id="submitBtn" class="btn-submit">إرسال الطلب</button>
-            <button type="button" class="btn-track" onclick="window.location.href='VisitsHistory.html'">متابعة الطلبات السابقة</button>
             <button type="button" class="btn-home" onclick="window.location.href='studentMainPage.html'">العودة للصفحة الرئيسية</button>
         </div>
 
