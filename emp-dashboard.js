@@ -119,9 +119,19 @@ const fieldLabels = {
 };
 
 const hiddenFields = [
-  "_uid", "password", "token", "fcmToken", "pushToken",
-  "deviceId", "emailVerified", "role", "createdAt", "email"
+  "fullName",        // ← هذا يخفي الاسم من تحت فقط
+  "_uid",
+  "password",
+  "token",
+  "fcmToken",
+  "pushToken",
+  "deviceId",
+  "emailVerified",
+  "role",
+  "createdAt",
+  "email"
 ];
+
 
 const statusLabel = {
   new:          "جديد",
@@ -198,12 +208,8 @@ async function getStudent(uid) {
     }
   } catch(e) {}
 
- studentsCache[uid] = { 
-  _uid: uid,
-  studentId: "-", 
-  email: "-", 
-  major: "-" 
-};
+studentsCache[uid] = { _uid: uid,  studentId: "-", email: "-", major: "-" };
+
 
   return studentsCache[uid];
 }
@@ -466,7 +472,7 @@ function buildRow(tab, studentUid, requests) {
       <div class="student-name-cell">
         <div class="student-avatar">${esc(initials)}</div>
         <div>
-<div class="student-name-text">-</div>
+          <div class="student-name-text">${esc(student.fullName || "-")}</div>
           <div class="student-major-text">${esc(student.major || "")}</div>
         </div>
       </div>
@@ -489,6 +495,7 @@ function buildRow(tab, studentUid, requests) {
 }
 
 // ==================== اللوحة الجانبية ====================
+
 
 function buildStudentAllFields(student) {
   return Object.entries(student)
@@ -1285,7 +1292,7 @@ async function exportExcusesToExcel() {
     const statusKey = getEffectiveStatus(r);
 data.push([
   student.studentId || student.universityId || "-",
-  "-", // ← حذف اسم الطالبة نهائيًا
+  student.fullName || "-",
   student.major || student.department || "-",
   examTypeLabel[r.examType] || r.examType || "-",
   r.courseName || r.courseCode || "-",
@@ -1293,6 +1300,7 @@ data.push([
   r.absenceDate || r.examDate || "-",
   statusLabel[statusKey] || statusKey
 ]);
+
 
 
   });
