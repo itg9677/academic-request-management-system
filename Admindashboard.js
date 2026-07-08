@@ -1206,23 +1206,33 @@ function openRejectModal(tab, requestId, onConfirm) {
   document.getElementById("rejectFreeText").value = "";
 
   document.getElementById("rejectConfirmBtn").onclick = async () => {
-    let reason;
-    if (isFreeTextOnly) {
-      reason = document.getElementById("rejectFreeText").value.trim();
-      if (!reason) { alert("رجاءً اكتب سبب الرفض"); return; }
-    } else {
-      const selected = modal.querySelector('input[name="rejectReason"]:checked');
-      if (!selected) { alert("رجاءً اختر سبب الرفض"); return; }
-      if (selected.value === "other" && !document.getElementById("rejectOtherText").value.trim()) {
-        alert("رجاءً اكتب سبب الرفض"); return;
-      }
-      reason = selected.value === "other"
-        ? document.getElementById("rejectOtherText").value.trim()
-        : REJECT_REASONS.find(r => r.value === selected.value).label;
+  let reason;
+
+  if (isFreeTextOnly) {
+    reason = document.getElementById("rejectFreeText").value.trim();
+    if (!reason) { alert("رجاءً اكتب سبب الرفض"); return; }
+  } else {
+    const selected = modal.querySelector('input[name="rejectReason"]:checked');
+    if (!selected) { alert("رجاءً اختر سبب الرفض"); return; }
+    if (selected.value === "other" && !document.getElementById("rejectOtherText").value.trim()) {
+      alert("رجاءً اكتب سبب الرفض"); return;
     }
-    closeRejectModal();
-    await onConfirm(reason);
-  };
+    reason = selected.value === "other"
+      ? document.getElementById("rejectOtherText").value.trim()
+      : REJECT_REASONS.find(r => r.value === selected.value).label;
+  }
+
+  closeRejectModal();
+
+  // تحديث حالة الشكوى
+  await onConfirm(reason);
+
+  // حفظ اسم الموظف المعالج
+  await updateDoc(doc(db, "complaints", c.id), {
+    handledByName: currentEmployeeName
+  });
+};
+
 }
 
 function closeRejectModal() {
@@ -2236,21 +2246,45 @@ function getComplaintStatusLabel(status) {
 // بالبحث عن studentId كحقل في حال لم يُعثر على الطالبة بمعرّف المستند مباشرة
 async function getComplaintStudentInfo(uid) {
   if (!uid) return null;
-  const cached = await getStudent(uid);
-  if (cached && cached.fullName && cached.fullName !== "-") return cached;
+
+  // لو موجودة بالكاش نرجعها مباشرة
+  if (studentsCache[uid]) return studentsCache[uid];
 
   try {
-    const q = query(collection(db, "students"), where("studentId", "==", uid));
-    const snap = await getDocs(q);
-    if (!snap.empty) {
-      studentsCache[uid] = { _uid: uid, ...snap.docs[0].data() };
+    const snap = await getDoc(doc(db, "students", uid));
+
+    if (snap.exists()) {
+      const data = snap.data();
+
+      // نخزن البيانات كاملة في الكاش
+      studentsCache[uid] = {
+        _uid: uid,
+        fullName: data.fullName || "-",
+        universityId: data.universityId || "-",
+        email: data.email || "-",
+        major: data.major || "-",
+        phoneNumber: data.phoneNumber || "-"
+      };
+
       return studentsCache[uid];
     }
   } catch (e) {
-    console.error("getComplaintStudentInfo by studentId error:", e);
+    console.error("Error fetching student info:", e);
   }
-  return cached;
+
+  // لو ما حصلنا بيانات نرجع قيم فاضية
+  studentsCache[uid] = {
+    _uid: uid,
+    fullName: "-",
+    universityId: "-",
+    email: "-",
+    major: "-",
+    phoneNumber: "-"
+  };
+
+  return studentsCache[uid];
 }
+
 
 // ── حقن قسم الشكاوى في الصفحة ──────────────────────
 
@@ -2333,7 +2367,7 @@ function injectComplaintsSection() {
               <th>الجهة</th>
               <th>الحالة</th>
               <th>التاريخ</th>
-              <th>التفاصيل</th>
+              <th>عرض</th>
             </tr>
           </thead>
           <tbody id="cTbody"></tbody>
@@ -2566,11 +2600,20 @@ async function renderComplaintRows(filtered, tbody) {
 
 function openComplaintPanel(c, student) {
   activeComplaint = c;
+
   const status = c.status || "new";
   const targetTxt = getDeptLabel(c);
+
+  // stu = بيانات الطالبة
   const stu = student || studentsCache[c.studentUid] || null;
-  const studentName = stu?.fullName || c.studentEmail || "-";
-  const studentNum = stu?.studentId || stu?.universityId || "-";
+
+  // البيانات الصحيحة من Firestore
+  const studentName  = stu?.fullName        || "-";
+  const studentNum   = stu?.universityId    || "-";
+  const studentEmail = stu?.email           || "-";
+  const studentMajor = stu?.major           || "-";
+  const studentPhone = stu?.phoneNumber     || "-";
+
   const dateStr = c.createdAt?.toDate
     ? c.createdAt.toDate().toLocaleDateString("ar-SA-u-ca-gregory")
     : "-";
@@ -2595,14 +2638,27 @@ function openComplaintPanel(c, student) {
   document.getElementById("cSpBody").innerHTML = `
     <div class="sp-detail-card sp-highlight-border" style="margin-bottom:16px;">
       <table class="sp-detail-table">
-        <tr><td class="sp-detail-label">اسم الطالب</td>  <td>${esc(studentName)}</td></tr>
-        <tr><td class="sp-detail-label">الرقم الجامعي</td><td>${esc(studentNum)}</td></tr>
-        <tr><td class="sp-detail-label">النوع</td>      <td>${esc(c.type || "-")}</td></tr>
-        <tr><td class="sp-detail-label">الجهة المعنية</td><td>${esc(targetTxt)}</td></tr>
-        <tr><td class="sp-detail-label">الحالة</td>
-            <td><span class="status-badge s-${status}">${getComplaintStatusLabel(status)}</span></td></tr>
-        <tr><td class="sp-detail-label">تاريخ التقديم</td><td>${dateStr}</td></tr>
-        <tr><td class="sp-detail-label">المرفق</td>     <td>${attachHtml}</td></tr>
+<tr><td class="sp-detail-label">اسم الطالب</td>  <td>${esc(studentName)}</td></tr>
+<tr><td class="sp-detail-label">الرقم الجامعي</td><td>${esc(studentNum)}</td></tr>
+<tr><td class="sp-detail-label">البريد الإلكتروني</td><td>${esc(studentEmail)}</td></tr>
+<tr><td class="sp-detail-label">التخصص</td><td>${esc(studentMajor)}</td></tr>
+<tr><td class="sp-detail-label">رقم الجوال</td><td>${esc(studentPhone)}</td></tr>
+<tr><td class="sp-detail-label">النوع</td>      <td>${esc(c.type || "-")}</td></tr>
+<tr><td class="sp-detail-label">الجهة المعنية</td><td>${esc(targetTxt)}</td></tr>
+
+<tr>
+  <td class="sp-detail-label">الحالة</td>
+  <td><span class="status-badge s-${status}">${getComplaintStatusLabel(status)}</span></td>
+</tr>
+
+<tr>
+  <td class="sp-detail-label">الموظف المعالج</td>
+  <td>${esc(c.handledByName || "-")}</td>
+</tr>
+
+<tr><td class="sp-detail-label">تاريخ التقديم</td><td>${dateStr}</td></tr>
+<tr><td class="sp-detail-label">المرفق</td>     <td>${attachHtml}</td></tr>
+
       </table>
     </div>
 
@@ -2617,11 +2673,11 @@ function openComplaintPanel(c, student) {
       style="width:100%;padding:10px 12px;border:1px solid #d1d5db;border-radius:8px;
              font-family:inherit;font-size:14px;margin-top:8px;resize:vertical;box-sizing:border-box;"
       placeholder="اكتب ردك أو ملاحظتك هنا...">${esc(c.adminReply || "")}</textarea>
+  
    
   `;
 const replyInput = document.getElementById("cAdminReplyInput");
 const resolveBtn = document.getElementById("cBtnResolve");
-
 const originalReply = (c.adminReply || "").trim();
 
 // إذا كانت الشكوى معالجة مسبقاً
@@ -2636,10 +2692,58 @@ if ((c.status || "new") === "resolved") {
   });
 }
 
+// تفعيل الأزرار
 ["cBtnReview", "cBtnResolve", "cBtnDismiss"].forEach((id) => {
   const btn = document.getElementById(id);
   btn.disabled = false;
 });
+
+// ─────────────── قيد المراجعة ───────────────
+document.getElementById("cBtnReview").onclick = async () => {
+  await updateDoc(doc(db, "complaints", c.id), {
+    status: "under_review",
+    handledByName: currentEmployeeName
+  });
+};
+
+// ─────────────── قبول الشكوى ───────────────
+document.getElementById("cBtnResolve").onclick = async () => {
+  await updateDoc(doc(db, "complaints", c.id), {
+    status: "resolved",
+    adminReply: replyInput.value.trim(),
+    handledByName: currentEmployeeName
+  });
+};
+
+// ─────────────── رفض الشكوى ───────────────
+document.getElementById("rejectConfirmBtn").onclick = async () => {
+  let reason;
+
+  if (isFreeTextOnly) {
+    reason = document.getElementById("rejectFreeText").value.trim();
+    if (!reason) { alert("رجاءً اكتب سبب الرفض"); return; }
+  } else {
+    const selected = modal.querySelector('input[name="rejectReason"]:checked');
+    if (!selected) { alert("رجاءً اختر سبب الرفض"); return; }
+    if (selected.value === "other" && !document.getElementById("rejectOtherText").value.trim()) {
+      alert("رجاءً اكتب سبب الرفض"); return;
+    }
+    reason = selected.value === "other"
+      ? document.getElementById("rejectOtherText").value.trim()
+      : REJECT_REASONS.find(r => r.value === selected.value).label;
+  }
+
+  closeRejectModal();
+
+  // تنفيذ الرفض
+  await onConfirm(reason);
+
+  // حفظ الموظف المعالج
+  await updateDoc(doc(db, "complaints", c.id), {
+    handledByName: currentEmployeeName
+  });
+};
+
 
   document.getElementById("cSidePanel").classList.add("open");
   document.getElementById("cSpOverlay").classList.add("show");

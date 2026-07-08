@@ -332,21 +332,31 @@ async function renderComplaints() {
 }
 
 // ── اللوحة الجانبية ─────────────────────────────────
+// ── اللوحة الجانبية ─────────────────────────────────
+
 function openPanel(c, student) {
   activeComplaint = c;
+
   const status  = c.status || "new";
   const dateStr = c.createdAt?.toDate
     ? c.createdAt.toDate().toLocaleDateString("ar-SA-u-ca-gregory")
     : "-";
+
   const stu = student || studentsCache[c.studentUid] || null;
-  const studentName = stu?.fullName || c.studentEmail || "-";
-  const studentNum  = stu?.studentId || stu?.universityId || "-";
+
+  const studentName  = stu?.fullName      || c.studentEmail || "-";
+  const studentNum   = stu?.studentId     || stu?.universityId || "-";
+  const studentEmail = stu?.email         || c.studentEmail || "-";
+  const studentMajor = stu?.major         || "-";
+const studentPhone = stu?.phoneNumber   || "-";
+
   const attachHtml = c.attachmentUrl
     ? `<a href="${esc(c.attachmentUrl)}" target="_blank" rel="noopener"
          style="color:var(--primary);text-decoration:underline;">
          <i class="ti ti-paperclip"></i> عرض المرفق
        </a>`
     : "لا يوجد";
+
   const replyHtml = c.adminReply
     ? `<div style="background:#f0f4ff;border-right:3px solid var(--primary);
                    padding:10px 14px;border-radius:6px;font-size:13px;margin-top:4px;">
@@ -357,39 +367,80 @@ function openPanel(c, student) {
   document.getElementById("ecSpTitle").textContent = c.subject || "تفاصيل الشكوى";
   document.getElementById("ecSpSub").textContent   = c.type    || "";
 
-  document.getElementById("ecSpBody").innerHTML = `
-    <div class="sp-detail-card" style="margin-bottom:16px;">
-      <table class="sp-detail-table">
-        <tr><td class="sp-detail-label">اسم الطالب</td>
-            <td>${esc(studentName)}</td></tr>
-        <tr><td class="sp-detail-label">الرقم الجامعي</td>
-            <td>${esc(studentNum)}</td></tr>
-        <tr><td class="sp-detail-label">النوع</td>
-            <td>${esc(c.type || "-")}</td></tr>
-        <tr><td class="sp-detail-label">الحالة</td>
-            <td><span class="status-badge s-${status}">${COMPLAINT_STATUS_LABEL[status] || status}</span></td></tr>
-        <tr><td class="sp-detail-label">تاريخ التقديم</td>
-            <td>${dateStr}</td></tr>
-        <tr><td class="sp-detail-label">المرفق</td>
-            <td>${attachHtml}</td></tr>
-      </table>
-    </div>
+document.getElementById("ecSpBody").innerHTML = `
+  <div class="sp-detail-card" style="margin-bottom:16px;">
+    <table class="sp-detail-table">
 
-    <div class="sp-section-title">التفاصيل</div>
-    <div class="sp-detail-card" style="font-size:14px;line-height:1.8;margin-bottom:16px;">
-      ${esc(c.details || "-")}
-    </div>
+      <tr>
+        <td class="sp-detail-label">اسم الطالب</td>
+        <td>${esc(studentName)}</td>
+      </tr>
 
-    <div class="sp-section-title">ردك / ملاحظتك</div>
-    ${replyHtml}
-    <textarea id="ecReplyInput" rows="3"
-      style="width:100%;padding:10px 12px;border:1px solid #d1d5db;border-radius:8px;
-             font-family:inherit;font-size:14px;margin-top:8px;resize:vertical;box-sizing:border-box;"
-      placeholder="اكتب ردك أو ملاحظتك هنا...">${esc(c.adminReply || "")}</textarea>
- 
-  `;
+      <tr>
+        <td class="sp-detail-label">الرقم الجامعي</td>
+        <td>${esc(studentNum)}</td>
+      </tr>
 
+      <tr>
+        <td class="sp-detail-label">البريد الإلكتروني</td>
+        <td>${esc(studentEmail)}</td>
+      </tr>
 
+      <tr>
+        <td class="sp-detail-label">التخصص</td>
+        <td>${esc(studentMajor)}</td>
+      </tr>
+
+      <tr>
+        <td class="sp-detail-label">رقم الجوال</td>
+        <td>${esc(studentPhone)}</td>
+      </tr>
+
+      <tr>
+        <td class="sp-detail-label">نوع الشكوى</td>
+        <td>${esc(c.type || "-")}</td>
+      </tr>
+
+      <tr>
+        <td class="sp-detail-label">الحالة</td>
+        <td>
+          <span class="status-badge s-${status}">
+            ${COMPLAINT_STATUS_LABEL[status] || status}
+          </span>
+        </td>
+      </tr>
+
+      <tr>
+        <td class="sp-detail-label">الموظف المعالج</td>
+        <td>${esc(c.handledByName || "-")}</td>
+      </tr>
+
+      <tr>
+        <td class="sp-detail-label">تاريخ التقديم</td>
+        <td>${dateStr}</td>
+      </tr>
+
+      <tr>
+        <td class="sp-detail-label">المرفق</td>
+        <td>${attachHtml}</td>
+      </tr>
+
+    </table>
+  </div>
+
+  <div class="sp-section-title">التفاصيل</div>
+  <div class="sp-detail-card" style="font-size:14px;line-height:1.8;margin-bottom:16px;">
+    ${esc(c.details || "-")}
+  </div>
+
+  <div class="sp-section-title">ردك / ملاحظتك</div>
+  ${replyHtml}
+
+  <textarea id="ecReplyInput" rows="3"
+    style="width:100%;padding:10px 12px;border:1px solid #d1d5db;border-radius:8px;
+           font-family:inherit;font-size:14px;margin-top:8px;resize:vertical;box-sizing:border-box;"
+    placeholder="اكتب ردك أو ملاحظتك هنا...">${esc(c.adminReply || "")}</textarea>
+    `;
   ["ecBtnReview","ecBtnResolve","ecBtnDismiss"].forEach(id => {
     const btn    = document.getElementById(id);
     btn.disabled = (status === btn.dataset.ecaction);
@@ -399,6 +450,7 @@ function openPanel(c, student) {
   document.getElementById("ecSpOverlay").classList.add("show");
   document.querySelector(".admin-main").classList.add("panel-open");
 }
+
 
 function closePanel() {
   document.getElementById("ecSidePanel").classList.remove("open");
