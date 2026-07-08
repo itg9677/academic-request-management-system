@@ -1574,7 +1574,7 @@ function printActiveStudent() {
   }
 
   const styleBlock = `
-    body { font-family: Arial, sans-serif; padding: 30px; direction: rtl; }
+    body { font-family: 'Tajawal', Arial, sans-serif; padding: 30px; direction: rtl; }
     h2   { color: #1a3a6b; border-bottom: 3px solid #c8972b; padding-bottom: 8px; }
     h3   { color: #1a3a6b; margin-top: 24px; }
     .info-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; }
@@ -1591,6 +1591,7 @@ function printActiveStudent() {
   const printHTML = `
     <html dir="rtl" lang="ar">
     <head><meta charset="UTF-8"/><title>طباعة بيانات الطالب</title>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700&display=swap" rel="stylesheet">
     <style>${styleBlock}</style></head>
     <body>
       <h2>بيانات الطالب — نظام الخدمات الطلابية</h2>
@@ -2302,7 +2303,7 @@ function injectComplaintsSection() {
         <div class="dept-filter-pill">
           <i class="ti ti-filter"></i>
           <select id="cTargetFilter">
-            <option value="all">كل الجهات</option>
+            <option value="all">جميع الجهات</option>
             <option value="college">الكلية</option>
             <option value="physics">قسم الفيزياء</option>
             <option value="statistics">قسم الإحصاء</option>
@@ -2314,7 +2315,7 @@ function injectComplaintsSection() {
         <div class="dept-filter-pill">
           <i class="ti ti-category"></i>
           <select id="cTypeFilter">
-            <option value="all">كل الأنواع</option>
+            <option value="all">الكُل</option>
             <option value="شكوى">شكوى</option>
             <option value="استفسار">استفسار</option>
             <option value="اقتراح">اقتراح</option>
