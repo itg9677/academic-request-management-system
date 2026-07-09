@@ -2121,7 +2121,6 @@ function openTransferModal() {
   // الملاحظة تحت الإيميل
   const noteEl = document.getElementById("ta_email_note");
   if (noteEl) {
-
     noteEl.textContent = "الرجاء ادخال البريد الإلكتروني المسجل مسبقًا للموظف";
   }
 }
@@ -3172,35 +3171,55 @@ document.getElementById("transferAdminOverlay")?.addEventListener("click", close
 // authStateReady() تنتظر حتى يتحقق Firebase من الجلسة المحفوظة
 // قبل ما نشغّل onAuthStateChanged — هذا يمنع التوجيه الخاطئ للـ login
 console.log("BEFORE AUTH");
-auth.authStateReady().then(() => {
-  onAuthStateChanged(auth, async (user) => {
-    console.log("AUTH USER:", user?.email);
-    try {
-      if (!user) {
-        window.location.replace("EmployeeLogin.html");
-        return;
-      }
 
-      const q    = query(collection(db, "employees"), where("email", "==", user.email));
-      const snap = await getDocs(q);
+// الدالة الصحيحة في Firebase هي onAuthStateChanged فقط
+onAuthStateChanged(auth, async (user) => {
+  console.log("AUTH USER:", user?.email);
 
-      if (snap.empty) {
-        await signOut(auth);
-        window.location.replace("EmployeeLogin.html");
-        return;
-      }
+  try {
+    // لو ما فيه مستخدم → رجوع لصفحة تسجيل الدخول
+    if (!user) {
+      window.location.replace("EmployeeLogin.html");
+      return;
+    }
 
-      const adminDoc = snap.docs[0];
-      const data     = adminDoc.data();
+    // البحث عن الموظف في قاعدة البيانات
+    const q    = query(collection(db, "employees"), where("email", "==", user.email));
+    const snap = await getDocs(q);
 
-      if (!data.isAdmin) {
-        await signOut(auth);
-        window.location.replace("EmployeeLogin.html");
-        return;
-      }
+    // لو ما فيه سجل للموظف → تسجيل خروج وإعادة توجيه
+    if (snap.empty) {
+      await signOut(auth);
+      window.location.replace("EmployeeLogin.html");
+      return;
+    }
 
-      currentAdminData = { docId: adminDoc.id, uid: user.uid, ...data };
-      employeesCache[adminDoc.id] = data.fullName || "الأدمن";
+    const adminDoc = snap.docs[0];
+    const data     = adminDoc.data();
+
+    // لو الموظف مو أدمن → تسجيل خروج وإعادة توجيه
+    if (!data.isAdmin) {
+      await signOut(auth);
+      window.location.replace("EmployeeLogin.html");
+      return;
+    }
+
+    // حفظ بيانات الأدمن الحالي
+    currentAdminData = { 
+      docId: adminDoc.id, 
+      uid: user.uid, 
+      ...data 
+    };
+
+    // تخزين الاسم في الكاش
+    employeesCache[adminDoc.id] = data.fullName || "الأدمن";
+
+  } catch (err) {
+    console.error("AUTH ERROR:", err);
+    window.location.replace("EmployeeLogin.html");
+  }
+});
+
 // ====== عرض صفحة الإحصائيات ======
 
 const navStats = document.getElementById("navStats");
