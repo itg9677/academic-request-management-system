@@ -495,7 +495,7 @@
   <!-- ===== Modal: نقل صلاحية الأدمن ===== -->
   <!-- نعيد استخدام نفس كلاسات اللوحة الجانبية (sp-*) لضمان نفس الستايل،
        فقط نحوّلها لمودال في المنتصف عبر transfer-modal-box -->
-  <div class="admin-side-panel transfer-modal-box" id="transferAdminModal" style="display:none;">
+<div class="admin-side-panel transfer-modal-box" id="transferAdminModal" style="display:none;">
     <div class="sp-header">
       <div>
         <div class="sp-title">نقل صلاحية الأدمن</div>
@@ -529,8 +529,7 @@
             <label class="sp-detail-label">البريد الإلكتروني (للدخول) *</label>
             <input type="email" id="ta_email" class="ta-input" required />
             <div id="ta_email_note" style="color:#b00; font-size:13px; margin-top:4px;">
-  الرجاء استخدام نفس الإيميل المسجل مسبقًا لنفس الموظف
-</div>
+  الرجاء استخدام البريد الالكتروني المسجل مسبقًا للموظف</div>
           </div>
 
           <div class="ta-field">
@@ -543,17 +542,13 @@
         <div id="ta_error" class="sp-reject-reason" style="display:none;margin-top:10px;"></div>
       </form>
     </div>
+<div class="sp-footer" style="display:flex;gap:10px;">
+  <button class="sp-print-btn" id="ta_submitBtn" type="submit" form="transferAdminForm" style="flex:1;background:#1a3a6b;">
+    <i class="ti ti-check"></i> تأكيد ونقل الصلاحية</button>
 
-    <div class="sp-footer" style="display:flex;gap:10px;">
-      <button class="sp-print-btn" id="ta_submitBtn" type="submit" form="transferAdminForm" style="flex:1;background:#1a3a6b;">
-        <i class="ti ti-check"></i> تأكيد ونقل الصلاحية
-      </button>
-      <button class="sp-close-btn" id="ta_cancelBtn" type="button" style="flex:0 0 auto;">
-        إلغاء
-      </button>
-    </div>
-  </div>
-
+  <button class="sp-close-btn" id="ta_cancelBtn" type="button" style="flex:0 0 auto;">
+    إلغاء </button>
+</div>
   <div class="sp-overlay" id="transferAdminOverlay" style="display:none;"></div>
 
   <style>

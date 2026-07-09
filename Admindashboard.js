@@ -2089,7 +2089,7 @@ const firebaseConfigForTransfer = {
   projectId: "studentsreq-d9ea1",
   storageBucket: "studentsreq-d9ea1.firebasestorage.app",
   messagingSenderId: "375395162945",
-  appId: "1:375395162945:web:e3edb97c48a30ab6401fc0"
+  appId: "1:375395162945:web:e3edb97c48a30ab6401fc0" 
 };
 
 async function createAdminAccountSafely(email, password) {
@@ -2121,7 +2121,7 @@ function openTransferModal() {
   // الملاحظة تحت الإيميل
   const noteEl = document.getElementById("ta_email_note");
   if (noteEl) {
-    noteEl.textContent = "الرجاء استخدام نفس الإيميل المسجل مسبقًا لنفس الموظف";
+    noteEl.textContent = " الرجاء استخدام البريد الالكتروني المسجل مسبقًا للموظف";
   }
 }
 
