@@ -17,7 +17,6 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import { getDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-import { getCurrentSemester, getAllSemesters } from "./semester.js";
 
 // ── خريطة اسم القسم العربي ← departmentKey ──────────
 const DEPT_KEY_MAP = {
@@ -58,29 +57,6 @@ let currentDeptKey        = null;   // مثال: "physics"
 let unsubscribeComplaints = null;
 let alreadyInitialized    = false;  // يمنع التهيئة المزدوجة عند تكرار onAuthStateChanged
 const studentsCache       = {};     // كاش بيانات الطلاب (لعرض الاسم والرقم الجامعي)
-
-// ── فلتر الفصل الدراسي (اختيار يدوي من الموظف/الأدمن) ──
-let currentSemesterData    = null;
-let allSemestersCache      = [];   // كاش لكل الفصول (نستخدمه في inferSemesterFromDate)
-let selectedSemesterFilter = "current"; // "current" أو رقم فصل محدد من الأرشيف
-
-// يُستخدم للشكاوى القديمة التي ليس لها فيلد semester — نستنتجه من تاريخ التقديم
-function inferSemesterFromDate(createdAt) {
-  const d = createdAt?.toDate ? createdAt.toDate() : null;
-  if (!d) return null;
-  for (const s of allSemestersCache) {
-    const start = s.startDate?.toDate ? s.startDate.toDate() : new Date(s.startDate);
-    const end   = s.endDate?.toDate   ? s.endDate.toDate()   : new Date(s.endDate);
-    if (d >= start && d <= end) return s.semester;
-  }
-  return null;
-}
-
-// يُعيد رقم الفصل للشكوى: من الفيلد لو موجود، وإلا يستنتجه من تاريخ التقديم
-function getItemSemester(item) {
-  if (item.semester != null) return item.semester;
-  return inferSemesterFromDate(item.createdAt);
-}
 
 // ── جلب بيانات الطالب (الاسم والرقم الجامعي) ────────
 async function getStudentInfo(uid) {
@@ -172,13 +148,6 @@ function injectComplaintsSection() {
           <i class="ti ti-search admin-search-icon"></i>
           <input type="text" id="ecSearchInput" placeholder="ابحث بالعنوان..." autocomplete="off" />
         </div>
-
-        <div class="dept-filter-pill" id="ecSemesterFilterWrap">
-          <i class="ti ti-calendar"></i>
-          <select id="ecSemesterFilter">
-            <option value="current">الفصل الحالي</option>
-          </select>
-        </div>
       </div>
 
       <div class="admin-loading" id="ecLoading" style="display:none">
@@ -251,12 +220,6 @@ function injectComplaintsSection() {
     debounce = setTimeout(renderComplaints, 200);
   });
 
-  // فلتر الفصل الدراسي (اختيار يدوي)
-  section.querySelector("#ecSemesterFilter").addEventListener("change", e => {
-    selectedSemesterFilter = e.target.value;
-    renderComplaints();
-  });
-
   // إغلاق اللوحة
   section.querySelector("#ecSpClose").addEventListener("click",   closePanel);
   section.querySelector("#ecSpOverlay").addEventListener("click", closePanel);
@@ -269,35 +232,6 @@ function injectComplaintsSection() {
       updateComplaintStatus(activeComplaint, action);
     });
   });
-}
-
-// ── تهيئة بيانات الفصل الدراسي وتعبئة القائمة المنسدلة ──
-async function initSemesterData() {
-  try {
-    currentSemesterData = await getCurrentSemester(true);
-    allSemestersCache   = await getAllSemesters();
-    populateSemesterFilter();
-  } catch (err) {
-    console.error("complaints-emp initSemesterData error:", err);
-  }
-}
-
-function populateSemesterFilter() {
-  const sel = document.getElementById("ecSemesterFilter");
-  if (!sel) return;
-
-  sel.innerHTML = `<option value="current">الفصل الحالي${currentSemesterData?.name ? " - " + esc(currentSemesterData.name) : ""}</option>`;
-
-  allSemestersCache.forEach(s => {
-    // لا نكرر الفصل الحالي في القائمة لو كان موجوداً بالأرشيف أيضاً
-    if (currentSemesterData && s.semester === currentSemesterData.semester) return;
-    const opt = document.createElement("option");
-    opt.value = s.semester;
-    opt.textContent = s.name || s.semester;
-    sel.appendChild(opt);
-  });
-
-  sel.value = selectedSemesterFilter;
 }
 
 // ── الاشتراك في Firestore ────────────────────────────
@@ -328,15 +262,7 @@ function updateBadge() {
 
 // ── عرض الجدول ─────────────────────────────────────
 async function renderComplaints() {
-  // فلتر الفصل الدراسي حسب اختيار الموظف/الأدمن من القائمة المنسدلة
-  const bySemester = complaintsData.filter(c => {
-    const sem = getItemSemester(c);
-    return selectedSemesterFilter === "current"
-      ? (!currentSemesterData || sem == null || sem === currentSemesterData.semester)
-      : (sem == null || sem === Number(selectedSemesterFilter));
-  });
-
-  let filtered = [...bySemester];
+  let filtered = [...complaintsData];
 
   if (cStatusFilter !== "all") {
     filtered = filtered.filter(c => (c.status || "new") === cStatusFilter);
@@ -357,9 +283,9 @@ async function renderComplaints() {
     return (b.createdAt?.toMillis?.() ?? 0) - (a.createdAt?.toMillis?.() ?? 0);
   });
 
-  // إحصاء (ضمن الفصل الدراسي المختار)
-  const counts = { all: bySemester.length, new: 0, under_review: 0, resolved: 0, dismissed: 0 };
-  bySemester.forEach(c => { const s = c.status || "new"; if (counts[s] !== undefined) counts[s]++; });
+  // إحصاء
+  const counts = { all: complaintsData.length, new: 0, under_review: 0, resolved: 0, dismissed: 0 };
+  complaintsData.forEach(c => { const s = c.status || "new"; if (counts[s] !== undefined) counts[s]++; });
   Object.entries(counts).forEach(([k, v]) => {
     const el = document.getElementById(`ec-cnt-${k}`);
     if (el) el.textContent = v;
@@ -666,7 +592,6 @@ onAuthStateChanged(auth, async user => {
     injectSidebarTab();
     injectComplaintsSection();
     patchOriginalTabs();
-    await initSemesterData();
     subscribeComplaints();
 
   } catch (err) {
