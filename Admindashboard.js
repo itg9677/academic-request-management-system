@@ -2121,7 +2121,7 @@ function openTransferModal() {
   // الملاحظة تحت الإيميل
   const noteEl = document.getElementById("ta_email_note");
   if (noteEl) {
-    noteEl.textContent = "الرجاء ادخال البريد الإلكتروني المسجل مسبقًا للموظف";
+    noteEl.textContent = "الرجاء استخدام نفس الإيميل المسجل مسبقًا لنفس الموظف";
   }
 }
 

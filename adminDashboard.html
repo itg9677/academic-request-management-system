@@ -78,7 +78,7 @@
     </div>
 
     <!-- زر نقل صلاحية الأدمن - بنفس كلاس زر الخروج، بلون ذهبي للتمييز -->
-    <button class="sb-logout-btn" id="transferAdminBtn" style="background:#c8972b;margin-bottom:8px;">
+    <button class="sb-logout-btn ta-transfer-btn" id="transferAdminBtn" style="margin-bottom:8px;">
       <i class="ti ti-user-exchange"></i> نقل صلاحية الأدمن
     </button>
     <button class="sb-logout-btn" id="logoutBtn">
@@ -524,14 +524,14 @@
             <label class="sp-detail-label">البريد الإلكتروني (للدخول) *</label>
             <input type="email" id="ta_email" class="ta-input" required />
             <div id="ta_email_note" style="color:#b00; font-size:13px; margin-top:4px;">
-  الرجاء ادخال البريد الإلكتروني المسجل مسبقًا للموظف
+  الرجاء استخدام نفس الإيميل المسجل مسبقًا لنفس الموظف
 </div>
           </div>
 
           <div class="ta-field">
             <label class="sp-detail-label">كلمة مرور مؤقتة *</label>
             <input type="text" id="ta_password" class="ta-input" minlength="6" placeholder="6 أحرف على الأقل" required />
-            <small style="color:#888;font-size:12px;">سلّمها لمدير النظام الجديد، وينصح بتغييرها بعد أول دخول</small>
+            <small style="color:#888;font-size:12px;">سلّمها للأدمن الجديد، وينصح يغيّرها بعد أول دخول</small>
           </div>
         </div>
 
@@ -575,6 +575,17 @@
       font-size: 14px;
     }
     .ta-input:focus { outline: none; border-color: #1a3a6b; }
+
+    /* زر نقل صلاحية الأدمن — يتلون ذهبي فقط عند hover، بنفس سلوك عناصر القائمة */
+    .ta-transfer-btn {
+      background: transparent;
+      transition: background 0.15s, color 0.15s;
+      border-radius: 9px;
+    }
+    .ta-transfer-btn:hover {
+      background: #c8972b;
+      color: #1e2d50;
+    }
   </style>
 
   <script type="module" src="Admindashboard.js"></script>
