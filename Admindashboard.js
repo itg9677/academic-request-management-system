@@ -2121,7 +2121,11 @@ function openTransferModal() {
   // الملاحظة تحت الإيميل
   const noteEl = document.getElementById("ta_email_note");
   if (noteEl) {
+<<<<<<< HEAD
     noteEl.textContent = " الرجاء استخدام البريد الالكتروني المسجل مسبقًا للموظف";
+=======
+    noteEl.textContent = "الرجاء ادخال البريد الإلكتروني المسجل مسبقًا للموظف";
+>>>>>>> 4867920089a2ed0f3ae2b7ade8a1275702d077a0
   }
 }
 
@@ -2136,7 +2140,6 @@ async function handleTransferAdmin(e) {
   e.preventDefault();
 
   const fullName       = document.getElementById("ta_fullName").value.trim();
-  const phone          = document.getElementById("ta_phone").value.trim();
   const employeeNumber = document.getElementById("ta_employeeNumber").value.trim();
   const email          = document.getElementById("ta_email").value.trim();
   const password       = document.getElementById("ta_password").value;
@@ -2177,7 +2180,6 @@ async function handleTransferAdmin(e) {
 
       await setDoc(doc(db, "employees", newUid), {
         fullName,
-        phone,
         employeeNumber,
         email,
         isAdmin: true,
@@ -2701,7 +2703,7 @@ function openComplaintPanel(c, student) {
     </div>
 
     <div class="sp-section-title">التفاصيل</div>
-    <div class="sp-detail-card" style="font-size:14px;line-height:1.8;margin-bottom:16px;">
+    <div class="sp-detail-card" style="font-size:20px;line-height:1.8;margin-bottom:16px;">
       ${esc(c.details || "-")}
     </div>
 

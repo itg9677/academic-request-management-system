@@ -284,7 +284,6 @@ textarea:focus{
 
 .login-page .btn{
     width:180px;
-    height:45px;
     display:block;
     margin:25px auto;
     background:var(--primary);
