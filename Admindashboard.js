@@ -2121,7 +2121,7 @@ function openTransferModal() {
   // الملاحظة تحت الإيميل
   const noteEl = document.getElementById("ta_email_note");
   if (noteEl) {
-    noteEl.textContent = "الرجاء استخدام نفس الإيميل المسجل مسبقًا لنفس الموظف";
+    noteEl.textContent = "الرجاء ادخال البريد الإلكتروني المسجل مسبقًا للموظف";
   }
 }
 
@@ -2136,7 +2136,6 @@ async function handleTransferAdmin(e) {
   e.preventDefault();
 
   const fullName       = document.getElementById("ta_fullName").value.trim();
-  const phone          = document.getElementById("ta_phone").value.trim();
   const employeeNumber = document.getElementById("ta_employeeNumber").value.trim();
   const email          = document.getElementById("ta_email").value.trim();
   const password       = document.getElementById("ta_password").value;
@@ -2177,7 +2176,6 @@ async function handleTransferAdmin(e) {
 
       await setDoc(doc(db, "employees", newUid), {
         fullName,
-        phone,
         employeeNumber,
         email,
         isAdmin: true,
