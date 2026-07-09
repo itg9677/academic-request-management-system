@@ -2121,11 +2121,8 @@ function openTransferModal() {
   // الملاحظة تحت الإيميل
   const noteEl = document.getElementById("ta_email_note");
   if (noteEl) {
-<<<<<<< HEAD
-    noteEl.textContent = " الرجاء استخدام البريد الالكتروني المسجل مسبقًا للموظف";
-=======
+
     noteEl.textContent = "الرجاء ادخال البريد الإلكتروني المسجل مسبقًا للموظف";
->>>>>>> 4867920089a2ed0f3ae2b7ade8a1275702d077a0
   }
 }
 
