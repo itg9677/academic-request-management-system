@@ -18,47 +18,13 @@ console.log("FILE LOADED");
 
 // ==================== State ====================
 // ==================== تحميل بيانات الأدمن ====================
-
-onAuthStateChanged(auth, async (user) => {
-  if (!user) {
-    window.location.href = "loginPage.html"; // أو اسم صفحة تسجيل الدخول عندك
-    return;
-  }
-
-  try {
-    // جلب بيانات الموظف من Firestore
-    const snap = await getDoc(doc(db, "employees", user.uid));
-
-    if (snap.exists()) {
-      currentAdminData = {
-        docId: user.uid,
-        ...snap.data()
-      };
-
-      // حفظ اسم الموظف في الكاش
-      employeesCache[user.uid] = currentAdminData.fullName || "موظف";
-
-      // عرض الاسم في الصفحة
-      document.getElementById("adminName").textContent = currentAdminData.fullName || "";
-      document.getElementById("adminEmail").textContent = currentAdminData.email || "";
-      document.getElementById("adminNameWelcome").textContent = currentAdminData.fullName || "";
-
-      // تحميل البيانات بعد تحميل بيانات الأدمن
-      injectRejectModal();
-      loadAllData();
-
-      // تفعيل قسم الشكاوى والاقتراحات
-      injectComplaintsSection();
-      subscribeComplaints();
-
-    } else {
-      console.error("لم يتم العثور على بيانات الموظف في employees/");
-    }
-
-  } catch (err) {
-    console.error("خطأ في تحميل بيانات الأدمن:", err);
-  }
-});
+//
+// ملاحظة أمان مهمة: تم حذف دالة onAuthStateChanged المكررة التي كانت هنا سابقًا.
+// كانت تلك الدالة تحمّل بيانات لوحة التحكم (loadAllData, injectComplaintsSection...)
+// لأي مستخدم مسجل دخول له مستند في employees، بدون أي تحقق من الأدمنية إطلاقًا.
+// التحقق الفعلي وتحميل البيانات صار موحّدًا بالكامل في دالة onAuthStateChanged
+// الوحيدة الموجودة بنهاية هذا الملف، والتي تتحقق من وجود المستخدم في adminUids
+// قبل تحميل أي بيانات حساسة.
 
 let currentAdminData = null;
 
@@ -2159,8 +2125,8 @@ async function handleTransferAdmin(e) {
       const existingDoc = dupEmailSnap.docs[0];
       newUid = existingDoc.id;
 
+      // ملاحظة: تم حذف حقل isAdmin من employees — الأدمنية تُدار حصريًا عبر adminUids
       await updateDoc(doc(db, "employees", newUid), {
-        isAdmin: true,
         adminGrantedAt: serverTimestamp()
       });
 
@@ -2174,11 +2140,12 @@ async function handleTransferAdmin(e) {
 
       newUid = await createAdminAccountSafely(email, password);
 
+      // ملاحظة: لا يوجد حقل isAdmin هنا — الأدمنية تُدار حصريًا عبر كولكشن adminUids
       await setDoc(doc(db, "employees", newUid), {
         fullName,
         employeeNumber,
         email,
-        isAdmin: true,
+        role: "employee",
         createdAt: serverTimestamp(),
         createdVia: "transferAdmin"
       });
@@ -2187,8 +2154,9 @@ async function handleTransferAdmin(e) {
     await setDoc(doc(db, "adminUids", newUid), { isAdmin: true, email }, { merge: true });
 
     if (currentAdminData?.docId) {
+      // ملاحظة: لا يوجد حقل isAdmin في employees ليُحدّث — سحب الصلاحية يصير
+      // فقط بحذف مستند الأدمن القديم من adminUids (مصدر الحقيقة الوحيد)
       await updateDoc(doc(db, "employees", currentAdminData.docId), {
-        isAdmin: false,
         adminRevokedAt: serverTimestamp()
       });
       await deleteDoc(doc(db, "adminUids", currentAdminData.uid)).catch(() => {});
@@ -3192,7 +3160,10 @@ auth.authStateReady().then(() => {
       const adminDoc = snap.docs[0];
       const data     = adminDoc.data();
 
-      if (!data.isAdmin) {
+      // ✅ التحقق من الأدمنية عبر كولكشن adminUids (مصدر الحقيقة الوحيد)
+      // بدلًا من حقل isAdmin القديم داخل مستند employees
+      const adminUidSnap = await getDoc(doc(db, "adminUids", user.uid));
+      if (!adminUidSnap.exists()) {
         await signOut(auth);
         window.location.replace("EmployeeLogin.html");
         return;
@@ -3555,15 +3526,9 @@ if (navHome) {
   });
 }
 
-// ==================== مزامنة uid هذا الأدمن ====================
-      // مزامنة uid هذا الأدمن في مجموعة مخصصة (adminUids) تُستخدم فقط من
-      // قواعد الأمان (Security Rules) للتحقق من صلاحية الأدمن عند الكتابة
-      // المباشرة لقاعدة البيانات/التخزين (رفع/حذف نموذج الزيارة)
-      try {
-        await setDoc(doc(db, "adminUids", user.uid), { isAdmin: true, email: user.email }, { merge: true });
-      } catch (syncErr) {
-        console.error("adminUids sync error:", syncErr);
-      }
+      // ملاحظة أمان: تم حذف المزامنة التلقائية التي كانت تكتب في adminUids هنا
+      // عند كل تسجيل دخول. الكتابة في adminUids صارت تتم فقط عبر مسار موثوق
+      // ومحكوم (نقل الصلاحية أعلاه)، وليس تلقائيًا من كل جلسة دخول.
 
       const adminNameEl = document.getElementById("adminName");
       if (adminNameEl) adminNameEl.textContent = data.fullName || "الأدمن";

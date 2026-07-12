@@ -12,7 +12,9 @@ import {
     collection,
     query,
     where,
-    getDocs
+    getDocs,
+    doc,
+    getDoc
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 console.log("EMPLOYEE LOGIN LOADED 🔥");
@@ -28,10 +30,10 @@ form.addEventListener("submit", async (e) => {
     try {
 
         // 🔍 البحث في employees collection
-     const q = query(
-    collection(db, "employees"),
-    where("employeeNumber", "==", employeeId)
-);
+        const q = query(
+            collection(db, "employees"),
+            where("employeeNumber", "==", employeeId)
+        );
 
         const snapshot = await getDocs(q);
 
@@ -41,10 +43,9 @@ form.addEventListener("submit", async (e) => {
         }
 
         let employeeData;
-        snapshot.forEach(doc => employeeData = doc.data());
+        snapshot.forEach(d => employeeData = d.data());
 
-        const email   = employeeData.email;
-        const isAdmin = employeeData.isAdmin;
+        const email = employeeData.email;
 
         // ✅ تأكيد حفظ الجلسة في localStorage قبل تسجيل الدخول
         await setPersistence(auth, browserLocalPersistence);
@@ -72,8 +73,10 @@ form.addEventListener("submit", async (e) => {
             }, reject);
         });
 
-        // 🚀 التوجيه حسب الصلاحية
-        if (isAdmin === true) {
+        // 🚀 التحقق من الأدمنية عبر كولكشن adminUids (بدلًا من حقل isAdmin)
+        const adminSnap = await getDoc(doc(db, "adminUids", user.uid));
+
+        if (adminSnap.exists()) {
             window.location.href = "adminDashboard.html";
         } else {
             window.location.href = "employeedashboard.html";
