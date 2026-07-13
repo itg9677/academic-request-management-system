@@ -316,11 +316,20 @@ async function loadAllEmployeeNames() {
 }
 
 function updateBadges() {
-  document.getElementById("badge-addDrop").textContent    = tabData.addDrop.length;
-  document.getElementById("badge-excuse").textContent     = tabData.excuse.length;
-  document.getElementById("badge-visit").textContent      = tabData.visit.length;
+  // نعرض عدد الطلبات "الجديدة" فقط، عشان البادج يعكس اللي يحتاج انتباه فوري.
+  const newCount = (items) =>
+    items.filter((it) => getEffectiveStatus(it) === "new").length;
+
+  document.getElementById("badge-addDrop").textContent    = newCount(tabData.addDrop);
+  document.getElementById("badge-excuse").textContent     = newCount(tabData.excuse);
+  document.getElementById("badge-visit").textContent      = newCount(tabData.visit);
+
   const compBadge = document.getElementById("badge-complaints");
-  if (compBadge) compBadge.textContent = tabData.complaints.length;
+  if (compBadge) {
+    compBadge.textContent = tabData.complaints.filter(
+      (c) => c.status === "new" || !c.status
+    ).length;
+  }
 }
 
 // ==================== إدارة الفصل الدراسي ====================
@@ -674,7 +683,7 @@ updateStatCards(filtered);
     filtered = filtered.filter((it) => {
       const student = studentsCache[it[cfg.studentField]] || {};
       const name = (student.fullName || "").toLowerCase();
-      const uid  = String(student.studentId || "").toLowerCase();
+      const uid  = String(student.studentId || student.universityId || "").toLowerCase();
       return name.includes(q) || uid.includes(q);
     });
   }
