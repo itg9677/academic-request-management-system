@@ -22,7 +22,7 @@ form.addEventListener("submit", async (e) => {
     const fullName = document.getElementById("fullName").value.trim();
     const phoneNumber = document.getElementById("phoneNumber").value.trim();
     const major = document.getElementById("major").value;
-    const email = document.getElementById("email").value.trim();
+    const email = document.getElementById("email").value.trim().toLowerCase();
     const password = document.getElementById("password").value;
 
     // ❌ منع البريد الجامعي
