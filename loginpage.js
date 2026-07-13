@@ -1,6 +1,6 @@
 import { initializeApp, getApps } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getAuth, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-import { getFirestore, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey:            "AIzaSyDg4iYMZEdc8pjJU67KtXbSvhBaqdoP0iA",
@@ -24,18 +24,16 @@ form.addEventListener("submit", async (e) => {
   const password     = document.getElementById("password").value;
 
   try {
-    const q        = query(collection(db, "students"), where("universityId", "==", universityId));
-    const snapshot = await getDocs(q);
+    // 🔍 البحث عن الإيميل عبر studentLookup (يعمل بدون تسجيل دخول)
+    const lookupSnap = await getDoc(doc(db, "studentLookup", universityId));
 
-    if (snapshot.empty) {
+    if (!lookupSnap.exists()) {
       alert("❌ الرقم الجامعي غير صحيح");
       return;
     }
 
-    let studentData;
-    snapshot.forEach(doc => studentData = doc.data());
+    const email = lookupSnap.data().email;
 
-    const email          = studentData.email;
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
     const user           = userCredential.user;
 
