@@ -19,10 +19,10 @@ const msg = document.getElementById("msg");
 form.addEventListener("submit", async (e) => {
     e.preventDefault();
 
-    const fullName = document.getElementById("employeeName").value;
-    const employeeId = document.getElementById("employeeId").value;
+    const fullName = document.getElementById("employeeName").value.trim();
+    const employeeId = document.getElementById("employeeId").value.trim();
     const department = document.getElementById("department").value;
-    const email = document.getElementById("email").value;
+    const email = document.getElementById("email").value.trim().toLowerCase();
     const password = document.getElementById("password").value;
 
     try {
