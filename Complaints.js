@@ -27,6 +27,10 @@ let currentUser = null;
 
 onAuthStateChanged(auth, (user) => {
   currentUser = user || null;
+  // إجباري تسجيل الدخول قبل إرسال أي شكوى
+  if (!currentUser) {
+    window.location.href = "loginPage.html";
+  }
 });
 
 // =====================================================
@@ -44,6 +48,13 @@ async function uploadAttachment(file, complaintId) {
 //  الدالة الرئيسية: إرسال الشكوى
 // =====================================================
 async function submitComplaint() {
+  // ── التحقق من تسجيل الدخول (إجباري) ─────────────────
+  if (!currentUser) {
+    alert("يجب تسجيل الدخول أولاً لإرسال شكوى");
+    window.location.href = "loginPage.html";
+    return;
+  }
+
   // ── جمع القيم ──────────────────────────────────────
   const targetEl  = document.getElementById("target");
   const subjectEl = document.getElementById("subject");
@@ -101,9 +112,9 @@ async function submitComplaint() {
       status:     "new", // new | under_review | resolved | dismissed
       createdAt:  serverTimestamp(),
       updatedAt:  serverTimestamp(),
-      // معلومات الطالب إذا كان مسجلاً
-      studentUid: currentUser?.uid  || null,
-      studentEmail: currentUser?.email || null,
+      // معلومات الطالبة (تسجيل الدخول إجباري)
+      studentUid: currentUser.uid,
+      studentEmail: currentUser.email,
       attachmentUrl: null,
     };
 

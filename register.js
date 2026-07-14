@@ -7,12 +7,9 @@ import {
 
 import {
     doc,
+    getDoc,
     setDoc,
-    serverTimestamp,
-    collection,
-    query,
-    where,
-    getDocs
+    serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const form = document.getElementById("registerForm");
@@ -25,7 +22,7 @@ form.addEventListener("submit", async (e) => {
     const fullName = document.getElementById("fullName").value.trim();
     const phoneNumber = document.getElementById("phoneNumber").value.trim();
     const major = document.getElementById("major").value;
-    const email = document.getElementById("email").value.trim();
+    const email = document.getElementById("email").value.trim().toLowerCase();
     const password = document.getElementById("password").value;
 
     // ❌ منع البريد الجامعي
@@ -56,14 +53,11 @@ form.addEventListener("submit", async (e) => {
         msg.textContent = "جاري التحقق من البيانات...";
 
         // ❌ منع تكرار الرقم الجامعي
-        const q = query(
-            collection(db, "students"),
-            where("universityId", "==", universityId)
-        );
+        // البحث يتم عبر studentLookup (مقروء بدون تسجيل دخول)
+        // بدلاً من استعلام مباشر على students (يتطلب تسجيل دخول ولا يمكن تنفيذه هنا)
+        const lookupCheckSnap = await getDoc(doc(db, "studentLookup", universityId));
 
-        const snapshot = await getDocs(q);
-
-        if (!snapshot.empty) {
+        if (lookupCheckSnap.exists()) {
             msg.style.color = "red";
             msg.textContent = "الرقم الجامعي مسجل مسبقاً";
             return;
@@ -90,6 +84,12 @@ form.addEventListener("submit", async (e) => {
             role: "student",
             emailVerified: false,
             createdAt: serverTimestamp()
+        });
+
+        // حفظ سجل بحث بسيط (الرقم الجامعي → الإيميل فقط) يُستخدم في تسجيل
+        // الدخول قبل أي مصادقة، ولا يحتوي أي بيانات حساسة أخرى
+        await setDoc(doc(db, "studentLookup", universityId), {
+            email
         });
 
         msg.style.color = "green";
