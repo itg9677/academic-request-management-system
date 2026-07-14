@@ -42,9 +42,13 @@ onAuthStateChanged(auth, async (user) => {
         /* =========================
            جلب طلبات الأعذار
         ========================= */
+        // ✅ لازم نفلتر على "studentUid" مو "uid"، لأن قاعدة الصلاحيات في
+        // firestore.rules تتحقق من resource.data.studentUid == request.auth.uid.
+        // الفلترة على حقل مختلف عن اللي يتحقق منه الرول تخلي فايرستور يرفض
+        // الاستعلام كاملاً بخطأ Missing or insufficient permissions.
         const excusesQuery = query(
             collection(db, "excuses"),
-            where("uid", "==", user.uid)
+            where("studentUid", "==", user.uid)
         );
 
         const snapshot = await getDocs(excusesQuery);
