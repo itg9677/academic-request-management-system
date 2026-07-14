@@ -262,28 +262,22 @@ function buildStudentAllFields(student) {
 
 // ==================== تحميل البيانات ====================
 
-async function loadAllData() {
-  const loadingEl   = document.getElementById("loadingState");
-  const tableWrapEl = document.getElementById("tableWrap");
-  await loadAllEmployeeNames();
+// نجمع كل الموظفين الذين عالجوا طلبات ونحمل أسماءهم من Firestore
 async function loadAllEmployeeNames() {
   const allEmpUids = new Set();
 
-  // نجمع كل الموظفين الذين عالجوا طلبات
   [...tabData.addDrop, ...tabData.excuse, ...tabData.visit].forEach(item => {
     if (item.assignedEmployee) {
       allEmpUids.add(item.assignedEmployee);
     }
   });
 
-  // نحمل أسماءهم من Firestore
   await Promise.all([...allEmpUids].map(uid => getEmployeeName(uid)));
 }
 
-  updateDashboardStats();
-  buildCharts();
-  toggleDeptStatsVisibility();
-
+async function loadAllData() {
+  const loadingEl   = document.getElementById("loadingState");
+  const tableWrapEl = document.getElementById("tableWrap");
 
   loadingEl.style.display  = "";
   tableWrapEl.style.display = "none";
@@ -292,6 +286,7 @@ async function loadAllEmployeeNames() {
 
     const reqQuery = collection(db, "requests");
 
+    // ✅ نجلب البيانات الفعلية أولاً قبل أي استخدام لها
     const [reqSnap, excSnap, visSnap, compSnap] = await Promise.all([
       getDocs(reqQuery),
       getDocs(collection(db, "excuses")),
@@ -305,6 +300,13 @@ async function loadAllEmployeeNames() {
     tabData.complaints = compSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
 
     updateBadges();
+
+    // ✅ الآن بعد ما صارت tabData مملوءة فعلاً، نبني الأسماء/الإحصائيات/الرسوم البيانية
+    await loadAllEmployeeNames();
+    updateDashboardStats();
+    buildCharts();
+    toggleDeptStatsVisibility();
+
   } catch (err) {
     console.error("loadAllData error:", err);
   } finally {
@@ -316,11 +318,20 @@ async function loadAllEmployeeNames() {
 }
 
 function updateBadges() {
-  document.getElementById("badge-addDrop").textContent    = tabData.addDrop.length;
-  document.getElementById("badge-excuse").textContent     = tabData.excuse.length;
-  document.getElementById("badge-visit").textContent      = tabData.visit.length;
+  // نعرض عدد الطلبات "الجديدة" فقط، عشان البادج يعكس اللي يحتاج انتباه فوري.
+  const newCount = (items) =>
+    items.filter((it) => getEffectiveStatus(it) === "new").length;
+
+  document.getElementById("badge-addDrop").textContent    = newCount(tabData.addDrop);
+  document.getElementById("badge-excuse").textContent     = newCount(tabData.excuse);
+  document.getElementById("badge-visit").textContent      = newCount(tabData.visit);
+
   const compBadge = document.getElementById("badge-complaints");
-  if (compBadge) compBadge.textContent = tabData.complaints.length;
+  if (compBadge) {
+    compBadge.textContent = tabData.complaints.filter(
+      (c) => c.status === "new" || !c.status
+    ).length;
+  }
 }
 
 // ==================== إدارة الفصل الدراسي ====================
@@ -674,7 +685,7 @@ updateStatCards(filtered);
     filtered = filtered.filter((it) => {
       const student = studentsCache[it[cfg.studentField]] || {};
       const name = (student.fullName || "").toLowerCase();
-      const uid  = String(student.studentId || "").toLowerCase();
+      const uid  = String(student.studentId || student.universityId || "").toLowerCase();
       return name.includes(q) || uid.includes(q);
     });
   }
@@ -2087,7 +2098,7 @@ function openTransferModal() {
   // الملاحظة تحت الإيميل
   const noteEl = document.getElementById("ta_email_note");
   if (noteEl) {
-    noteEl.textContent = "الرجاء استخدام نفس الإيميل المسجل مسبقًا لنفس الموظف";
+    noteEl.textContent = "الرجاء استخدام البريد الإلكتروني المسجل مسبقًا لنفس الموظف";
   }
 }
 
