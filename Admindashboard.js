@@ -318,19 +318,14 @@ async function loadAllData() {
 }
 
 function updateBadges() {
-  // نعرض عدد الطلبات "الجديدة" فقط، عشان البادج يعكس اللي يحتاج انتباه فوري.
-  const newCount = (items) =>
-    items.filter((it) => getEffectiveStatus(it) === "new").length;
-
-  document.getElementById("badge-addDrop").textContent    = newCount(tabData.addDrop);
-  document.getElementById("badge-excuse").textContent     = newCount(tabData.excuse);
-  document.getElementById("badge-visit").textContent      = newCount(tabData.visit);
+  // نعرض إجمالي عدد الطلبات لكل تبويب، عشان يطابق رقم كارد "الكل".
+  document.getElementById("badge-addDrop").textContent    = tabData.addDrop.length;
+  document.getElementById("badge-excuse").textContent     = tabData.excuse.length;
+  document.getElementById("badge-visit").textContent      = tabData.visit.length;
 
   const compBadge = document.getElementById("badge-complaints");
   if (compBadge) {
-    compBadge.textContent = tabData.complaints.filter(
-      (c) => c.status === "new" || !c.status
-    ).length;
+    compBadge.textContent = tabData.complaints.length;
   }
 }
 
@@ -2490,10 +2485,7 @@ function subscribeComplaints() {
 function updateComplaintsBadge() {
   const el = document.getElementById("badge-complaints");
   if (!el) return;
-  const newCount = complaintsData.filter(
-    (c) => c.status === "new" || !c.status
-  ).length;
-  el.textContent = newCount;
+  el.textContent = complaintsData.length;
 }
 
 // ── عرض الجدول ─────────────────────────────────────
