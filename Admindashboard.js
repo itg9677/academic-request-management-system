@@ -2097,14 +2097,21 @@ function openTransferModal() {
   const errorEl   = document.getElementById("ta_error");
   const formEl    = document.getElementById("transferAdminForm");
 
-    // الملاحظة تحت الإيميل
+  if (formEl) formEl.reset();
+
+  if (errorEl) {
+    errorEl.style.display = "none";
+    errorEl.textContent = "";
+  }
+
   const noteEl = document.getElementById("ta_email_note");
   if (noteEl) {
-
     noteEl.textContent = "الرجاء استخدام البريد الإلكتروني المسجل مسبقًا لنفس الموظف";
   }
-}
 
+  if (overlayEl) overlayEl.style.display = "block";
+  if (modalEl) modalEl.style.display = "block";
+}
 function closeTransferModal() {
   const overlayEl = document.getElementById("transferAdminOverlay");
   const modalEl   = document.getElementById("transferAdminModal");
