@@ -2108,11 +2108,8 @@ function openTransferModal() {
   // الملاحظة تحت الإيميل
   const noteEl = document.getElementById("ta_email_note");
   if (noteEl) {
-<<<<<<< HEAD
+
     noteEl.textContent = "الرجاء ادخال البريد الإلكتروني المسجل مسبقًا للموظف";
-=======
-    noteEl.textContent = "الرجاء استخدام البريد الإلكتروني المسجل مسبقًا لنفس الموظف";
->>>>>>> 82f513ec399f5f00884b42403e1a31c975062fc0
   }
 }
 
@@ -3191,6 +3188,10 @@ auth.authStateReady().then(() => {
 
       currentAdminData = { docId: adminDoc.id, uid: user.uid, ...data };
       employeesCache[adminDoc.id] = data.fullName || "الأدمن";
+
+      // تعبئة زر تنزيل آخر ملف مقررات مرفوع (يبقى ظاهرًا دائمًا بعد تسجيل الدخول
+      // بغض النظر عن فتح نافذة الرفع أو إغلاقها)
+      refreshLatestCoursesFileButton();
 // ====== عرض صفحة الإحصائيات ======
 
 const navStats = document.getElementById("navStats");
@@ -3505,8 +3506,29 @@ function buildCharts() {
 // بنفس بنية البيانات التي تعتمد عليها صفحة الطالبة (courseCode + department)،
 // بحيث تنعكس التحديثات تلقائيًا عند الطالبة عبر onSnapshot دون أي خطوة إضافية.
 
+// إزالة أي أحرف غير مرئية (مسافات Unicode خاصة، اتجاه النص...) وتوحيد المسافات المتكررة
+// لأن هذه الفروقات الصغيرة (غير المرئية عند المعاينة) كانت سبب تكرار نفس المقرر
+// بأكثر من مستند في Firestore عند رفع الملف أكثر من مرة.
+function normalizeCourseText(val) {
+  return String(val ?? "")
+    .replace(/[\u200B-\u200F\u202A-\u202E\uFEFF]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+// معرف مستند ثابت لكل مقرر: نفس المقرر (بغض النظر عن اختلاف حالة الأحرف
+// أو المسافات الزائدة بين رفعة وأخرى) ينتج دائمًا نفس المعرف، فتُحدَّث
+// نفس البيانات بدل إنشاء مستند جديد مكرر في كل مرة.
+function courseDocId(courseCode, department) {
+  const codeKey = normalizeCourseText(courseCode).toUpperCase().replace(/[\/\.\#\$\[\]]/g, "-");
+  const deptKey = normalizeCourseText(department).toUpperCase().replace(/[\/\.\#\$\[\]]/g, "-");
+  return `${codeKey}_${deptKey}`;
+}
+
 let cuParsedRows = [];   // الصفوف الصالحة الجاهزة للرفع
 let cuSkippedCount = 0;  // عدد الصفوف التي تم تجاهلها (بدون courseCode أو department)
+let cuDuplicateInFileCount = 0; // عدد الصفوف المكررة داخل نفس الملف (تم دمجها والاحتفاظ بآخر نسخة)
+let cuCurrentFile = null; // الملف الأصلي المختار، نحتفظ به لرفعه إلى Storage عند التأكيد
 
 const coursesUploadModal   = document.getElementById("coursesUploadModal");
 const coursesUploadOverlay = document.getElementById("coursesUploadOverlay");
@@ -3528,6 +3550,8 @@ const cuConfirmBtn     = document.getElementById("cuConfirmBtn");
 function resetCoursesUploadModal() {
   cuParsedRows = [];
   cuSkippedCount = 0;
+  cuDuplicateInFileCount = 0;
+  cuCurrentFile = null;
   if (cuFileInput) cuFileInput.value = "";
   if (cuFileNameEl) { cuFileNameEl.style.display = "none"; cuFileNameEl.textContent = ""; }
   if (cuPreviewWrap) cuPreviewWrap.style.display = "none";
@@ -3543,6 +3567,7 @@ function openCoursesUploadModal() {
   resetCoursesUploadModal();
   coursesUploadModal.style.display = "";
   if (coursesUploadOverlay) coursesUploadOverlay.style.display = "";
+  loadCoursesFileInfo();
 }
 
 function closeCoursesUploadModal() {
@@ -3585,6 +3610,7 @@ if (cuFileInput) {
 }
 
 async function handleCoursesFile(file) {
+  cuCurrentFile = file;
   if (cuResultNote) cuResultNote.style.display = "none";
   if (cuFileNameEl) {
     cuFileNameEl.style.display = "";
@@ -3604,25 +3630,41 @@ async function handleCoursesFile(file) {
   const sheet = workbook.Sheets[workbook.SheetNames[0]];
   const json = window.XLSX.utils.sheet_to_json(sheet, { defval: "" });
 
-  cuParsedRows = [];
+  const rawRows = [];
   cuSkippedCount = 0;
 
   for (const row of json) {
     // نقبل عدة تسميات محتملة للأعمدة تحسبًا لاختلاف رأس الملف
-    const courseCode = row.courseCode ?? row.code ?? row["رمز المقرر"] ?? "";
-    const department  = row.department ?? row.dept ?? row["القسم"] ?? "";
+    const courseCodeRaw = row.courseCode ?? row.code ?? row["رمز المقرر"] ?? "";
+    const departmentRaw  = row.department ?? row.dept ?? row["القسم"] ?? "";
 
-    if (!String(courseCode).trim() || !String(department).trim()) {
+    // توحيد المسافات/الأحرف غير المرئية حتى لا يُعتبر نفس المقرر مقررًا جديدًا
+    // بسبب فروقات تنسيق بسيطة بين رفعة وأخرى
+    const courseCode = normalizeCourseText(courseCodeRaw);
+    const department  = normalizeCourseText(departmentRaw);
+
+    if (!courseCode || !department) {
       cuSkippedCount++;
       continue;
     }
 
-    cuParsedRows.push({
+    rawRows.push({
       ...row,
-      courseCode: String(courseCode).trim(),
-      department: String(department).trim(),
+      courseCode,
+      department,
     });
   }
+
+  // إزالة أي تكرار داخل نفس الملف (نفس رمز المقرر + القسم بأكثر من صف)
+  // نُبقي على آخر صف فقط لكل مقرر لتفادي كتابة نسخ متعددة له
+  const dedupMap = new Map();
+  cuDuplicateInFileCount = 0;
+  for (const row of rawRows) {
+    const key = courseDocId(row.courseCode, row.department);
+    if (dedupMap.has(key)) cuDuplicateInFileCount++;
+    dedupMap.set(key, row);
+  }
+  cuParsedRows = Array.from(dedupMap.values());
 
   renderCoursesPreview();
 }
@@ -3669,10 +3711,16 @@ function renderCoursesPreview() {
   cuPreviewTable.innerHTML = html;
 
   if (cuSkippedNote) {
+    const notes = [];
     if (cuSkippedCount > 0) {
+      notes.push(`تم تجاهل ${cuSkippedCount} صف بسبب نقص رمز المقرر أو القسم.`);
+    }
+    if (cuDuplicateInFileCount > 0) {
+      notes.push(`تم دمج ${cuDuplicateInFileCount} صف مكرر لنفس المقرر داخل الملف (تم الاحتفاظ بآخر نسخة فقط).`);
+    }
+    if (notes.length) {
       cuSkippedNote.style.display = "";
-      cuSkippedNote.textContent =
-        `تنبيه: تم تجاهل ${cuSkippedCount} صف بسبب نقص رمز المقرر أو القسم.`;
+      cuSkippedNote.textContent = "تنبيه: " + notes.join(" ");
     } else {
       cuSkippedNote.style.display = "none";
     }
@@ -3699,7 +3747,7 @@ if (cuConfirmBtn) {
         const batch = writeBatch(db);
 
         chunk.forEach((row) => {
-          const docId = `${row.courseCode}_${row.department}`;
+          const docId = courseDocId(row.courseCode, row.department);
           batch.set(
             doc(db, "courses", docId),
             { ...row, updatedAt: serverTimestamp() },
@@ -3715,14 +3763,41 @@ if (cuConfirmBtn) {
         }
       }
 
+      // تنظيف تلقائي مخفي: بعد كل رفع، نفحص مجموعة "courses" ونحذف أي
+      // نسخ مكررة لنفس المقرر تلقائيًا (بدون أي تدخل أو زر من الأدمن)
+      if (cuProgressText) cuProgressText.textContent = "جاري التحقق من عدم تكرار المقررات...";
+      await cleanupDuplicateCourses();
+
+      // نجهّز رابط تنزيل فوري لنفس الملف الذي رفعته الآن (يعمل محليًا في المتصفح
+      // فورًا بدون أي اعتماد على صلاحيات Storage، فهو مضمون الظهور بعد كل رفع)
+      let localDownloadUrl = null;
+      if (cuCurrentFile) {
+        try {
+          localDownloadUrl = URL.createObjectURL(cuCurrentFile);
+        } catch (e) {
+          console.error("تعذر تجهيز رابط التنزيل المحلي:", e);
+        }
+      }
+
+      // نحفظ أيضًا نسخة من الملف في Storage (بشكل غير حرج) حتى تبقى متاحة
+      // للتنزيل لاحقًا حتى بعد إغلاق الصفحة أو الرجوع من جهاز آخر
+      if (cuCurrentFile) {
+        await uploadCoursesFileToStorage(cuCurrentFile);
+      }
+
       if (cuProgressWrap) cuProgressWrap.style.display = "none";
       if (cuResultNote) {
         cuResultNote.style.display = "";
         cuResultNote.style.color = "#1a7a3c";
         cuResultNote.innerHTML =
-          `<i class="ti ti-circle-check"></i> تم رفع/تحديث ${written} مقرر بنجاح. ستظهر التحديثات مباشرة عند الطالبات.`;
+          `<i class="ti ti-circle-check"></i> تم رفع/تحديث ${written} مقرر بنجاح. ستظهر التحديثات مباشرة عند الطالبات.` +
+          (localDownloadUrl
+            ? `<br><a href="${localDownloadUrl}" download="${esc(cuCurrentFile.name)}" style="color:#1a3a6b;font-weight:600;text-decoration:underline;display:inline-flex;align-items:center;gap:4px;margin-top:8px;"><i class="ti ti-download"></i> تنزيل نفس الملف الذي رفعتيه (للتعديل)</a>`
+            : "");
       }
       cuConfirmBtn.innerHTML = '<i class="ti ti-check"></i> تم الرفع';
+      loadCoursesFileInfo();
+      refreshLatestCoursesFileButton();
 
     } catch (err) {
       console.error("خطأ في رفع المقررات:", err);
@@ -3735,6 +3810,165 @@ if (cuConfirmBtn) {
       cuConfirmBtn.disabled = false;
     }
   });
+}
+
+// ==================== حفظ/عرض آخر ملف Excel مرفوع للمقررات ====================
+// حتى يقدر الأدمن يفتح نفس الملف اللي رفعته آخر مرة ويعدّل عليه مباشرة
+// بدل ما يعيد تجهيزه من الصفر في كل مرة يبغى يحدّث فيها المقررات.
+
+async function uploadCoursesFileToStorage(file) {
+  try {
+    const storageRef = ref(storage, "coursesFiles/current.xlsx");
+    await uploadBytes(storageRef, file);
+    const fileUrl = await getDownloadURL(storageRef);
+
+    await setDoc(doc(db, "settings", "coursesFile"), {
+      fileName: file.name,
+      fileUrl,
+      uploadedAt: serverTimestamp(),
+      uploadedBy: currentAdminData?.fullName || "الأدمن",
+    });
+  } catch (err) {
+    // خطأ في حفظ نسخة التنزيل لا يجب أن يوقف نجاح رفع المقررات نفسه
+    console.error("تعذر حفظ نسخة الملف للتنزيل لاحقًا:", err);
+  }
+}
+
+async function loadCoursesFileInfo() {
+  const wrap = document.getElementById("cuCurrentFileWrap");
+  if (!wrap) return;
+
+  try {
+    const snap = await getDoc(doc(db, "settings", "coursesFile"));
+
+    if (snap.exists()) {
+      const data = snap.data();
+      wrap.style.display = "";
+      wrap.innerHTML = `
+        <span style="
+          display:inline-flex;
+          align-items:center;
+          gap:8px;
+          background:#eef3ff;
+          border-radius:8px;
+          padding:8px 12px;
+          font-size:13px;
+          flex-wrap:wrap;
+        ">
+          <i class="ti ti-file-spreadsheet"></i>
+          آخر ملف مرفوع: <strong>${esc(data.fileName || "—")}</strong>
+          <a href="${data.fileUrl}" target="_blank" rel="noopener" download="${esc(data.fileName || "")}"
+             style="color:#1a3a6b;font-weight:600;text-decoration:underline;display:inline-flex;align-items:center;gap:4px;">
+            <i class="ti ti-download"></i> تنزيل للتعديل
+          </a>
+        </span>
+      `;
+    } else {
+      wrap.style.display = "none";
+      wrap.innerHTML = "";
+    }
+  } catch (err) {
+    console.error("تعذر تحميل معلومات آخر ملف مرفوع:", err);
+    wrap.style.display = "none";
+    wrap.innerHTML = "";
+  }
+}
+
+// زر ثابت بجانب "رفع / تحديث المقررات" يبقى ظاهرًا ويعمل في أي وقت — حتى لو
+// سُكِّر التبويب أو أُعيد فتح الصفحة من جديد — لأنه يقرأ رابط آخر ملف مرفوع
+// من قاعدة البيانات (settings/coursesFile) وليس رابطًا مؤقتًا بالمتصفح.
+async function refreshLatestCoursesFileButton() {
+  const btn = document.getElementById("downloadLatestCoursesFileBtn");
+  if (!btn) return;
+
+  try {
+    const snap = await getDoc(doc(db, "settings", "coursesFile"));
+
+    if (snap.exists()) {
+      const data = snap.data();
+      btn.href = data.fileUrl;
+      btn.setAttribute("download", data.fileName || "المقررات.xlsx");
+      btn.title = `آخر ملف مرفوع: ${data.fileName || ""}`;
+      btn.style.display = "";
+    } else {
+      btn.style.display = "none";
+    }
+  } catch (err) {
+    console.error("تعذر تحميل زر آخر ملف مقررات:", err);
+    btn.style.display = "none";
+  }
+}
+
+// ==================== تنظيف تكرارات المقررات تلقائيًا (بدون أي زر أو تأكيد) ====================
+// تُستدعى هذه الدالة تلقائيًا وبشكل مخفي بعد كل عملية رفع/تحديث للمقررات.
+// تُفحص كل مستندات مجموعة "courses"، وتُجمّع حسب نفس المفتاح المُوحّد
+// (رمز المقرر + القسم بعد إزالة فروقات الحالة/المسافات)، ثم يُحتفظ بأحدث
+// نسخة لكل مقرر تحت معرف موحّد، وتُحذف كل النسخ الزائدة تلقائيًا دون تدخل الأدمن.
+async function cleanupDuplicateCourses() {
+  try {
+    const snap = await getDocs(collection(db, "courses"));
+
+    // نجمع كل المستندات حسب المفتاح الموحّد
+    const groups = new Map(); // canonicalId -> [{id, data}]
+    snap.forEach((docSnap) => {
+      const data = docSnap.data();
+      const key = courseDocId(
+        data.courseCode ?? data.code ?? data["رمز المقرر"] ?? "",
+        data.department ?? data.dept ?? data["القسم"] ?? ""
+      );
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push({ id: docSnap.id, data });
+    });
+
+    const ops = []; // { type: 'set' | 'delete', id, data? }
+    let duplicatesRemoved = 0;
+
+    groups.forEach((docsInGroup, canonicalId) => {
+      // أحدث نسخة أولاً (حسب updatedAt إن وجد)
+      docsInGroup.sort((a, b) => {
+        const ta = a.data.updatedAt?.toMillis ? a.data.updatedAt.toMillis() : 0;
+        const tb = b.data.updatedAt?.toMillis ? b.data.updatedAt.toMillis() : 0;
+        return tb - ta;
+      });
+
+      const newest = docsInGroup[0];
+      const alreadyCanonical = docsInGroup.length === 1 && newest.id === canonicalId;
+
+      if (!alreadyCanonical) {
+        // نكتب نسخة واحدة صحيحة تحت المعرف الموحّد
+        ops.push({ type: "set", id: canonicalId, data: { ...newest.data, updatedAt: serverTimestamp() } });
+      }
+
+      // نحذف كل المستندات الأخرى في نفس المجموعة (والمستند الأصلي لو معرفه غير موحّد)
+      docsInGroup.forEach((d) => {
+        if (d.id !== canonicalId) {
+          ops.push({ type: "delete", id: d.id });
+        }
+      });
+
+      if (docsInGroup.length > 1) duplicatesRemoved += docsInGroup.length - 1;
+    });
+
+    if (ops.length) {
+      const BATCH_SIZE = 450;
+      for (let i = 0; i < ops.length; i += BATCH_SIZE) {
+        const chunk = ops.slice(i, i + BATCH_SIZE);
+        const batch = writeBatch(db);
+        chunk.forEach((op) => {
+          if (op.type === "set") {
+            batch.set(doc(db, "courses", op.id), op.data, { merge: true });
+          } else {
+            batch.delete(doc(db, "courses", op.id));
+          }
+        });
+        await batch.commit();
+      }
+      console.log(`[تنظيف تلقائي] تم حذف ${duplicatesRemoved} نسخة مكررة من المقررات.`);
+    }
+  } catch (err) {
+    // لا نعرض أي رسالة للأدمن؛ فشل التنظيف التلقائي لا يجب أن يوقف عملية الرفع نفسها
+    console.error("خطأ أثناء التنظيف التلقائي لتكرارات المقررات:", err);
+  }
 }
 
 // لوحة التحكم (navHome) قابلة للضغط - تعيد للتبويب الافتراضي
