@@ -228,6 +228,15 @@ async function getEmployeeName(uid) {
 
 // ==================== تحميل البيانات (excuse + visit) ====================
 
+// خريطة عكسية: اسم القسم العربي → مفتاح الشكوى الإنجليزي (تطابق DEPT_KEY_MAP بملف الشكاوى)
+const DEPT_TO_COMPLAINT_KEY = {
+  "فيزياء":  "physics",
+  "إحصاء":   "statistics",
+  "رياضيات": "math",
+  "أحياء":   "biology",
+  "كيمياء":  "chemistry"
+};
+
 async function loadExcuseAndVisit() {
   try {
    let excQuery;
@@ -246,23 +255,41 @@ if (isAffairs) {
   );
 }
 
+    // طلبات الزيارة: قسم شؤون الطالبات فقط يملك صلاحية الوصول لها
+    const visitPromise = isAffairs
+      ? getDocs(collection(db, "visitRequests"))
+      : Promise.resolve(null);
 
-    const [excSnap, visSnap, compSnap] = await Promise.all([
+    // الشكاوى: تُفلتر حسب مفتاح القسم؛ شؤون الطالبات ليس لها قسم مطابق بالشكاوى حاليًا
+    const complaintKey = DEPT_TO_COMPLAINT_KEY[currentEmployee.department];
+    const complaintsPromise = (!isAffairs && complaintKey)
+      ? getDocs(query(collection(db, "complaints"), where("departmentKey", "==", complaintKey)))
+      : Promise.resolve(null);
+
+    const [excResult, visResult, compResult] = await Promise.allSettled([
       getDocs(excQuery),
-      getDocs(collection(db, "visitRequests")),
-      getDocs(collection(db, "complaints"))
+      visitPromise,
+      complaintsPromise
     ]);
 
-    tabData.excuse = excSnap.docs
-      .map(d => ({ id: d.id, ...d.data() }))
-      .filter(r => { const sem = getItemSemester(r); return !currentSemesterData || sem == null || sem === currentSemesterData.semester; });
+    tabData.excuse = excResult.status === "fulfilled" && excResult.value
+      ? excResult.value.docs
+          .map(d => ({ id: d.id, ...d.data() }))
+          .filter(r => { const sem = getItemSemester(r); return !currentSemesterData || sem == null || sem === currentSemesterData.semester; })
+      : [];
+    if (excResult.status === "rejected") console.error("excuses load error:", excResult.reason);
 
-    tabData.visit  = visSnap.docs
-      .map(d => ({ id: d.id, ...d.data() }))
-      .filter(r => { const sem = getItemSemester(r); return !currentSemesterData || sem == null || sem === currentSemesterData.semester; });
+    tabData.visit = visResult.status === "fulfilled" && visResult.value
+      ? visResult.value.docs
+          .map(d => ({ id: d.id, ...d.data() }))
+          .filter(r => { const sem = getItemSemester(r); return !currentSemesterData || sem == null || sem === currentSemesterData.semester; })
+      : [];
+    if (visResult.status === "rejected") console.error("visitRequests load error:", visResult.reason);
 
-    tabData.complaints = compSnap.docs
-      .map(d => ({ id: d.id, ...d.data() }));
+    tabData.complaints = compResult.status === "fulfilled" && compResult.value
+      ? compResult.value.docs.map(d => ({ id: d.id, ...d.data() }))
+      : [];
+    if (compResult.status === "rejected") console.error("complaints load error:", compResult.reason);
 
     updateBadges();
   } catch(err) {
@@ -283,7 +310,7 @@ const q = isAffairs
   : query(
       collection(db, "requests"),
       where("requestType", "in", types),
-      where("major", "==", currentEmployee.department)
+      where("assignedDepartment", "==", currentEmployee.department)
     );
 
   unsubscribeAddDrop = onSnapshot(q, async (snap) => {

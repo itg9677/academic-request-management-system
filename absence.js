@@ -98,9 +98,9 @@ onAuthStateChanged(auth, async (user) => {
 function getTargetDepartment(examType, studentMajor) {
     // الاختبار النهائي يروح لشؤون الطالبات
     // الفصلي الأول والثاني يروح لقسم الطالبة (تخصصها)
-    return examType === "final"
+    return (examType === "final"
         ? "شؤون الطالبات"
-        : studentMajor;
+        : studentMajor || "").trim();
 }
 
 async function getTargetEmployeeIds(targetDept) {
