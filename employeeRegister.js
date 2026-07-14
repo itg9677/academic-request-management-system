@@ -21,7 +21,7 @@ form.addEventListener("submit", async (e) => {
 
     const fullName = document.getElementById("employeeName").value.trim();
     const employeeId = document.getElementById("employeeId").value.trim();
-    const department = document.getElementById("department").value;
+    const department = document.getElementById("department").value.trim();
     const email = document.getElementById("email").value.trim().toLowerCase();
     const password = document.getElementById("password").value;
 
