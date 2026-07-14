@@ -32,15 +32,20 @@
     </div>
 
     <nav class="sb-nav">
-      <div class="sb-nav-item" id="navSemester" style="cursor:pointer;">
-        <i class="ti ti-calendar"></i>
-        <span>إدارة الفصل الدراسي</span>
+      <div class="sb-nav-item" id="navHome">
+        <i class="ti ti-layout-dashboard"></i>
+        <span>لوحة التحكم</span>
       </div>
 
       <div class="sb-nav-item" id="navStats" style="cursor:pointer;">
   <i class="ti ti-chart-bar"></i>
   <span>الإحصائيات</span>
 </div>
+
+      <div class="sb-nav-item" id="navSemester" style="cursor:pointer;">
+        <i class="ti ti-calendar"></i>
+        <span>إدارة الفصل الدراسي</span>
+      </div>
 
       <div class="sb-nav-item admin-tab active" data-tab="addDrop">
         <i class="ti ti-file-text"></i>
@@ -394,11 +399,18 @@
           </div>
 
           <!-- زر رفع/تحديث ملف المقررات (Excel) — يظهر فقط في تبويب الحذف والإضافة -->
-          <div id="coursesUploadWrap">
+          <!-- ملاحظة: تنظيف تكرار المقررات يحصل تلقائيًا وبشكل مخفي بعد كل رفع (بالكود)، بدون زر ظاهر للأدمن -->
+          <div id="coursesUploadWrap" style="display:flex;gap:8px;align-items:center;">
             <button class="excel-export-btn" id="openCoursesUploadBtn" type="button">
               <i class="ti ti-file-spreadsheet"></i>
               رفع / تحديث المقررات
             </button>
+            <!-- زر ثابت يبقى ظاهرًا دائمًا (حتى بعد إغلاق النافذة أو التبويب أو إعادة فتح الصفحة)
+                 يحمّل آخر ملف مقررات تم رفعه، لأنه يقرأ رابطه المحفوظ في قاعدة البيانات وليس رابطًا مؤقتًا بالمتصفح -->
+            <a class="excel-export-btn" id="downloadLatestCoursesFileBtn" href="#" target="_blank" rel="noopener" style="display:none;">
+              <i class="ti ti-download"></i>
+              تنزيل آخر ملف مقررات
+            </a>
           </div>
 
           <select class="admin-filter-select" id="statusFilter" style="display:none">
@@ -510,6 +522,8 @@
     <div class="sp-body">
       <div class="sp-detail-card" style="padding:16px;">
 
+        <div id="cuCurrentFileWrap" style="margin-bottom:12px;display:none;"></div>
+
         <div id="cuDropZone" class="cu-drop-zone">
           <i class="ti ti-file-upload" style="font-size:28px;"></i>
           <div style="margin-top:8px;">اضغطي لاختيار ملف Excel (.xlsx / .xls)</div>
@@ -612,7 +626,7 @@
           <div class="ta-field">
             <label class="sp-detail-label">كلمة مرور مؤقتة *</label>
             <input type="text" id="ta_password" class="ta-input" minlength="6" placeholder="6 أحرف على الأقل" required />
-            <small style="color:#888;font-size:12px;">سلّمها للأدمن الجديد، ويُنصح بتغييرها بعد أول دخول</small>
+            <small style="color:#888;font-size:12px;">سلّمها للأدمن الجديد، وينصح يغيّرها بعد أول دخول</small>
           </div>
         </div>
 
