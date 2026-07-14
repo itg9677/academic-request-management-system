@@ -73,7 +73,7 @@
     </div>
 
     <!-- زر نقل صلاحية الأدمن - بنفس كلاس زر الخروج، بلون ذهبي للتمييز -->
-    <button class="sb-logout-btn ta-transfer-btn" id="transferAdminBtn" style="margin-bottom:8px;">
+    <button class="sb-logout-btn" id="transferAdminBtn" style="background:#c8972b;margin-bottom:8px;">
       <i class="ti ti-user-exchange"></i> نقل صلاحية الأدمن
     </button>
     <button class="sb-logout-btn" id="logoutBtn">
@@ -393,6 +393,14 @@
             </select>
           </div>
 
+          <!-- زر رفع/تحديث ملف المقررات (Excel) — يظهر فقط في تبويب الحذف والإضافة -->
+          <div id="coursesUploadWrap">
+            <button class="excel-export-btn" id="openCoursesUploadBtn" type="button">
+              <i class="ti ti-file-spreadsheet"></i>
+              رفع / تحديث المقررات
+            </button>
+          </div>
+
           <select class="admin-filter-select" id="statusFilter" style="display:none">
             <option value="all">كل الحالات</option>
             <option value="new">جديد</option>
@@ -487,10 +495,84 @@
 
   <div class="sp-overlay" id="spOverlay"></div>
 
+  <!-- ===== Modal: رفع / تحديث ملف المقررات ===== -->
+  <div class="admin-side-panel transfer-modal-box" id="coursesUploadModal" style="display:none;">
+    <div class="sp-header">
+      <div>
+        <div class="sp-title">رفع / تحديث المقررات</div>
+        <div class="sp-sub">ملف Excel يحتوي مقررات الفصل</div>
+      </div>
+      <button class="sp-close-btn" id="cuCloseBtn" aria-label="إغلاق">
+        <i class="ti ti-x"></i>
+      </button>
+    </div>
+
+    <div class="sp-body">
+      <div class="sp-detail-card" style="padding:16px;">
+
+        <div id="cuDropZone" class="cu-drop-zone">
+          <i class="ti ti-file-upload" style="font-size:28px;"></i>
+          <div style="margin-top:8px;">اضغطي لاختيار ملف Excel (.xlsx / .xls)</div>
+          <div style="font-size:12px;color:#888;margin-top:4px;">
+            الأعمدة المطلوبة: courseCode، department — وأي أعمدة إضافية تُحفظ كما هي
+          </div>
+          <input type="file" id="cuFileInput" accept=".xlsx,.xls" style="display:none;">
+        </div>
+
+        <div id="cuFileName" style="margin-top:10px;font-size:14px;color:#1a3a6b;display:none;"></div>
+
+        <div id="cuPreviewWrap" style="margin-top:14px;display:none;">
+          <div class="sp-detail-label" style="margin-bottom:6px;">معاينة الملف</div>
+          <div id="cuPreviewSummary" style="font-size:14px;margin-bottom:8px;"></div>
+          <div style="max-height:220px;overflow:auto;border:1px solid #eee;border-radius:8px;">
+            <table class="admin-table" id="cuPreviewTable" style="width:100%;font-size:13px;"></table>
+          </div>
+          <div id="cuSkippedNote" style="font-size:12px;color:#b00;margin-top:6px;display:none;"></div>
+        </div>
+
+        <div id="cuProgressWrap" style="margin-top:14px;display:none;">
+          <div class="admin-loading"><i class="ti ti-loader-2 spin"></i> <span id="cuProgressText">جاري الرفع...</span></div>
+        </div>
+
+        <div id="cuResultNote" style="margin-top:12px;font-size:14px;display:none;"></div>
+
+      </div>
+    </div>
+
+    <div class="sp-footer" style="display:flex;gap:10px;">
+      <button class="sp-print-btn" id="cuConfirmBtn" type="button" style="flex:1;background:#1a3a6b;" disabled>
+        <i class="ti ti-check"></i> تأكيد الرفع
+      </button>
+      <button class="sp-close-btn" id="cuCancelBtn" type="button" style="flex:0 0 auto;">
+        إلغاء
+      </button>
+    </div>
+
+    <div class="sp-overlay" id="coursesUploadOverlay" style="display:none;"></div>
+  </div>
+
+  <style>
+    .cu-drop-zone {
+      border: 2px dashed #c9d3e0;
+      border-radius: 10px;
+      padding: 26px 14px;
+      text-align: center;
+      color: #1a3a6b;
+      cursor: pointer;
+      transition: border-color .15s, background .15s;
+    }
+    .cu-drop-zone:hover { border-color:#1a3a6b; background:#f7f9fc; }
+    .cu-drop-zone.cu-dragover { border-color:#c8972b; background:#fdf7ec; }
+    #cuPreviewTable th, #cuPreviewTable td {
+      padding:6px 8px; text-align:right; border-bottom:1px solid #f0f0f0; white-space:nowrap;
+    }
+    #cuPreviewTable th { background:#f5f7fa; position:sticky; top:0; }
+  </style>
+
   <!-- ===== Modal: نقل صلاحية الأدمن ===== -->
   <!-- نعيد استخدام نفس كلاسات اللوحة الجانبية (sp-*) لضمان نفس الستايل،
        فقط نحوّلها لمودال في المنتصف عبر transfer-modal-box -->
-<div class="admin-side-panel transfer-modal-box" id="transferAdminModal" style="display:none;">
+  <div class="admin-side-panel transfer-modal-box" id="transferAdminModal" style="display:none;">
     <div class="sp-header">
       <div>
         <div class="sp-title">نقل صلاحية الأدمن</div>
@@ -511,6 +593,11 @@
           </div>
 
           <div class="ta-field">
+            <label class="sp-detail-label">رقم الجوال *</label>
+            <input type="tel" id="ta_phone" class="ta-input" pattern="[0-9]{10}" placeholder="05xxxxxxxx" required />
+          </div>
+
+          <div class="ta-field">
             <label class="sp-detail-label">الرقم الوظيفي *</label>
             <input type="text" id="ta_employeeNumber" class="ta-input" required />
           </div>
@@ -519,8 +606,7 @@
             <label class="sp-detail-label">البريد الإلكتروني (للدخول) *</label>
             <input type="email" id="ta_email" class="ta-input" required />
             <div id="ta_email_note" style="color:#b00; font-size:13px; margin-top:4px;">
-  الرجاء استخدام نفس الإيميل المسجل مسبقًا لنفس الموظف
-</div>
+  الرجاء استخدام نفس البريد الالكتروني المسجل مسبقًا للموظف</div>
           </div>
 
           <div class="ta-field">
@@ -535,7 +621,8 @@
     </div>
 <div class="sp-footer" style="display:flex;gap:10px;">
   <button class="sp-print-btn" id="ta_submitBtn" type="submit" form="transferAdminForm" style="flex:1;background:#1a3a6b;">
-    <i class="ti ti-check"></i> تأكيد ونقل الصلاحية</button>
+    
+    <i class="ti ti-check"></i>تأكيد ونقل الصلاحي  ة</button>
 
   <button class="sp-close-btn" id="ta_cancelBtn" type="button" style="flex:0 0 auto;">
     إلغاء </button>
@@ -556,7 +643,7 @@
       overflow-y: auto;
     }
     .ta-field { margin-bottom: 14px; }
-    .ta-field label { display:block; margin-bottom:6px; }
+    .ta-field label { display:block; margin-bottom:6px; }g
     .ta-input {
       width: 100%;
       padding: 9px 12px;
@@ -566,17 +653,6 @@
       font-size: 14px;
     }
     .ta-input:focus { outline: none; border-color: #1a3a6b; }
-
-    /* زر نقل صلاحية الأدمن — يتلون ذهبي فقط عند hover، بنفس سلوك عناصر القائمة */
-    .ta-transfer-btn {
-      background: transparent;
-      transition: background 0.15s, color 0.15s;
-      border-radius: 9px;
-    }
-    .ta-transfer-btn:hover {
-      background: #c8972b;
-      color: #1e2d50;
-    }
   </style>
 
   <script type="module" src="Admindashboard.js"></script>
