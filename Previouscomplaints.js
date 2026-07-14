@@ -13,35 +13,27 @@ import {
   getDocs
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-const studentName = document.getElementById("studentName");
-const tableBody = document.getElementById("requestsTableBody");
+const studentNameEl = document.getElementById("studentName");
+const tableBody     = document.getElementById("requestsTableBody");
 
-// =====================================================
-//  مساعد: تحويل نوع الطلب إلى نص ظاهر
-// =====================================================
+// ==================== أدوات مساعدة ====================
+
 function getTypeText(type) {
-  if (type === "شكوى") return "شكوى";
-  if (type === "اقتراح") return "اقتراح";
-  if (type === "استفسار") return "استفسار";
-  return type || "-";
+  const map = { "شكوى": "شكوى", "اقتراح": "اقتراح", "استفسار": "استفسار" };
+  return map[type] || type || "-";
 }
 
-// =====================================================
-//  مساعد: تحويل حالة الطلب إلى نص + كلاس CSS
-// =====================================================
 function getStatusInfo(status) {
   switch (status) {
-    case "resolved":
-      return { text: "تم الحل", cls: "status-approved" };
-    case "dismissed":
-      return { text: "مرفوضة", cls: "status-rejected" };
-    case "under_review":
-      return { text: "قيد المراجعة", cls: "status-review" };
+    case "resolved":     return { text: "تم الحل",       cls: "status-approved" };
+    case "dismissed":    return { text: "مرفوضة",         cls: "status-rejected" };
+    case "under_review": return { text: "قيد المراجعة",  cls: "status-review"   };
     case "new":
-    default:
-      return { text: "جديد", cls: "status-review" };
+    default:             return { text: "جديد",           cls: "status-review"   };
   }
 }
+
+// ==================== Auth ====================
 
 onAuthStateChanged(auth, async (user) => {
 
@@ -50,28 +42,16 @@ onAuthStateChanged(auth, async (user) => {
     return;
   }
 
-  if (!db) {
-    console.error("db غير معرف! تحقق من ملف firebase.js");
-    tableBody.innerHTML = `<tr><td colspan="4">خطأ في الاتصال بقاعدة البيانات</td></tr>`;
-    return;
-  }
-
   try {
 
-    const studentSnap = await getDoc(
-      doc(db, "students", user.uid)
-    );
-
+    // جلب اسم الطالبة
+    const studentSnap = await getDoc(doc(db, "students", user.uid));
     if (studentSnap.exists()) {
-      studentName.textContent =
-        studentSnap.data().fullName || "الطالب";
+      studentNameEl.textContent = studentSnap.data().fullName || "الطالب";
     }
 
-    const q = query(
-      collection(db, "complaints"),
-      where("studentUid", "==", user.uid)
-    );
-
+    // جلب الشكاوى والاقتراحات
+    const q        = query(collection(db, "complaints"), where("studentUid", "==", user.uid));
     const snapshot = await getDocs(q);
 
     tableBody.innerHTML = "";
@@ -82,39 +62,26 @@ onAuthStateChanged(auth, async (user) => {
     }
 
     // ترتيب الأحدث أولاً
-    const complaints = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    }));
+    const complaints = snapshot.docs
+      .map(d => ({ id: d.id, ...d.data() }))
+      .sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
 
-    complaints.sort((a, b) => {
-      const aTime = a.createdAt?.toMillis?.() || 0;
-      const bTime = b.createdAt?.toMillis?.() || 0;
-      return bTime - aTime;
-    });
-
-    complaints.forEach((data) => {
-
-      const { text: statusText, cls: statusClass } = getStatusInfo(data.status);
-
-      const notes = data.adminReply || "-";
+    complaints.forEach((item) => {
+      const { text: statusText, cls: statusClass } = getStatusInfo(item.status);
+      const reply = item.adminReply || "-";
 
       tableBody.innerHTML += `
         <tr>
-          <td>${getTypeText(data.type)}</td>
-          <td>${data.subject || "-"}</td>
-          <td>
-            <span class="${statusClass}">
-              ${statusText}
-            </span>
-          </td>
-          <td>${notes}</td>
+          <td>${getTypeText(item.type)}</td>
+          <td>${item.subject || "-"}</td>
+          <td><span class="${statusClass}">${statusText}</span></td>
+          <td>${reply}</td>
         </tr>
       `;
     });
 
   } catch (error) {
-    console.error("Error:", error);
+    console.error("Previouscomplaints error:", error);
     tableBody.innerHTML = `<tr><td colspan="4">حدث خطأ: ${error.message}</td></tr>`;
   }
 

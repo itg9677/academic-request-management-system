@@ -13,15 +13,25 @@ import {
   getDocs
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
-const studentName = document.getElementById("studentName");
-const tableBody = document.getElementById("requestsTableBody");
+const studentNameEl = document.getElementById("studentName");
+const tableBody     = document.getElementById("requestsTableBody");
 
-function getRequestTypeText(type){
-  if(type === "add") return "إضافة";
-  if(type === "remove") return "حذف";
-  if(type === "change") return "تغيير شعبة";
-  return type || "-";
+// ==================== أدوات مساعدة ====================
+
+function getRequestTypeText(type) {
+  const map = { add: "إضافة", remove: "حذف", change: "تغيير شعبة" };
+  return map[type] || type || "-";
 }
+
+function getStatusInfo(status) {
+  switch (status) {
+    case "approved": return { text: "مقبول",        cls: "status-approved" };
+    case "rejected": return { text: "مرفوض",        cls: "status-rejected" };
+    default:         return { text: "قيد المراجعة", cls: "status-review"   };
+  }
+}
+
+// ==================== Auth ====================
 
 onAuthStateChanged(auth, async (user) => {
 
@@ -30,28 +40,16 @@ onAuthStateChanged(auth, async (user) => {
     return;
   }
 
-  if (!db) {
-    console.error("db غير معرف! تحقق من ملف firebase.js");
-    tableBody.innerHTML = `<tr><td colspan="6">خطأ في الاتصال بقاعدة البيانات</td></tr>`;
-    return;
-  }
-
   try {
 
-    const studentSnap = await getDoc(
-      doc(db, "students", user.uid)
-    );
-
+    // جلب اسم الطالبة
+    const studentSnap = await getDoc(doc(db, "students", user.uid));
     if (studentSnap.exists()) {
-      studentName.textContent =
-        studentSnap.data().fullName || "الطالب";
+      studentNameEl.textContent = studentSnap.data().fullName || "الطالب";
     }
 
-    const q = query(
-      collection(db, "requests"),
-      where("studentUid", "==", user.uid)
-    );
-
+    // جلب طلبات الحذف والإضافة
+    const q        = query(collection(db, "requests"), where("studentUid", "==", user.uid));
     const snapshot = await getDocs(q);
 
     tableBody.innerHTML = "";
@@ -61,68 +59,37 @@ onAuthStateChanged(auth, async (user) => {
       return;
     }
 
-
     // ترتيب الأحدث أولاً
-    const requests = snapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    }));
-
-    requests.sort((a, b) => {
-
-      const aTime = a.createdAt?.toMillis?.() || 0;
-      const bTime = b.createdAt?.toMillis?.() || 0;
-
-      return bTime - aTime;
-
-    });
-
+    const requests = snapshot.docs
+      .map(d => ({ id: d.id, ...d.data() }))
+      .sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0));
 
     let count = 1;
+    requests.forEach((item) => {
+      const { text: statusText, cls: statusClass } = getStatusInfo(item.status);
 
-    requests.forEach((data) => {
+      const courseDisplay = item.courseName
+        ? `${item.courseCode || ""} - ${item.courseName}`
+        : (item.courseCode || "-");
 
-          let statusText = "قيد المراجعة";
-          let statusClass = "status-review";
+      const rejectNote = item.status === "rejected"
+        ? (item.rejectReason || "-")
+        : "-";
 
-          if (data.status === "approved") {
-            statusText = "مقبول";
-            statusClass = "status-approved";
-          }
-
-          if (data.status === "rejected") {
-            statusText = "مرفوض";
-            statusClass = "status-rejected";
-          }
-
-          const courseDisplay = data.courseName
-            ? `${data.courseCode || ""} - ${data.courseName}`
-            : (data.courseCode || "-");
-
-          tableBody.innerHTML += `
-            <tr>
-              <td>${count++}</td>
-              <td>${getRequestTypeText(data.requestType)}</td>
-              <td>${courseDisplay}</td>
-              <td>${data.requestedSection || "-"}</td>
-              <td>
-                <span class="${statusClass}">
-                  ${statusText}
-                </span>
-              </td>
-            <td>
-     ${
-       data.status === "rejected"
-         ? (data.rejectReason || "-")
-         : "-"
-     }
-    </td>
-            </tr>
-          `;
-        });
+      tableBody.innerHTML += `
+        <tr>
+          <td>${count++}</td>
+          <td>${getRequestTypeText(item.requestType)}</td>
+          <td>${courseDisplay}</td>
+          <td>${item.requestedSection || "-"}</td>
+          <td><span class="${statusClass}">${statusText}</span></td>
+          <td>${rejectNote}</td>
+        </tr>
+      `;
+    });
 
   } catch (error) {
-    console.error("Error:", error);
+    console.error("previousRequests error:", error);
     tableBody.innerHTML = `<tr><td colspan="6">حدث خطأ: ${error.message}</td></tr>`;
   }
 
