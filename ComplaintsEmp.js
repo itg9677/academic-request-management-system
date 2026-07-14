@@ -257,7 +257,7 @@ function subscribeComplaints() {
 
 function updateBadge() {
   const el = document.getElementById("badge-complaints-emp");
-  if (el) el.textContent = complaintsData.filter(c => !c.status || c.status === "new").length;
+  if (el) el.textContent = complaintsData.length;
 }
 
 // ── عرض الجدول ─────────────────────────────────────
