@@ -3,7 +3,7 @@ import { getCurrentSemester, getAllSemesters, activateSemester } from "./semeste
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import {
   doc, getDoc, setDoc, deleteDoc, collection, query, where, getDocs,
-  updateDoc, serverTimestamp, onSnapshot
+  updateDoc, serverTimestamp, onSnapshot, writeBatch
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import {
   ref, uploadBytes, getDownloadURL, deleteObject
@@ -87,6 +87,21 @@ function setDates() {
   const hijri = now.toLocaleDateString("ar-SA-u-ca-islamic");
   document.getElementById("gregDate").textContent = greg;
   document.getElementById("hijriDate").textContent = hijri;
+}
+
+// تحميل مكتبة SheetJS (XLSX) عند الحاجة فقط — تُستخدم في التصدير وفي رفع ملف المقررات
+let _xlsxLoadPromise = null;
+function ensureXLSXLoaded() {
+  if (window.XLSX) return Promise.resolve();
+  if (_xlsxLoadPromise) return _xlsxLoadPromise;
+  _xlsxLoadPromise = new Promise((resolve, reject) => {
+    const s = document.createElement("script");
+    s.src = "https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js";
+    s.onload  = resolve;
+    s.onerror = () => { _xlsxLoadPromise = null; reject(new Error("تعذّر تحميل مكتبة Excel")); };
+    document.head.appendChild(s);
+  });
+  return _xlsxLoadPromise;
 }
 
 function esc(str) {
@@ -2916,6 +2931,12 @@ document.querySelectorAll(".admin-tab").forEach((btn) => {
       }
     }
 
+    // إظهار زر رفع/تحديث المقررات فقط في تبويب "طلبات الحذف والإضافة"
+    const coursesUploadWrapEl = document.getElementById("coursesUploadWrap");
+    if (coursesUploadWrapEl) {
+      coursesUploadWrapEl.style.display = (currentTab === "addDrop") ? "" : "none";
+    }
+
     // إخفاء قسم إدارة الفصل الدراسي عند فتح أي تبويب طلبات
     const semesterSectionEl = document.getElementById("semesterSection");
     if (semesterSectionEl) semesterSectionEl.style.display = "none";
@@ -3024,20 +3045,12 @@ async function exportExcusesToExcel() {
   }
 
   // تحميل مكتبة SheetJS إن لم تكن محملة
-  if (!window.XLSX) {
-    try {
-      await new Promise((resolve, reject) => {
-        const s = document.createElement("script");
-        s.src = "https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js";
-        s.onload  = resolve;
-        s.onerror = () => reject(new Error("تعذّر تحميل مكتبة التصدير"));
-        document.head.appendChild(s);
-      });
-    } catch (err) {
-      alert("تعذّر تحميل مكتبة التصدير إلى Excel. تأكدي من اتصال الإنترنت وحاولي مرة أخرى.");
-      console.error(err);
-      return;
-    }
+  try {
+    await ensureXLSXLoaded();
+  } catch (err) {
+    alert("تعذّر تحميل مكتبة التصدير إلى Excel. تأكدي من اتصال الإنترنت وحاولي مرة أخرى.");
+    console.error(err);
+    return;
   }
 
   // ترتيب أحدث الطلبات أولاً
@@ -3479,6 +3492,243 @@ function buildCharts() {
 
 
 
+
+// ==================== رفع / تحديث ملف المقررات (Excel) ====================
+// يقرأ ملف Excel من جهاز الأدمن ويكتب كل صف كمستند في مجموعة "courses"
+// بنفس بنية البيانات التي تعتمد عليها صفحة الطالبة (courseCode + department)،
+// بحيث تنعكس التحديثات تلقائيًا عند الطالبة عبر onSnapshot دون أي خطوة إضافية.
+
+let cuParsedRows = [];   // الصفوف الصالحة الجاهزة للرفع
+let cuSkippedCount = 0;  // عدد الصفوف التي تم تجاهلها (بدون courseCode أو department)
+
+const coursesUploadModal   = document.getElementById("coursesUploadModal");
+const coursesUploadOverlay = document.getElementById("coursesUploadOverlay");
+const openCoursesUploadBtn = document.getElementById("openCoursesUploadBtn");
+const cuCloseBtn      = document.getElementById("cuCloseBtn");
+const cuCancelBtn     = document.getElementById("cuCancelBtn");
+const cuDropZone       = document.getElementById("cuDropZone");
+const cuFileInput      = document.getElementById("cuFileInput");
+const cuFileNameEl     = document.getElementById("cuFileName");
+const cuPreviewWrap    = document.getElementById("cuPreviewWrap");
+const cuPreviewSummary = document.getElementById("cuPreviewSummary");
+const cuPreviewTable   = document.getElementById("cuPreviewTable");
+const cuSkippedNote    = document.getElementById("cuSkippedNote");
+const cuProgressWrap   = document.getElementById("cuProgressWrap");
+const cuProgressText   = document.getElementById("cuProgressText");
+const cuResultNote     = document.getElementById("cuResultNote");
+const cuConfirmBtn     = document.getElementById("cuConfirmBtn");
+
+function resetCoursesUploadModal() {
+  cuParsedRows = [];
+  cuSkippedCount = 0;
+  if (cuFileInput) cuFileInput.value = "";
+  if (cuFileNameEl) { cuFileNameEl.style.display = "none"; cuFileNameEl.textContent = ""; }
+  if (cuPreviewWrap) cuPreviewWrap.style.display = "none";
+  if (cuPreviewTable) cuPreviewTable.innerHTML = "";
+  if (cuSkippedNote) cuSkippedNote.style.display = "none";
+  if (cuProgressWrap) cuProgressWrap.style.display = "none";
+  if (cuResultNote) { cuResultNote.style.display = "none"; cuResultNote.textContent = ""; }
+  if (cuConfirmBtn) { cuConfirmBtn.disabled = true; cuConfirmBtn.innerHTML = '<i class="ti ti-check"></i> تأكيد الرفع'; }
+}
+
+function openCoursesUploadModal() {
+  if (!coursesUploadModal) return;
+  resetCoursesUploadModal();
+  coursesUploadModal.style.display = "";
+  if (coursesUploadOverlay) coursesUploadOverlay.style.display = "";
+}
+
+function closeCoursesUploadModal() {
+  if (!coursesUploadModal) return;
+  coursesUploadModal.style.display = "none";
+  if (coursesUploadOverlay) coursesUploadOverlay.style.display = "none";
+}
+
+if (openCoursesUploadBtn) openCoursesUploadBtn.addEventListener("click", openCoursesUploadModal);
+if (cuCloseBtn)  cuCloseBtn.addEventListener("click", closeCoursesUploadModal);
+if (cuCancelBtn) cuCancelBtn.addEventListener("click", closeCoursesUploadModal);
+if (coursesUploadOverlay) coursesUploadOverlay.addEventListener("click", closeCoursesUploadModal);
+if (cuDropZone) cuDropZone.addEventListener("click", () => cuFileInput && cuFileInput.click());
+
+// دعم السحب والإفلات
+if (cuDropZone) {
+  ["dragenter", "dragover"].forEach((evt) => {
+    cuDropZone.addEventListener(evt, (e) => {
+      e.preventDefault();
+      cuDropZone.classList.add("cu-dragover");
+    });
+  });
+  ["dragleave", "drop"].forEach((evt) => {
+    cuDropZone.addEventListener(evt, (e) => {
+      e.preventDefault();
+      cuDropZone.classList.remove("cu-dragover");
+    });
+  });
+  cuDropZone.addEventListener("drop", (e) => {
+    const file = e.dataTransfer?.files?.[0];
+    if (file) handleCoursesFile(file);
+  });
+}
+
+if (cuFileInput) {
+  cuFileInput.addEventListener("change", () => {
+    const file = cuFileInput.files?.[0];
+    if (file) handleCoursesFile(file);
+  });
+}
+
+async function handleCoursesFile(file) {
+  if (cuResultNote) cuResultNote.style.display = "none";
+  if (cuFileNameEl) {
+    cuFileNameEl.style.display = "";
+    cuFileNameEl.innerHTML = `<i class="ti ti-file-spreadsheet"></i> ${esc(file.name)}`;
+  }
+
+  try {
+    await ensureXLSXLoaded();
+  } catch (err) {
+    alert("تعذّر تحميل مكتبة قراءة Excel. تأكدي من اتصال الإنترنت وحاولي مرة أخرى.");
+    console.error(err);
+    return;
+  }
+
+  const buffer = await file.arrayBuffer();
+  const workbook = window.XLSX.read(buffer, { type: "array" });
+  const sheet = workbook.Sheets[workbook.SheetNames[0]];
+  const json = window.XLSX.utils.sheet_to_json(sheet, { defval: "" });
+
+  cuParsedRows = [];
+  cuSkippedCount = 0;
+
+  for (const row of json) {
+    // نقبل عدة تسميات محتملة للأعمدة تحسبًا لاختلاف رأس الملف
+    const courseCode = row.courseCode ?? row.code ?? row["رمز المقرر"] ?? "";
+    const department  = row.department ?? row.dept ?? row["القسم"] ?? "";
+
+    if (!String(courseCode).trim() || !String(department).trim()) {
+      cuSkippedCount++;
+      continue;
+    }
+
+    cuParsedRows.push({
+      ...row,
+      courseCode: String(courseCode).trim(),
+      department: String(department).trim(),
+    });
+  }
+
+  renderCoursesPreview();
+}
+
+function renderCoursesPreview() {
+  if (!cuPreviewWrap) return;
+
+  if (!cuParsedRows.length) {
+    cuPreviewWrap.style.display = "";
+    cuPreviewSummary.textContent = "لم يتم العثور على صفوف صالحة في الملف.";
+    cuPreviewTable.innerHTML = "";
+    if (cuConfirmBtn) cuConfirmBtn.disabled = true;
+    return;
+  }
+
+  cuPreviewWrap.style.display = "";
+  cuPreviewSummary.textContent =
+    `تم العثور على ${cuParsedRows.length} مقرر صالح للرفع.`;
+
+  // أعمدة المعاينة: courseCode, department, ثم باقي الأعمدة (حد أقصى 4 أعمدة إضافية)
+  const baseCols = ["courseCode", "department"];
+  const extraCols = Object.keys(cuParsedRows[0])
+    .filter((k) => !baseCols.includes(k))
+    .slice(0, 4);
+  const cols = [...baseCols, ...extraCols];
+
+  const colLabels = { courseCode: "رمز المقرر", department: "القسم" };
+
+  let html = "<thead><tr>" +
+    cols.map((c) => `<th>${esc(colLabels[c] || c)}</th>`).join("") +
+    "</tr></thead><tbody>";
+
+  cuParsedRows.slice(0, 50).forEach((r) => {
+    html += "<tr>" + cols.map((c) => `<td>${esc(r[c] ?? "-")}</td>`).join("") + "</tr>";
+  });
+  html += "</tbody>";
+
+  if (cuParsedRows.length > 50) {
+    html += `<tfoot><tr><td colspan="${cols.length}" style="text-align:center;color:#888;">
+      ... و ${cuParsedRows.length - 50} مقرر إضافي
+    </td></tr></tfoot>`;
+  }
+
+  cuPreviewTable.innerHTML = html;
+
+  if (cuSkippedNote) {
+    if (cuSkippedCount > 0) {
+      cuSkippedNote.style.display = "";
+      cuSkippedNote.textContent =
+        `تنبيه: تم تجاهل ${cuSkippedCount} صف بسبب نقص رمز المقرر أو القسم.`;
+    } else {
+      cuSkippedNote.style.display = "none";
+    }
+  }
+
+  if (cuConfirmBtn) cuConfirmBtn.disabled = false;
+}
+
+if (cuConfirmBtn) {
+  cuConfirmBtn.addEventListener("click", async () => {
+    if (!cuParsedRows.length) return;
+
+    cuConfirmBtn.disabled = true;
+    if (cuProgressWrap) cuProgressWrap.style.display = "";
+    if (cuResultNote) cuResultNote.style.display = "none";
+
+    const total = cuParsedRows.length;
+    const BATCH_SIZE = 450; // أقل من حد Firestore (500) احتياطًا
+    let written = 0;
+
+    try {
+      for (let i = 0; i < total; i += BATCH_SIZE) {
+        const chunk = cuParsedRows.slice(i, i + BATCH_SIZE);
+        const batch = writeBatch(db);
+
+        chunk.forEach((row) => {
+          const docId = `${row.courseCode}_${row.department}`;
+          batch.set(
+            doc(db, "courses", docId),
+            { ...row, updatedAt: serverTimestamp() },
+            { merge: true }
+          );
+        });
+
+        await batch.commit();
+        written += chunk.length;
+
+        if (cuProgressText) {
+          cuProgressText.textContent = `جاري الرفع... (${written} / ${total})`;
+        }
+      }
+
+      if (cuProgressWrap) cuProgressWrap.style.display = "none";
+      if (cuResultNote) {
+        cuResultNote.style.display = "";
+        cuResultNote.style.color = "#1a7a3c";
+        cuResultNote.innerHTML =
+          `<i class="ti ti-circle-check"></i> تم رفع/تحديث ${written} مقرر بنجاح. ستظهر التحديثات مباشرة عند الطالبات.`;
+      }
+      cuConfirmBtn.innerHTML = '<i class="ti ti-check"></i> تم الرفع';
+
+    } catch (err) {
+      console.error("خطأ في رفع المقررات:", err);
+      if (cuProgressWrap) cuProgressWrap.style.display = "none";
+      if (cuResultNote) {
+        cuResultNote.style.display = "";
+        cuResultNote.style.color = "#b00020";
+        cuResultNote.textContent = "حدث خطأ أثناء الرفع. حاولي مرة أخرى.";
+      }
+      cuConfirmBtn.disabled = false;
+    }
+  });
+}
 
 // لوحة التحكم (navHome) قابلة للضغط - تعيد للتبويب الافتراضي
 const navHome = document.getElementById("navHome");
