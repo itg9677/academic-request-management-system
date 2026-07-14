@@ -262,28 +262,22 @@ function buildStudentAllFields(student) {
 
 // ==================== تحميل البيانات ====================
 
-async function loadAllData() {
-  const loadingEl   = document.getElementById("loadingState");
-  const tableWrapEl = document.getElementById("tableWrap");
-  await loadAllEmployeeNames();
+// نجمع كل الموظفين الذين عالجوا طلبات ونحمل أسماءهم من Firestore
 async function loadAllEmployeeNames() {
   const allEmpUids = new Set();
 
-  // نجمع كل الموظفين الذين عالجوا طلبات
   [...tabData.addDrop, ...tabData.excuse, ...tabData.visit].forEach(item => {
     if (item.assignedEmployee) {
       allEmpUids.add(item.assignedEmployee);
     }
   });
 
-  // نحمل أسماءهم من Firestore
   await Promise.all([...allEmpUids].map(uid => getEmployeeName(uid)));
 }
 
-  updateDashboardStats();
-  buildCharts();
-  toggleDeptStatsVisibility();
-
+async function loadAllData() {
+  const loadingEl   = document.getElementById("loadingState");
+  const tableWrapEl = document.getElementById("tableWrap");
 
   loadingEl.style.display  = "";
   tableWrapEl.style.display = "none";
@@ -292,6 +286,7 @@ async function loadAllEmployeeNames() {
 
     const reqQuery = collection(db, "requests");
 
+    // ✅ نجلب البيانات الفعلية أولاً قبل أي استخدام لها
     const [reqSnap, excSnap, visSnap, compSnap] = await Promise.all([
       getDocs(reqQuery),
       getDocs(collection(db, "excuses")),
@@ -305,6 +300,13 @@ async function loadAllEmployeeNames() {
     tabData.complaints = compSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
 
     updateBadges();
+
+    // ✅ الآن بعد ما صارت tabData مملوءة فعلاً، نبني الأسماء/الإحصائيات/الرسوم البيانية
+    await loadAllEmployeeNames();
+    updateDashboardStats();
+    buildCharts();
+    toggleDeptStatsVisibility();
+
   } catch (err) {
     console.error("loadAllData error:", err);
   } finally {
