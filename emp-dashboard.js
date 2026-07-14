@@ -328,6 +328,9 @@ const q = isAffairs
         if (updated) openSidePanel("addDrop", updated);
       }
     }
+  }, (error) => {
+    // معالج خطأ صريح - بدونه أي فشل بالاستعلام (فهرس مفقود، صلاحيات، إلخ) يمر بصمت
+    console.error("subscribeAddDrop error:", error);
   });
 }
 
