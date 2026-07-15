@@ -193,6 +193,18 @@
             </div>
         </div>
 
+        <!-- حقول إضافية تظهر فقط عند اختيار "زيارة خارجية" -->
+        <div class="form-grid" id="externalVisitGroup" style="display:none">
+            <div class="form-group">
+                <label>الجامعة المراد زيارتها</label>
+                <input type="text" id="externalUniversity" placeholder="الرجاء إدخال اسم الجامعة...">
+            </div>
+            <div class="form-group">
+                <label>مرفق توصيف المقررات</label>
+                <input type="file" id="courseDescriptionFile" accept=".pdf,.doc,.docx">
+            </div>
+        </div>
+
         <!-- نموذج الزيارة: يظهر فقط بعد اختيار "زيارة داخلية" وتحديد المقر -->
         <div id="visitFormSection" class="hidden full-width">
             <div class="section-divider">نموذج الزيارة</div>
@@ -203,7 +215,7 @@
 
         <div class="form-group full-width">
             <label>سبب الزيارة</label>
-            <textarea id="reason" rows="4" placeholder="اكتبي سبب الزيارة..."></textarea>
+            <textarea id="reason" rows="4" placeholder="الرجاء إدخال سبب الزيارة..."></textarea>
         </div>
 
         <!-- جدول المواد — بدون عمود الساعات -->

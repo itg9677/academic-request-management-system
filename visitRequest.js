@@ -1,4 +1,4 @@
-import { auth, db } from "./firebase.js";
+import { auth, db, storage } from "./firebase.js";
 import { getCurrentSemester } from "./semester.js";
 
 import {
@@ -12,6 +12,12 @@ import {
     getDoc,
     serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+import {
+    ref,
+    uploadBytes,
+    getDownloadURL
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-storage.js";
 
 let courseCounter = 1;
 
@@ -187,12 +193,15 @@ async function loadVisitFormDownload(visitFormDoc) {
 ========================== */
 async function updateVisitFormSection() {
 
-    const section   = document.getElementById("visitFormSection");
-    const visitType = document.querySelector('input[name="visitType"]:checked')?.value;
-    const place     = document.getElementById("visitPlace")?.value;
-    const placeGroup = document.getElementById("visitPlaceGroup");
+    const section     = document.getElementById("visitFormSection");
+    const visitType   = document.querySelector('input[name="visitType"]:checked')?.value;
+    const place       = document.getElementById("visitPlace")?.value;
+    const placeGroup  = document.getElementById("visitPlaceGroup");
+    const externalGroup      = document.getElementById("externalVisitGroup");
+    const externalUniversity = document.getElementById("externalUniversity");
+    const courseDescFile     = document.getElementById("courseDescriptionFile");
 
-    // إظهار/إخفاء حقل المقر حسب نوع الزيارة
+    // إظهار/إخفاء حقل المقر حسب نوع الزيارة (داخلية فقط)
     if (placeGroup) {
         if (visitType === "internal") {
             placeGroup.style.display = "";
@@ -200,6 +209,17 @@ async function updateVisitFormSection() {
             placeGroup.style.display = "none";
             if (document.getElementById("visitPlace"))
                 document.getElementById("visitPlace").value = "";
+        }
+    }
+
+    // إظهار/إخفاء حقول الزيارة الخارجية (اسم الجامعة + مرفق توصيف المقررات)
+    if (externalGroup) {
+        if (visitType === "external") {
+            externalGroup.style.display = "flex";
+        } else {
+            externalGroup.style.display = "none";
+            if (externalUniversity) externalUniversity.value = "";
+            if (courseDescFile) courseDescFile.value = "";
         }
     }
 
@@ -275,6 +295,20 @@ function showCoursesError(show) {
 }
 
 /* ==========================
+   رفع مرفق توصيف المقررات (للزيارة الخارجية فقط)
+========================== */
+async function uploadCourseDescriptionFile(file, uid) {
+    const safeName = file.name.replace(/[^\w.\-]/g, "_");
+    const path = `visitRequests/${uid}/${Date.now()}_${safeName}`;
+    const storageRef = ref(storage, path);
+
+    await uploadBytes(storageRef, file);
+    const url = await getDownloadURL(storageRef);
+
+    return { url, fileName: file.name };
+}
+
+/* ==========================
    إرسال الطلب
 ========================== */
 document.getElementById("submitBtn")
@@ -290,8 +324,17 @@ document.getElementById("submitBtn")
     const visitPlace = document.getElementById("visitPlace").value;
     const reason     = document.getElementById("reason").value;
 
+    const externalUniversity = document.getElementById("externalUniversity")?.value.trim() || "";
+    const courseDescInput    = document.getElementById("courseDescriptionFile");
+    const courseDescFile     = courseDescInput?.files?.[0] || null;
+
     if (!visitType || !level || !reason || (visitType === "internal" && !visitPlace)) {
         alert("رجاءً تعبئة جميع الحقول");
+        return;
+    }
+
+    if (visitType === "external" && (!externalUniversity || !courseDescFile)) {
+        alert("رجاءً إدخال اسم الجامعة وإرفاق ملف توصيف المقررات");
         return;
     }
 
@@ -316,7 +359,24 @@ document.getElementById("submitBtn")
         });
     });
 
+    const submitBtn = document.getElementById("submitBtn");
+    const originalBtnText = submitBtn.textContent;
+
     try {
+        submitBtn.disabled = true;
+
+        let courseDescriptionUrl  = null;
+        let courseDescriptionName = null;
+
+        if (visitType === "external" && courseDescFile) {
+            submitBtn.textContent = "جاري رفع المرفق...";
+            const uploaded = await uploadCourseDescriptionFile(courseDescFile, user.uid);
+            courseDescriptionUrl  = uploaded.url;
+            courseDescriptionName = uploaded.fileName;
+        }
+
+        submitBtn.textContent = "جاري الإرسال...";
+
         const currentSemester = await getCurrentSemester();
 
         await addDoc(collection(db, "visitRequests"), {
@@ -327,7 +387,10 @@ document.getElementById("submitBtn")
             phone:        document.getElementById("phone").value,
             visitType,
             level,
-            visitPlace,
+            visitPlace:   visitType === "internal" ? visitPlace : null,
+            externalUniversity:    visitType === "external" ? externalUniversity : null,
+            courseDescriptionUrl,
+            courseDescriptionName,
             reason,
             courses,
             semester:  currentSemester?.semester || null,
@@ -340,7 +403,10 @@ document.getElementById("submitBtn")
         // إعادة ضبط النموذج
         document.getElementById("level").value      = "";
         document.getElementById("visitPlace").value = "";
-        document.getElementById("reason").value     = "";
+        document.getElementById("reason").value      = "";
+        if (document.getElementById("externalUniversity"))
+            document.getElementById("externalUniversity").value = "";
+        if (courseDescInput) courseDescInput.value = "";
         document.getElementById("coursesBody").innerHTML = "";
         const checked = document.querySelector('input[name="visitType"]:checked');
         if (checked) checked.checked = false;
@@ -355,5 +421,8 @@ document.getElementById("submitBtn")
     } catch (error) {
         console.error(error);
         alert("حدث خطأ أثناء الإرسال");
+    } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = originalBtnText;
     }
 });
