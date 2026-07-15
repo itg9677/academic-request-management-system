@@ -352,6 +352,7 @@ async function initSemesterData() {
     currentSemesterData = await getCurrentSemester(true);
     allSemestersCache   = await getAllSemesters();   // ← نحمل كل الفصول للـ infer
     await populateSemesterFilter();
+    populateComplaintsSemesterFilter();
   } catch (err) {
     console.error("initSemesterData error:", err);
   }
@@ -393,6 +394,7 @@ async function loadSemesterInfo() {
   currentSemesterData = await getCurrentSemester(true);
 
   await populateSemesterFilter();
+  populateComplaintsSemesterFilter();
 
   const allSemesters = await getAllSemesters();
   const now = new Date();
@@ -2273,8 +2275,31 @@ let cStatusFilter       = "all";
 let cSearchQuery        = "";
 let cTargetFilter       = "all";
 let cTypeFilter         = "all";
+let cSemesterFilter     = "all"; // "all" (الكل - افتراضي) | "current" | رقم فصل من الأرشيف
 let activeComplaint     = null;
 let unsubscribeComplaints = null;
+
+// يبني قائمة خيارات الفصل الدراسي لفلتر الشكاوى — "الكل" افتراضيًا لأن الشكاوى
+// لا تُخفى أو تُحذف حسب الفصل الدراسي أبدًا، هذا الفلتر اختياري بحت لتسهيل البحث.
+function buildComplaintsSemesterOptionsHtml() {
+  const options = [
+    `<option value="all">كل الفصول</option>`,
+    `<option value="current">الفصل الحالي${currentSemesterData?.name ? " - " + esc(currentSemesterData.name) : ""}</option>`
+  ];
+  allSemestersCache.forEach((s) => {
+    if (currentSemesterData && s.semester === currentSemesterData.semester) return;
+    options.push(`<option value="${esc(String(s.semester))}">${esc(s.name || s.semester)}</option>`);
+  });
+  return options.join("");
+}
+
+// يعيد بناء خيارات فلتر الفصل الدراسي في تبويب الشكاوى (تُستدعى عند تحديث بيانات الفصول)
+function populateComplaintsSemesterFilter() {
+  const sel = document.getElementById("cSemesterFilter");
+  if (!sel) return;
+  sel.innerHTML = buildComplaintsSemesterOptionsHtml();
+  sel.value = cSemesterFilter;
+}
 
 function getDeptLabel(complaint) {
   if (complaint.target === "college") return "الكلية";
@@ -2403,6 +2428,12 @@ function injectComplaintsSection() {
             <option value="اقتراح">اقتراح</option>
           </select>
         </div>
+        <div class="dept-filter-pill" id="cSemesterFilterWrap">
+          <i class="ti ti-calendar"></i>
+          <select id="cSemesterFilter">
+            ${buildComplaintsSemesterOptionsHtml()}
+          </select>
+        </div>
       </div>
 
       <div class="admin-table-wrap" id="cTableWrap">
@@ -2486,6 +2517,16 @@ function injectComplaintsSection() {
     renderComplaints();
   });
 
+  // فلتر الفصل الدراسي (اختياري بحت — لا يحذف ولا يخفي الشكاوى افتراضيًا)
+  const cSemSelect = section.querySelector("#cSemesterFilter");
+  if (cSemSelect) {
+    cSemSelect.value = cSemesterFilter;
+    cSemSelect.addEventListener("change", (e) => {
+      cSemesterFilter = e.target.value;
+      renderComplaints();
+    });
+  }
+
   // إغلاق اللوحة
   section.querySelector("#cSpClose").addEventListener("click", closeComplaintPanel);
   section.querySelector("#cSpOverlay").addEventListener("click", closeComplaintPanel);
@@ -2545,6 +2586,17 @@ function renderComplaints() {
 
   if (cTypeFilter !== "all") {
     filtered = filtered.filter((c) => (c.type || "شكوى") === cTypeFilter);
+  }
+
+  if (cSemesterFilter !== "all") {
+    filtered = filtered.filter((c) => {
+      const itemSem = getItemSemester(c);
+      // شكاوى قديمة بدون فصل معروف تبقى ظاهرة دائمًا بدل ما تختفي بالخطأ
+      if (itemSem == null) return true;
+      return cSemesterFilter === "current"
+        ? (!currentSemesterData || itemSem === currentSemesterData.semester)
+        : itemSem === cSemesterFilter || String(itemSem) === String(cSemesterFilter);
+    });
   }
 
   const q = cSearchQuery.trim().toLowerCase();
@@ -2612,14 +2664,14 @@ async function renderComplaintRows(filtered, tbody) {
 
     const student = studentInfos[i];
     const studentName = student?.fullName || c.studentEmail || "-";
-    const studentNum = student?.studentId || student?.universityId || "-";
+    const studentMajor = student?.major || "-";
 
     const tr = document.createElement("tr");
     tr.style.cursor = "pointer";
     tr.innerHTML = `
       <td>
         <div style="font-weight:600;">${esc(studentName)}</div>
-        <div style="font-size:12px;color:#64748b;">${esc(studentNum)}</div>
+        <div style="font-size:12px;color:#64748b;">${esc(studentMajor)}</div>
       </td>
       <td><i class="ti ${icon}" style="font-size:16px;color:var(--primary);"></i> ${esc(c.type || "-")}</td>
       <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(c.subject || "-")}</td>
@@ -3991,52 +4043,6 @@ async function cleanupDuplicateCourses() {
     // لا نعرض أي رسالة للأدمن؛ فشل التنظيف التلقائي لا يجب أن يوقف عملية الرفع نفسها
     console.error("خطأ أثناء التنظيف التلقائي لتكرارات المقررات:", err);
   }
-}
-
-// لوحة التحكم (navHome) قابلة للضغط - تعيد للتبويب الافتراضي
-const navHome = document.getElementById("navHome");
-if (navHome) {
-  navHome.style.cursor = "pointer";
-  navHome.addEventListener("click", () => {
-    // إخفاء قسم الشكاوى إن كان ظاهرًا
-    hideComplaintsSection();
-    // إخفاء الأقسام الأخرى
-    if (dashboardSection) dashboardSection.style.display = "none";
-    if (semesterSection)  semesterSection.style.display  = "none";
-
-    // إخفاء فلتر الأقسام للإحصائيات
-    const filterBar = document.getElementById("statsDeptFilterBar");
-    if (filterBar) filterBar.style.display = "none";
-
-    // إظهار الكاردز والجدول والبحث
-    if (statsGrid) statsGrid.style.display = "";
-    const searchRowEl = document.querySelector(".admin-search-row");
-    if (searchRowEl) searchRowEl.style.display = "";
-
-    // تفعيل تبويب الحذف والإضافة (الافتراضي)
-    currentTab = "addDrop";
-    document.querySelectorAll(".sb-nav-item").forEach((i) => i.classList.remove("active"));
-    navHome.classList.add("active");
-
-    const firstTab = document.querySelector(".admin-tab[data-tab='addDrop']");
-    if (firstTab) {
-      document.querySelectorAll(".admin-tab").forEach((t) => t.classList.remove("active"));
-      firstTab.classList.add("active");
-    }
-
-    // إخفاء زيارة upload area
-    const visitUploadAreaEl = document.getElementById("visitUploadArea");
-    if (visitUploadAreaEl) visitUploadAreaEl.style.display = "none";
-
-    // إعادة تعيين الفلاتر
-    currentStatusFilter = "all";
-    currentDeptFilter = "all";
-    document.querySelectorAll(".admin-stat-card").forEach((c) => c.classList.remove("active"));
-    const cardAll = document.getElementById("card-all");
-    if (cardAll) cardAll.classList.add("active");
-
-    renderTab();
-  });
 }
 
       // ملاحظة أمان: تم حذف المزامنة التلقائية التي كانت تكتب في adminUids هنا

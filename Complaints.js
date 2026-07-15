@@ -1,4 +1,5 @@
 import { auth, db, storage } from "./firebase.js";
+import { getCurrentSemester } from "./semester.js";
 import {
   collection,
   addDoc,
@@ -100,6 +101,15 @@ async function submitComplaint() {
   }
 
   try {
+    // معلومة الفصل الدراسي الحالي — لا تُستخدم أبدًا لحذف أو إخفاء الشكوى،
+    // فقط لتمكين الأدمن من فلترتها اختياريًا حسب الفصل عند الحاجة.
+    let currentSemester = null;
+    try {
+      currentSemester = await getCurrentSemester();
+    } catch (e) {
+      console.warn("تعذر جلب الفصل الحالي عند إرسال الشكوى:", e);
+    }
+
     // ── إنشاء وثيقة في Firestore (بدون مرفق أولاً) ──
     const payload = {
       type,              // "شكوى" | "اقتراح" | "استفسار"
@@ -116,6 +126,8 @@ async function submitComplaint() {
       studentUid: currentUser.uid,
       studentEmail: currentUser.email,
       attachmentUrl: null,
+      // الفصل الدراسي وقت الإرسال (للفلترة الاختيارية عند الأدمن فقط)
+      semester: currentSemester?.semester || null,
     };
 
     const docRef = await addDoc(collection(db, "complaints"), payload);

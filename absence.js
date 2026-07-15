@@ -103,18 +103,6 @@ function getTargetDepartment(examType, studentMajor) {
         : studentMajor || "").trim();
 }
 
-async function getTargetEmployeeIds(targetDept) {
-
-    const empQuery = query(
-        collection(db, "employees"),
-        where("department", "==", targetDept),
-        where("role", "==", "employee")
-    );
-
-    const snap = await getDocs(empQuery);
-    return snap.docs.map(d => d.id);
-}
-
 /* =========================
    إرسال الطلب
 ========================= */
@@ -157,14 +145,6 @@ if (!courseCode || !sectionNumber || !examDate || !examType || !reason) {
         // تحديد القسم المستهدف بناءً على نوع الاختبار
         const targetDept = getTargetDepartment(examType, studentData.major);
 
-        // تحديد الموظفين المستهدفين في ذلك القسم
-        const targetEmployeeIds = await getTargetEmployeeIds(targetDept);
-
-        if (targetEmployeeIds.length === 0) {
-            alert("لم يتم العثور على موظفين مختصين. تواصل مع الإدارة.");
-            return;
-        }
-
         // تحديد الفصل الدراسي الحالي
         const currentSemester = await getCurrentSemester();
 
@@ -183,7 +163,6 @@ if (!courseCode || !sectionNumber || !examDate || !examType || !reason) {
             attachmentUrl,
             attachmentName,
             assignedDepartment: targetDept,
-            assignedEmployees:  targetEmployeeIds,
             semester:           currentSemester?.semester || null,
             status:             "new",
             createdAt:          serverTimestamp(),

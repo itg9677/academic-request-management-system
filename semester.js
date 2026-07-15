@@ -12,6 +12,9 @@ import {
     setDoc,
     collection,
     getDocs,
+    query,
+    where,
+    writeBatch,
     serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
@@ -64,6 +67,13 @@ export async function activateSemester({ name, semester, startDate, endDate }) {
 
     // أرشفة الفصل الحالي قبل استبداله
     const current = await getCurrentSemester(true);
+
+    // هل هذا تفعيل لفصل جديد فعليًا (مختلف عن الفصل الحالي)، أم مجرد تحديث/تعديل
+    // لبيانات نفس الفصل الحالي (نفس رقم الفصل)؟ الحذف النهائي أدناه يجب أن يحصل
+    // فقط عند الانتقال الفعلي لفصل جديد، وليس عند مجرد تعديل تواريخ/اسم الفصل الحالي.
+    const outgoingSemester = current?.semester;
+    const isGenuinelyNewSemester = !current || String(current.semester) !== String(semester);
+
     if (current && current.semester) {
         await setDoc(doc(db, "semesters", String(current.semester)), {
             ...current,
@@ -83,5 +93,44 @@ export async function activateSemester({ name, semester, startDate, endDate }) {
     await setDoc(doc(db, "semesters", String(semester)), payload, { merge: true });
 
     cachedSemester = payload;
+
+    // =====================================================
+    // ✅ حذف نهائي لطلبات الحذف/الإضافة الخاصة بالفصل المنتهي
+    // =====================================================
+    // بمجرد ما الأدمن يفعّل فصل جديد فعليًا، تُحذف نهائيًا من عند الطالبة كل
+    // مستندات "requests" (الحذف والإضافة) المرتبطة بالفصل اللي انتهى.
+    // ملاحظة: الأعذار (excuses) وطلبات الزيارة (visitRequests) لا تُحذف —
+    // تبقى بسجل الطالبة كما هي. والشكاوى (complaints) لا تُحذف أبدًا بغض النظر
+    // عن الفصل الدراسي.
+    if (isGenuinelyNewSemester && outgoingSemester != null) {
+        await deleteAddDropRequestsForSemester(outgoingSemester);
+    }
+
     return payload;
+}
+
+/**
+ * يحذف نهائيًا كل مستندات "requests" (طلبات الحذف/الإضافة فقط) المرتبطة
+ * برقم فصل دراسي معيّن. تُستدعى تلقائيًا من activateSemester عند تفعيل فصل جديد.
+ * الحذف مسموح للأدمن فقط حسب قواعد أمان Firestore (isAdmin() على مجموعة requests).
+ */
+async function deleteAddDropRequestsForSemester(semesterValue) {
+    try {
+        const q = query(collection(db, "requests"), where("semester", "==", semesterValue));
+        const snap = await getDocs(q);
+
+        if (snap.empty) return;
+
+        // الحذف على دفعات (حد Firestore الأقصى 500 عملية بالدفعة الواحدة)
+        const docs = snap.docs;
+        for (let i = 0; i < docs.length; i += 450) {
+            const batch = writeBatch(db);
+            docs.slice(i, i + 450).forEach((d) => batch.delete(d.ref));
+            await batch.commit();
+        }
+
+        console.log(`تم حذف ${docs.length} من طلبات الحذف/الإضافة نهائيًا (الفصل: ${semesterValue})`);
+    } catch (error) {
+        console.error("خطأ أثناء حذف طلبات الحذف/الإضافة للفصل المنتهي:", error);
+    }
 }
