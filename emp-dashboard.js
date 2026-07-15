@@ -632,10 +632,25 @@ function buildDetailRows(tab, item) {
     `;
   }
 
+  const isExternalVisit = item.visitType === "external";
+
+  const placeOrUniversityRow = isExternalVisit
+    ? `<tr><td class="sp-detail-label">الجامعة المراد زيارتها</td><td>${esc(item.externalUniversity || "-")}</td></tr>`
+    : `<tr><td class="sp-detail-label">المقر المراد زيارته</td><td>${esc(item.visitPlace || "-")}</td></tr>`;
+
+  const courseDescRow = isExternalVisit
+    ? `<tr><td class="sp-detail-label">مرفق توصيف المقررات</td><td>${
+        item.courseDescriptionUrl
+          ? `<a href="${esc(item.courseDescriptionUrl)}" target="_blank" rel="noopener">${esc(item.courseDescriptionName || "تحميل المرفق")}</a>`
+          : "لا يوجد"
+      }</td></tr>`
+    : "";
+
   return `
     <tr><td class="sp-detail-label">نوع الزيارة</td><td>${visitTypeLabel[item.visitType] || item.visitType || "-"}</td></tr>
     <tr><td class="sp-detail-label">المستوى الدراسي</td><td>${levelLabel[item.level] || esc(item.level || "-")}</td></tr>
-    <tr><td class="sp-detail-label">المقر المراد زيارته</td><td>${esc(item.visitPlace || "-")}</td></tr>
+    ${placeOrUniversityRow}
+    ${courseDescRow}
     <tr><td class="sp-detail-label">سبب الزيارة</td><td>${esc(item.reason || "-")}</td></tr>
     <tr><td class="sp-detail-label">المقررات</td><td>${courses}</td></tr>
     <tr><td class="sp-detail-label">تاريخ الطلب</td><td>${formatDate(item.createdAt)}</td></tr>
@@ -1146,13 +1161,18 @@ function printActiveStudent() {
       </tr>`;
     }).join("");
   } else {
-    headerCols = "<th>نوع الزيارة</th><th>المستوى</th><th>المقر</th><th>السبب</th><th>المقررات</th><th>الحالة</th><th>الموظف</th><th>التاريخ</th>";
+    headerCols = "<th>نوع الزيارة</th><th>المستوى</th><th>المقر/الجامعة</th><th>مرفق التوصيف</th><th>السبب</th><th>المقررات</th><th>الحالة</th><th>الموظف</th><th>التاريخ</th>";
     rows = items.map(r => {
       const en = r.assignedEmployeeName || (r.assignedEmployee ? (employeesCache[r.assignedEmployee] || "-") : "-");
+      const placeOrUniversity = r.visitType === "external" ? (r.externalUniversity || "-") : (r.visitPlace || "-");
+      const attachCell = r.visitType === "external"
+        ? (r.courseDescriptionUrl ? `<a href="${esc(r.courseDescriptionUrl)}" target="_blank" rel="noopener">تحميل</a>` : "لا يوجد")
+        : "-";
       return `<tr>
         <td>${visitTypeLabel[r.visitType] || r.visitType || "-"}</td>
         <td>${levelLabel[r.level] || esc(r.level || "-")}</td>
-        <td>${esc(r.visitPlace || "-")}</td>
+        <td>${esc(placeOrUniversity)}</td>
+        <td>${attachCell}</td>
         <td>${esc(r.reason || "-")}</td>
         <td>${(r.courses || []).map(c => `${esc(c.courseName || "-")} (${esc(c.courseCode || "-")}) - ${esc(c.section || "-")}`).join("<br>") || "-"}</td>
         <td>${statusLabel[getEffectiveStatus(r)] || getEffectiveStatus(r)}</td>
