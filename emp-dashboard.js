@@ -420,7 +420,23 @@ statsItems = [...filtered];
   }
 
 updateStatCards(statsItems);
+if (tab === "addDrop" && isAffairs) {
+  const grouped = {};
 
+  filtered.forEach(it => {
+    const uid = it[cfg.studentField];
+    if (!uid) return;
+
+    if (!grouped[uid]) grouped[uid] = [];
+    grouped[uid].push(it);
+  });
+
+  filtered = Object.values(grouped)
+    .filter(list =>
+      list.some(r => r.assignedDepartment?.trim() === "شؤون الطالبات")
+    )
+    .flat();
+}
   const byStudent = {};
   filtered.forEach(it => {
     const uid = it[cfg.studentField];
@@ -484,6 +500,16 @@ updateStatCards(statsItems);
 
 function buildRow(tab, studentUid, requests) {
   const student = studentsCache[studentUid] || {};
+  // شؤون الطالبات ترى فقط الطلبات التابعة لها
+if (tab === "addDrop" && isAffairs) {
+  requests = requests.filter(
+    r => r.assignedDepartment?.trim() === "شؤون الطالبات"
+  );
+
+  if (requests.length === 0) {
+    return document.createDocumentFragment();
+  }
+}
   const tr      = document.createElement("tr");
   tr.dataset.tab = tab;
   tr.dataset.uid = studentUid;
@@ -682,7 +708,10 @@ function buildOtherRequestsTable(tab, item) {
   // تقسيم الطلبات: مواد تخصص vs مواد حرة/مشتركة
   const specRequests  = others.filter(o => o.assignedDepartment?.trim() !== "شؤون الطالبات");
   const sharedRequests = others.filter(o => o.assignedDepartment?.trim() === "شؤون الطالبات");
-
+// إذا كانت موظفة شؤون الطالبات ولا توجد أي مادة تابعة للشؤون، فلا نعرض الطالبة إطلاقاً
+if (isAffairs && sharedRequests.length === 0) {
+    return document.createDocumentFragment();
+}
   // اسم القسم للعرض في الـ header
   const deptName    = currentEmployee?.department || "القسم";
   const affairsName = "شؤون الطالبات";
