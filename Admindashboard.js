@@ -14,6 +14,9 @@ import { initializeApp, deleteApp } from "https://www.gstatic.com/firebasejs/10.
 import { getAuth, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
 
+// استيراد وحدة متابعة الحضور
+import { openAttendanceAdmin, closeAttendanceAdmin, isAttendanceAdminOpen, bindAttendanceAdminEvents } from "./attendanceAdmin.js";
+
 console.log("FILE LOADED");
 
 // ==================== State ====================
@@ -2924,10 +2927,11 @@ function hideComplaintsSection() {
   const cs = document.getElementById("complaintsSection");
   if (cs) cs.style.display = "none";
 
-  // إعادة إظهار عناصر الجدول العام التي أخفتها showComplaintsSection()
-  // (لو ما رجعناها هنا، تبقى مخفية للأبد بعد أول زيارة لتبويب الشكاوى)
+  // لا نُعيد إظهار العناصر إذا كان تبويب الحضور مفتوحًا الآن
+  if (isAttendanceAdminOpen()) return;
+
   document.querySelectorAll(".admin-table-card").forEach((el) => {
-    if (!el.closest("#complaintsSection")) el.style.display = "";
+    if (!el.closest("#complaintsSection") && !el.closest("#attendanceSectionAdmin")) el.style.display = "";
   });
   document.querySelectorAll(".admin-stats-grid").forEach((el) => {
     if (!el.closest("#complaintsSection")) el.style.display = "";
@@ -2944,6 +2948,9 @@ document.querySelectorAll(".admin-tab").forEach((btn) => {
     btn.classList.add("active");
     document.querySelectorAll(".sb-nav-item").forEach((i) => i.classList.remove("active"));
     btn.classList.add("active");
+
+    // إغلاق تبويب الحضور عند فتح أي تبويب آخر
+    closeAttendanceAdmin();
 
     // تبويب الشكاوى له قسمه المستقل الخاص، لا يمر بمنطق الجدول العام
     if (currentTab === "complaints") {
@@ -3259,6 +3266,7 @@ function getEmpName(uid) {
 
 // إظهار الإحصائيات
 navStats.addEventListener("click", () => {
+  closeAttendanceAdmin();
   hideComplaintsSection();
   dashboardSection.style.display = "";
   statsGrid.style.display = "none";   // إخفاء فلاتر الحالة
@@ -3284,6 +3292,7 @@ navStats.addEventListener("click", () => {
 // إظهار قسم إدارة الفصل الدراسي
 if (navSemester) {
   navSemester.addEventListener("click", async () => {
+    closeAttendanceAdmin();
     hideComplaintsSection();
     dashboardSection.style.display = "none";
     statsGrid.style.display = "none";   // إخفاء فلاتر الحالة
@@ -3301,6 +3310,37 @@ if (navSemester) {
 
     setActiveSidebarItem("navSemester");
     await loadSemesterInfo();
+  });
+}
+
+// ====== متابعة الحضور ======
+const navAttendanceAdmin = document.getElementById("navAttendanceAdmin");
+if (navAttendanceAdmin) {
+  navAttendanceAdmin.addEventListener("click", () => {
+    hideComplaintsSection();
+
+    // إخفاء كل الأقسام الأخرى
+    dashboardSection.style.display = "none";
+    statsGrid.style.display = "none";
+    if (semesterSection) semesterSection.style.display = "none";
+
+    const searchRowEl = document.querySelector(".admin-search-row");
+    if (searchRowEl) searchRowEl.style.display = "none";
+    const tableWrapEl2 = document.getElementById("tableWrap");
+    if (tableWrapEl2) tableWrapEl2.style.display = "none";
+    const loadingEl2 = document.getElementById("loadingState");
+    if (loadingEl2) loadingEl2.style.display = "none";
+    const visitUploadAreaEl = document.getElementById("visitUploadArea");
+    if (visitUploadAreaEl) visitUploadAreaEl.style.display = "none";
+
+    // إظهار قسم الحضور
+    const attSection = document.getElementById("attendanceSectionAdmin");
+    if (attSection) attSection.style.display = "";
+
+    setActiveSidebarItem("navAttendanceAdmin");
+    document.getElementById("tableTitle").textContent = "متابعة الحضور";
+
+    openAttendanceAdmin();
   });
 }
 
@@ -4044,6 +4084,7 @@ async function cleanupDuplicateCourses() {
       // تفعيل قسم الشكاوى والاقتراحات (يبني عناصره ويشترك بالتحديث اللحظي)
       injectComplaintsSection();
       subscribeComplaints();
+      bindAttendanceAdminEvents();
 
     } catch (err) {
       console.error("Auth error:", err);

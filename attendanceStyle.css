@@ -1,0 +1,499 @@
+/* ============================================
+   attendanceStyle.css — متابعة الحضور
+   ============================================ */
+
+/* ===== قسم الحضور العام ===== */
+.attendance-section {
+  display: none;
+  padding: 8px 0 24px;
+}
+
+.attendance-header {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.attendance-header h2 {
+  font-size: 26px;
+  font-weight: 700;
+  color: #1a3a6b;
+  margin: 0 0 6px;
+}
+
+.attendance-header .att-date {
+  font-size: 15px;
+  color: #64748b;
+  margin-top: 4px;
+}
+
+/* ===== أزرار التحضير ===== */
+.att-actions {
+  display: flex;
+  gap: 14px;
+  justify-content: center;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+.att-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 32px;
+  border: none;
+  border-radius: 12px;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.12s, box-shadow 0.15s;
+}
+
+.att-btn:hover  { box-shadow: 0 4px 14px rgba(0,0,0,0.12); }
+.att-btn:active { transform: scale(0.97); }
+
+.att-btn-all-present {
+  background: #1a7a4a;
+  color: #fff;
+}
+
+.att-btn-all-present.done {
+  background: #eafaf2;
+  color: #1a7a4a;
+  border: 2px solid #1a7a4a;
+}
+
+.att-btn-except {
+  background: #c8972b;
+  color: #1e2d50;
+}
+
+.att-btn-except.done {
+  background: #fef9ef;
+  color: #c8972b;
+  border: 2px solid #c8972b;
+}
+
+.att-btn i { font-size: 18px; }
+
+/* ===== حالة التحضير ===== */
+.att-status {
+  text-align: center;
+  padding: 16px;
+  border-radius: 10px;
+  margin-bottom: 20px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.att-status-saved {
+  background: #eafaf2;
+  color: #1a7a4a;
+  border: 1px solid #b9ebd4;
+}
+
+.att-status-pending {
+  background: #fef9ef;
+  color: #c8972b;
+  border: 1px solid #f5e6c8;
+}
+
+/* ===== جدلت المتغيبين (موظف) ===== */
+.att-absent-section {
+  display: none;
+  margin-bottom: 20px;
+}
+
+.att-absent-section h3 {
+  font-size: 16px;
+  color: #1a3a6b;
+  margin: 0 0 12px;
+}
+
+.att-absent-form {
+  display: grid;
+  grid-template-columns: 2fr 1.5fr 1.5fr 1fr auto;
+  gap: 10px;
+  align-items: end;
+  margin-bottom: 14px;
+}
+
+.att-absent-form .att-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.att-absent-form label {
+  font-size: 12px;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.att-absent-form input {
+  padding: 8px 12px;
+  border: 1px solid #d1d9e6;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 13px;
+}
+
+.att-absent-form input:focus {
+  outline: none;
+  border-color: #1a3a6b;
+}
+
+.att-add-absent-btn {
+  padding: 8px 16px;
+  background: #1a3a6b;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s;
+}
+
+.att-add-absent-btn:hover { background: #152d4f; }
+
+/* ===== جدول المتغيبين ===== */
+.att-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.att-table th {
+  background: #f1f5f9;
+  color: #1a3a6b;
+  padding: 10px 12px;
+  text-align: right;
+  font-weight: 600;
+  border-bottom: 2px solid #e2e8f0;
+}
+
+.att-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid #f1f5f9;
+  color: #334155;
+}
+
+.att-table tr:hover td { background: #f8fafc; }
+
+.att-remove-btn {
+  background: none;
+  border: none;
+  color: #c0392b;
+  cursor: pointer;
+  font-size: 16px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: background 0.15s;
+}
+
+.att-remove-btn:hover { background: #fef0f0; }
+
+/* ===== أدمن: فلترة + نطاق ===== */
+.att-admin-controls {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+
+.att-mode-toggle {
+  display: flex;
+  gap: 0;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1.5px solid #d1d9e6;
+}
+
+.att-mode-btn {
+  padding: 9px 20px;
+  background: #fff;
+  border: none;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.att-mode-btn.active {
+  background: #1a3a6b;
+  color: #fff;
+}
+
+.att-dept-filter {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.att-dept-filter select {
+  padding: 8px 14px;
+  border: 1.5px solid #d1d9e6;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 13px;
+  color: #1a3a6b;
+  cursor: pointer;
+}
+
+.att-date-range {
+  display: none;
+  align-items: center;
+  gap: 8px;
+}
+
+.att-date-range label {
+  font-size: 13px;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.att-date-range input[type="date"] {
+  padding: 7px 10px;
+  border: 1.5px solid #d1d9e6;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 13px;
+}
+
+.att-print-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 20px;
+  background: #1a3a6b;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+  margin-right: auto;
+}
+
+.att-print-btn:hover { background: #152d4f; }
+
+/* ===== أدمن: إعطاء صلاحية التحضير ===== */
+.att-permission-card {
+  background: #fff;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 24px;
+}
+
+.att-permission-card h3 {
+  font-size: 16px;
+  color: #1a3a6b;
+  margin: 0 0 14px;
+}
+
+.att-permission-form {
+  display: flex;
+  gap: 10px;
+  align-items: end;
+  flex-wrap: wrap;
+}
+
+.att-permission-form .att-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.att-permission-form label {
+  font-size: 12px;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.att-permission-form input,
+.att-permission-form select {
+  padding: 8px 12px;
+  border: 1px solid #d1d9e6;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 13px;
+}
+
+.att-permission-form button {
+  padding: 8px 18px;
+  background: #c8972b;
+  color: #1e2d50;
+  border: none;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* قائمة الموظفين المخوّلين */
+.att-permission-list {
+  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.att-permission-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: #f8fafc;
+  border-radius: 8px;
+  border: 1px solid #f1f5f9;
+}
+
+.att-permission-item .att-perm-info {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.att-permission-item .att-perm-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1a3a6b;
+}
+
+.att-permission-item .att-perm-dept {
+  font-size: 12px;
+  color: #64748b;
+  background: #e8edf5;
+  padding: 2px 10px;
+  border-radius: 12px;
+}
+
+.att-permission-item .att-revoke-btn {
+  background: none;
+  border: 1px solid #f0d0d0;
+  color: #c0392b;
+  padding: 4px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s;
+}
+
+.att-permission-item .att-revoke-btn:hover {
+  background: #fef0f0;
+}
+
+/* ===== رسالة فارغة ===== */
+.att-empty {
+  text-align: center;
+  padding: 40px 20px;
+  color: #94a3b8;
+  font-size: 14px;
+}
+
+/* ===== منطقة الطباعة ===== */
+.att-print-area {
+  display: none;
+}
+
+@media print {
+  body * { visibility: hidden; }
+  .att-print-area { display: block !important; visibility: visible; }
+  .att-print-area * { visibility: visible; }
+}
+
+/* تنسيق طباعة رسمي */
+.att-print-doc {
+  direction: rtl;
+  font-family: 'Tajawal', sans-serif;
+  padding: 40px;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.att-print-doc .att-print-logo {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.att-print-doc .att-print-logo img {
+  height: 100px;
+}
+
+.att-print-doc .att-print-title {
+  text-align: center;
+  font-size: 20px;
+  font-weight: 700;
+  color: #1a3a6b;
+  margin-bottom: 8px;
+}
+
+.att-print-doc .att-print-subtitle {
+  text-align: center;
+  font-size: 15px;
+  color: #64748b;
+  margin-bottom: 24px;
+}
+
+.att-print-doc .att-print-meta {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  font-size: 13px;
+  color: #475569;
+  border-bottom: 1px solid #e2e8f0;
+  padding-bottom: 12px;
+}
+
+.att-print-doc table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.att-print-doc th {
+  background: #1a3a6b;
+  color: #fff;
+  padding: 10px;
+  text-align: right;
+}
+
+.att-print-doc td {
+  padding: 8px 10px;
+  border: 1px solid #e2e8f0;
+}
+
+.att-print-doc .att-print-footer {
+  margin-top: 30px;
+  text-align: center;
+  font-size: 13px;
+  color: #64748b;
+  border-top: 1px solid #e2e8f0;
+  padding-top: 16px;
+}
+
+/* ===== Responsive ===== */
+@media (max-width: 768px) {
+  .att-absent-form {
+    grid-template-columns: 1fr;
+  }
+  .att-admin-controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .att-permission-form {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}

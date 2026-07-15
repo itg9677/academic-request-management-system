@@ -6,6 +6,7 @@ import {
   updateDoc, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { initAttendanceEmp, openAttendanceTab, bindAttendanceEvents } from "./attendanceEmp.js";
 
 let currentEmployee = null;
 let isAffairs = false;
@@ -1242,6 +1243,10 @@ function printActiveStudent() {
 // تبديل التابات (السايدبار)
 document.querySelectorAll(".emp-tab-btn").forEach(btn => {
   btn.addEventListener("click", () => {
+    // إخفاء قسم الحضور عند فتح أي تبويب آخر
+    const attSection = document.getElementById("attendanceSectionEmp");
+    if (attSection) attSection.style.display = "none";
+
     currentTab = btn.dataset.tab;
     document.querySelectorAll(".emp-tab-btn").forEach(t => t.classList.remove("active"));
     btn.classList.add("active");
@@ -1430,6 +1435,47 @@ if (!isAffairs && visitTabBtn) {
   if (currentTab === "visit") {
     currentTab = "addDrop";
   }
+}
+
+// ====== فحص صلاحية متابعة الحضور ======
+try {
+  const permSnap = await getDoc(doc(db, "attendancePermissions", user.uid));
+  if (permSnap.exists()) {
+    // الموظف لديه صلاحية — أظهر التبويب وفعّل الأحداث
+    const attNav = document.getElementById("navAttendanceEmp");
+    if (attNav) {
+      attNav.style.display = "";
+      attNav.addEventListener("click", () => {
+        // إخفاء كل التبويبات الأخرى
+        document.querySelectorAll(".emp-tab-btn").forEach(t => t.classList.remove("active"));
+        attNav.classList.add("active");
+
+        // إخفاء منطقة الجدول والبحث
+        const tableWrap = document.getElementById("tableWrap");
+        if (tableWrap) tableWrap.style.display = "none";
+        const searchRow = document.querySelector(".admin-search-row");
+        if (searchRow) searchRow.style.display = "none";
+        const loadingState = document.getElementById("loadingState");
+        if (loadingState) loadingState.style.display = "none";
+        document.querySelectorAll(".admin-stats-grid").forEach(el => el.style.display = "none");
+
+        // إظهار قسم الحضور
+        const attSection = document.getElementById("attendanceSectionEmp");
+        if (attSection) attSection.style.display = "block";
+
+        const pageTitleEl = document.getElementById("pageTitle");
+        if (pageTitleEl) pageTitleEl.textContent = "متابعة الحضور";
+
+        openAttendanceTab();
+      });
+    }
+
+    // تهيئة بيانات الحضور + ربط الأحداث
+    await initAttendanceEmp(user.uid, { fullName: empData.fullName, department: permSnap.data().trackingDepartment });
+    bindAttendanceEvents();
+  }
+} catch (permErr) {
+  console.error("خطأ فحص صلاحية الحضور:", permErr);
 }
 
       employeesCache[user.uid] = empData.fullName || "-";

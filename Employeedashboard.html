@@ -12,6 +12,7 @@
   <link rel="stylesheet" href="adminStyle.css" />
   <link rel="stylesheet" href="sidebarStyle.css" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tabler-icons/3.35.0/tabler-icons.min.css" />
+  <link rel="stylesheet" href="attendanceStyle.css" />
   <style>
     * { font-family: 'Tajawal', sans-serif !important; }
     .excuse-export-wrap {
@@ -112,6 +113,12 @@
         <span class="sb-badge emp-tab-badge" id="badge-visit">0</span>
       </div>
       <!-- تبويب الشكاوى والاقتراحات يُضاف تلقائياً من complaintsEmp.js -->
+
+      <!-- تبويب متابعة الحضور — يظهر فقط للموظفين المخوّلين -->
+      <div class="sb-nav-item emp-tab-btn" data-tab="attendance" id="navAttendanceEmp" style="display:none;">
+        <i class="ti ti-clipboard-check"></i>
+        <span>متابعة الحضور</span>
+      </div>
     </nav>
 
     <div class="sb-user">
@@ -257,6 +264,70 @@
 
       </div>
 
+
+      <!-- ==================== متابعة الحضور ==================== -->
+      <section class="attendance-section" id="attendanceSectionEmp" style="display:none;">
+        <div class="attendance-header">
+          <h2>متابعة حضور أعضاء هيئة التدريس</h2>
+          <div class="att-date" id="attEmpDate"></div>
+          <div style="font-size:14px;color:#64748b;margin-top:4px;">القسم: <span id="attEmpDept"></span></div>
+        </div>
+
+        <div class="att-status att-status-pending" id="attEmpStatus">لم يتم تسجيل التحضير بعد</div>
+
+        <div class="att-actions">
+          <button class="att-btn att-btn-all-present" id="attBtnAllPresent">
+            <i class="ti ti-checks"></i> الكل حاضر
+          </button>
+          <button class="att-btn att-btn-except" id="attBtnExcept">
+            <i class="ti ti-user-minus"></i> الكل حاضر ما عدا
+          </button>
+        </div>
+
+        <div class="att-absent-section" id="attAbsentSection" style="display:none;">
+          <h3>إضافة متغيب</h3>
+          <div class="att-absent-form">
+            <div class="att-field">
+              <label>اسم العضو</label>
+              <input type="text" id="attAbsName" placeholder="الاسم الكامل" />
+            </div>
+            <div class="att-field">
+              <label>الرقم الوظيفي</label>
+              <input type="text" id="attAbsEmpNum" placeholder="الرقم الوظيفي" />
+            </div>
+            <div class="att-field">
+              <label>المقرر</label>
+              <input type="text" id="attAbsCourse" placeholder="اسم المقرر" />
+            </div>
+            <div class="att-field">
+              <label>الشعبة</label>
+              <input type="text" id="attAbsSection" placeholder="رقم الشعبة" />
+            </div>
+            <button class="att-add-absent-btn" id="attAddAbsentBtn">
+              <i class="ti ti-plus"></i> إضافة
+            </button>
+          </div>
+
+          <table class="att-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>الاسم</th>
+                <th>الرقم الوظيفي</th>
+                <th>المقرر</th>
+                <th>الشعبة</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="attAbsentTbody"></tbody>
+          </table>
+
+          <button class="att-btn att-btn-all-present" id="attSaveAbsentBtn" style="margin-top:14px;">
+            <i class="ti ti-device-floppy"></i> حفظ التحضير
+          </button>
+        </div>
+      </section>
+
     </main>
   </div>
 
@@ -283,6 +354,7 @@
   <div id="printArea" class="emp-print-area"></div>
 
   <script type="module" src="emp-dashboard.js"></script>
+  <script type="module" src="attendanceEmp.js"></script>
   <script type="module" src="complaintsEmp.js"></script>
 </body>
 </html>
