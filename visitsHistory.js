@@ -67,12 +67,15 @@ onAuthStateChanged(auth, async (user) => {
     let count = 1;
     visits.forEach((item) => {
       const { text: statusText, cls: statusClass } = getStatusInfo(item.status);
+      const destination = item.visitType === "external"
+        ? (item.externalUniversity || "-")
+        : (item.visitPlace || "-");
 
       visitsTableBody.innerHTML += `
         <tr>
           <td>${count++}</td>
           <td>${getVisitTypeText(item.visitType)}</td>
-          <td>${item.visitPlace || "-"}</td>
+          <td>${destination}</td>
           <td><span class="status ${statusClass}">${statusText}</span></td>
         </tr>
       `;

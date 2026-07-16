@@ -12,6 +12,7 @@
   <link rel="stylesheet" href="adminStyle.css" />
   <link rel="stylesheet" href="sidebarStyle.css" />
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tabler-icons/3.35.0/tabler-icons.min.css" />
+  <link rel="stylesheet" href="attendanceStyle.css" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>* { font-family: 'Tajawal', sans-serif !important; }</style>
 
@@ -32,11 +33,6 @@
     </div>
 
     <nav class="sb-nav">
-      <div class="sb-nav-item" id="navHome">
-        <i class="ti ti-layout-dashboard"></i>
-        <span>لوحة التحكم</span>
-      </div>
-
       <div class="sb-nav-item" id="navStats" style="cursor:pointer;">
   <i class="ti ti-chart-bar"></i>
   <span>الإحصائيات</span>
@@ -66,6 +62,12 @@
         <i class="ti ti-message-report"></i>
         <span>الشكاوى والاقتراحات</span>
         <span class="sb-badge admin-tab-badge" id="badge-complaints">0</span>
+      </div>
+
+      <!-- تبويب متابعة الحضور -->
+      <div class="sb-nav-item" id="navAttendanceAdmin" style="cursor:pointer;">
+        <i class="ti ti-clipboard-check"></i>
+        <span>متابعة الحضور</span>
       </div>
     </nav>
 
@@ -483,6 +485,95 @@
         </div>
       </div>
 
+
+      <!-- ==================== متابعة الحضور ==================== -->
+      <section class="attendance-section" id="attendanceSectionAdmin">
+        <div class="attendance-header">
+          <h2>متابعة حضور أعضاء هيئة التدريس</h2>
+        </div>
+
+        <!-- أزرار: اليوم / نطاق + فلترة + طباعة -->
+        <div class="att-admin-controls">
+          <div class="att-mode-toggle">
+            <button class="att-mode-btn active" data-mode="today">حضور اليوم</button>
+            <button class="att-mode-btn" data-mode="range">تحديد نطاق</button>
+          </div>
+
+          <div class="att-dept-filter">
+            <select id="attAdminDeptFilter">
+              <option value="all">جميع الأقسام</option>
+              <option value="كيمياء">كيمياء</option>
+              <option value="فيزياء">فيزياء</option>
+              <option value="أحياء">أحياء</option>
+              <option value="رياضيات">رياضيات</option>
+              <option value="إحصاء">إحصاء</option>
+              <option value="أعضاء خارجيين">أعضاء خارجيين</option>
+            </select>
+          </div>
+
+          <div class="att-date-range" id="attDateRange">
+            <label>من</label>
+            <input type="date" id="attRangeFrom" />
+            <label>إلى</label>
+            <input type="date" id="attRangeTo" />
+            <button class="att-print-btn" id="attApplyRange" style="background:#c8972b;">
+              <i class="ti ti-check"></i> تطبيق
+            </button>
+          </div>
+
+          <button class="att-print-btn" id="attPrintBtn">
+            <i class="ti ti-printer"></i> طباعة التقرير
+          </button>
+        </div>
+
+        <!-- جدول المتغيبين -->
+        <div class="admin-table-card">
+          <table class="att-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>التاريخ</th>
+                <th>القسم</th>
+                <th>اسم العضو</th>
+                <th>الرقم الوظيفي</th>
+                <th>المقرر — الشعبة</th>
+              </tr>
+            </thead>
+            <tbody id="attAdminTbody"></tbody>
+          </table>
+        </div>
+
+        <!-- إعطاء صلاحية التحضير -->
+        <div class="att-permission-card" style="margin-top:24px;">
+          <h3>إعطاء صلاحية التحضير لموظف</h3>
+          <div class="att-permission-form">
+            <div class="att-field">
+              <label>الرقم الوظيفي</label>
+              <input type="text" id="attPermEmpNum" placeholder="أدخل الرقم الوظيفي" />
+            </div>
+            <div class="att-field">
+              <label>القسم المتابَع</label>
+              <select id="attPermDept">
+                <option value="">اختر القسم</option>
+                <option value="كيمياء">كيمياء</option>
+                <option value="فيزياء">فيزياء</option>
+                <option value="أحياء">أحياء</option>
+                <option value="رياضيات">رياضيات</option>
+                <option value="إحصاء">إحصاء</option>
+                <option value="أعضاء خارجيين">أعضاء خارجيين</option>
+              </select>
+            </div>
+            <button id="attGrantPermBtn">
+              <i class="ti ti-user-plus"></i> منح الصلاحية
+            </button>
+          </div>
+          <div class="att-permission-list" id="attPermissionList"></div>
+        </div>
+      </section>
+
+      <!-- منطقة الطباعة -->
+      <div class="att-print-area" id="attPrintArea"></div>
+
     </main>
   </div>
 
@@ -669,6 +760,7 @@
     .ta-input:focus { outline: none; border-color: #1a3a6b; }
   </style>
 
+  <script type="module" src="attendanceAdmin.js"></script>
   <script type="module" src="Admindashboard.js"></script>
 </body>
 </html>

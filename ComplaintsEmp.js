@@ -311,14 +311,14 @@ async function renderComplaints() {
       : "-";
     const student = studentInfos[i];
     const studentName = student?.fullName || c.studentEmail || "-";
-    const studentNum  = student?.studentId || student?.universityId || "-";
+    const studentMajor = student?.major || "-";
 
     const tr = document.createElement("tr");
     tr.style.cursor = "pointer";
     tr.innerHTML = `
       <td>
         <div style="font-weight:600;">${esc(studentName)}</div>
-        <div style="font-size:12px;color:#64748b;">${esc(studentNum)}</div>
+        <div style="font-size:12px;color:#64748b;">${esc(studentMajor)}</div>
       </td>
       <td><i class="ti ${icon}" style="font-size:16px;color:var(--primary);"></i> ${esc(c.type || "-")}</td>
       <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(c.subject || "-")}</td>

@@ -6,6 +6,7 @@ import {
   updateDoc, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import { onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { initAttendanceEmp, openAttendanceTab, bindAttendanceEvents } from "./attendanceEmp.js";
 
 let currentEmployee = null;
 let isAffairs = false;
@@ -420,7 +421,23 @@ statsItems = [...filtered];
   }
 
 updateStatCards(statsItems);
+if (tab === "addDrop" && isAffairs) {
+  const grouped = {};
 
+  filtered.forEach(it => {
+    const uid = it[cfg.studentField];
+    if (!uid) return;
+
+    if (!grouped[uid]) grouped[uid] = [];
+    grouped[uid].push(it);
+  });
+
+  filtered = Object.values(grouped)
+    .filter(list =>
+      list.some(r => r.assignedDepartment?.trim() === "شؤون الطالبات")
+    )
+    .flat();
+}
   const byStudent = {};
   filtered.forEach(it => {
     const uid = it[cfg.studentField];
@@ -484,6 +501,16 @@ updateStatCards(statsItems);
 
 function buildRow(tab, studentUid, requests) {
   const student = studentsCache[studentUid] || {};
+  // شؤون الطالبات ترى فقط الطلبات التابعة لها
+if (tab === "addDrop" && isAffairs) {
+  requests = requests.filter(
+    r => r.assignedDepartment?.trim() === "شؤون الطالبات"
+  );
+
+  if (requests.length === 0) {
+    return document.createDocumentFragment();
+  }
+}
   const tr      = document.createElement("tr");
   tr.dataset.tab = tab;
   tr.dataset.uid = studentUid;
@@ -606,10 +633,25 @@ function buildDetailRows(tab, item) {
     `;
   }
 
+  const isExternalVisit = item.visitType === "external";
+
+  const placeOrUniversityRow = isExternalVisit
+    ? `<tr><td class="sp-detail-label">الجامعة المراد زيارتها</td><td>${esc(item.externalUniversity || "-")}</td></tr>`
+    : `<tr><td class="sp-detail-label">المقر المراد زيارته</td><td>${esc(item.visitPlace || "-")}</td></tr>`;
+
+  const courseDescRow = isExternalVisit
+    ? `<tr><td class="sp-detail-label">مرفق توصيف المقررات</td><td>${
+        item.courseDescriptionUrl
+          ? `<a href="${esc(item.courseDescriptionUrl)}" target="_blank" rel="noopener">${esc(item.courseDescriptionName || "تحميل المرفق")}</a>`
+          : "لا يوجد"
+      }</td></tr>`
+    : "";
+
   return `
     <tr><td class="sp-detail-label">نوع الزيارة</td><td>${visitTypeLabel[item.visitType] || item.visitType || "-"}</td></tr>
     <tr><td class="sp-detail-label">المستوى الدراسي</td><td>${levelLabel[item.level] || esc(item.level || "-")}</td></tr>
-    <tr><td class="sp-detail-label">المقر المراد زيارته</td><td>${esc(item.visitPlace || "-")}</td></tr>
+    ${placeOrUniversityRow}
+    ${courseDescRow}
     <tr><td class="sp-detail-label">سبب الزيارة</td><td>${esc(item.reason || "-")}</td></tr>
     <tr><td class="sp-detail-label">المقررات</td><td>${courses}</td></tr>
     <tr><td class="sp-detail-label">تاريخ الطلب</td><td>${formatDate(item.createdAt)}</td></tr>
@@ -682,7 +724,10 @@ function buildOtherRequestsTable(tab, item) {
   // تقسيم الطلبات: مواد تخصص vs مواد حرة/مشتركة
   const specRequests  = others.filter(o => o.assignedDepartment?.trim() !== "شؤون الطالبات");
   const sharedRequests = others.filter(o => o.assignedDepartment?.trim() === "شؤون الطالبات");
-
+// إذا كانت موظفة شؤون الطالبات ولا توجد أي مادة تابعة للشؤون، فلا نعرض الطالبة إطلاقاً
+if (isAffairs && sharedRequests.length === 0) {
+    return document.createDocumentFragment();
+}
   // اسم القسم للعرض في الـ header
   const deptName    = currentEmployee?.department || "القسم";
   const affairsName = "شؤون الطالبات";
@@ -1117,13 +1162,18 @@ function printActiveStudent() {
       </tr>`;
     }).join("");
   } else {
-    headerCols = "<th>نوع الزيارة</th><th>المستوى</th><th>المقر</th><th>السبب</th><th>المقررات</th><th>الحالة</th><th>الموظف</th><th>التاريخ</th>";
+    headerCols = "<th>نوع الزيارة</th><th>المستوى</th><th>المقر/الجامعة</th><th>مرفق التوصيف</th><th>السبب</th><th>المقررات</th><th>الحالة</th><th>الموظف</th><th>التاريخ</th>";
     rows = items.map(r => {
       const en = r.assignedEmployeeName || (r.assignedEmployee ? (employeesCache[r.assignedEmployee] || "-") : "-");
+      const placeOrUniversity = r.visitType === "external" ? (r.externalUniversity || "-") : (r.visitPlace || "-");
+      const attachCell = r.visitType === "external"
+        ? (r.courseDescriptionUrl ? `<a href="${esc(r.courseDescriptionUrl)}" target="_blank" rel="noopener">تحميل</a>` : "لا يوجد")
+        : "-";
       return `<tr>
         <td>${visitTypeLabel[r.visitType] || r.visitType || "-"}</td>
         <td>${levelLabel[r.level] || esc(r.level || "-")}</td>
-        <td>${esc(r.visitPlace || "-")}</td>
+        <td>${esc(placeOrUniversity)}</td>
+        <td>${attachCell}</td>
         <td>${esc(r.reason || "-")}</td>
         <td>${(r.courses || []).map(c => `${esc(c.courseName || "-")} (${esc(c.courseCode || "-")}) - ${esc(c.section || "-")}`).join("<br>") || "-"}</td>
         <td>${statusLabel[getEffectiveStatus(r)] || getEffectiveStatus(r)}</td>
@@ -1213,6 +1263,10 @@ function printActiveStudent() {
 // تبديل التابات (السايدبار)
 document.querySelectorAll(".emp-tab-btn").forEach(btn => {
   btn.addEventListener("click", () => {
+    // إخفاء قسم الحضور عند فتح أي تبويب آخر
+    const attSection = document.getElementById("attendanceSectionEmp");
+    if (attSection) attSection.style.display = "none";
+
     currentTab = btn.dataset.tab;
     document.querySelectorAll(".emp-tab-btn").forEach(t => t.classList.remove("active"));
     btn.classList.add("active");
@@ -1401,6 +1455,47 @@ if (!isAffairs && visitTabBtn) {
   if (currentTab === "visit") {
     currentTab = "addDrop";
   }
+}
+
+// ====== فحص صلاحية متابعة الحضور ======
+try {
+  const permSnap = await getDoc(doc(db, "attendancePermissions", user.uid));
+  if (permSnap.exists()) {
+    // الموظف لديه صلاحية — أظهر التبويب وفعّل الأحداث
+    const attNav = document.getElementById("navAttendanceEmp");
+    if (attNav) {
+      attNav.style.display = "";
+      attNav.addEventListener("click", () => {
+        // إخفاء كل التبويبات الأخرى
+        document.querySelectorAll(".emp-tab-btn").forEach(t => t.classList.remove("active"));
+        attNav.classList.add("active");
+
+        // إخفاء منطقة الجدول والبحث
+        const tableWrap = document.getElementById("tableWrap");
+        if (tableWrap) tableWrap.style.display = "none";
+        const searchRow = document.querySelector(".admin-search-row");
+        if (searchRow) searchRow.style.display = "none";
+        const loadingState = document.getElementById("loadingState");
+        if (loadingState) loadingState.style.display = "none";
+        document.querySelectorAll(".admin-stats-grid").forEach(el => el.style.display = "none");
+
+        // إظهار قسم الحضور
+        const attSection = document.getElementById("attendanceSectionEmp");
+        if (attSection) attSection.style.display = "block";
+
+        const pageTitleEl = document.getElementById("pageTitle");
+        if (pageTitleEl) pageTitleEl.textContent = "متابعة الحضور";
+
+        openAttendanceTab();
+      });
+    }
+
+    // تهيئة بيانات الحضور + ربط الأحداث
+    await initAttendanceEmp(user.uid, { fullName: empData.fullName, department: permSnap.data().trackingDepartment });
+    bindAttendanceEvents();
+  }
+} catch (permErr) {
+  console.error("خطأ فحص صلاحية الحضور:", permErr);
 }
 
       employeesCache[user.uid] = empData.fullName || "-";
