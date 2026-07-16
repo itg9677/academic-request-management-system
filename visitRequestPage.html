@@ -33,63 +33,7 @@
 }
 .btn-remove-course:hover {
     background: #f7c1c1;
-}/* فرض عرض الأزرار بصف أفقي واحد بنفس ألوان صفحة الزيارات
-   (تجاوز أي تنسيقات متعارضة قادمة من visitRequest.css) */
-.actions {
-    display: flex !important;
-    flex-direction: row !important;
-    justify-content: center !important;
-    align-items: center !important;
-    gap: 12px !important;
-    flex-wrap: wrap !important;
-    width: 100%;
-    margin-top: 16px;
 }
-.btn-submit {
-    background: var(--primary) !important;
-    color: #fff !important;
-    border: none !important;
-    padding: 12px 40px !important;
-    border-radius: 10px !important;
-    font-size: 15px !important;
-    font-weight: bold !important;
-    cursor: pointer !important;
-    width: auto !important;
-    min-width: 0 !important;
-    margin: 0 !important;
-    transition: .3s;
-}
-.btn-submit:hover { background: var(--secondary) !important; transform: none !important; }
-.btn-track {
-    background: var(--secondary) !important;
-    color: #fff !important;
-    border: none !important;
-    padding: 12px 25px !important;
-    border-radius: 10px !important;
-    font-size: 15px !important;
-    font-weight: bold !important;
-    cursor: pointer !important;
-    width: auto !important;
-    min-width: 0 !important;
-    margin: 0 !important;
-    transition: .3s;
-}
-.btn-track:hover { opacity: .9; transform: none !important; }
-.btn-home {
-    background: #6c757d !important;
-    color: #fff !important;
-    border: none !important;
-    padding: 12px 25px !important;
-    border-radius: 10px !important;
-    font-size: 15px !important;
-    font-weight: bold !important;
-    cursor: pointer !important;
-    width: auto !important;
-    min-width: 0 !important;
-    margin: 0 !important;
-    transition: .3s;
-}
-.btn-home:hover { background: #5a6168 !important; transform: none !important; }
 .courses-error {
     display: flex;
     align-items: center;
@@ -243,11 +187,33 @@
         </div>
 
         <br><br>
-        <div class="actions">
-                        <button type="button" class="btn-track" onclick="window.location.href='VisitsHistory.html'">متابعة الطلبات السابقة</button>
-            <button id="submitBtn" class="btn-submit">إرسال الطلب</button>
-            <button type="button" class="btn-home" onclick="window.location.href='studentMainPage.html'">العودة للصفحة الرئيسية</button>
-        </div>
+     <div class="actions">
+
+    <button type="submit" class="btn-submit">
+        إرسال الطلب
+    </button>
+
+    <div class="actions-bottom">
+
+        <button type="button"
+                class="btn-home"
+                onclick="location.href='studentMainPage.html'">
+
+            العودة للصفحة الرئيسية
+
+        </button>
+
+        <button type="button"
+                class="btn-track"
+                onclick="location.href='VisitsHistory.html'">
+
+            متابعة الطلبات السابقة
+
+        </button>
+
+    </div>
+
+</div>
 
     </div>
 
