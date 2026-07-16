@@ -14,6 +14,10 @@
     --gray-light:#d8e0ec;
     --gold:#c8972b;
     --text:#1a3a6b;
+
+    /* أسماء موحدة لبقية الصفحات */
+    --primary:var(--blue);
+    --secondary:var(--gold);
 }
 
 *{box-sizing:border-box;margin:0;padding:0;font-family:'Tajawal',sans-serif;}
@@ -30,6 +34,20 @@ body{
 }
 
 .university-banner img{height:100px}
+
+.request-form{
+    width:95%;
+    max-width:900px;
+    margin:20px auto 40px;
+
+    background:#fff;
+    padding:30px;
+
+    border-radius:18px;
+    border-top:6px solid var(--secondary);
+
+    box-shadow:0 10px 30px rgba(26,58,107,.08);
+}
 
 .card{
     background:#fff;
@@ -83,39 +101,80 @@ body{
     border-radius:8px;
     cursor:pointer;
 }
+       /* =====================================================
+   أزرار أسفل النموذج - نفس تصميم صفحة الزيارة
+===================================================== */
 
 .actions{
-    text-align:center;
-    margin-top:20px;
+    margin-top:35px;
+    display:flex;
+    flex-direction:column;
+    gap:18px;
 }
 
 .btn-submit{
-    background:var(--blue);
-    color:#fff;
+    width:100%;
+    padding:15px;
     border:none;
-    padding:12px 40px;
-    border-radius:10px;
+    border-radius:14px;
+    background:var(--primary);
+    color:#fff;
+    font-size:17px;
+    font-weight:700;
+    font-family:'Tajawal',sans-serif;
     cursor:pointer;
+    transition:.25s;
+}
+
+.btn-submit:hover{
+    background:#15325c;
+    transform:translateY(-2px);
+    box-shadow:0 10px 22px rgba(26,58,107,.20);
+}
+
+.actions-bottom{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:14px;
+}
+
+.btn-home,
+.btn-track{
+    width:100%;
+    padding:13px;
+    border:none;
+    border-radius:12px;
+    font-size:15px;
+    font-weight:700;
+    font-family:'Tajawal',sans-serif;
+    cursor:pointer;
+    transition:.25s;
+}
+
+.btn-home{
+    background:#6b7280;
+    color:#fff;
+}
+
+.btn-home:hover{
+    background:#59616d;
 }
 
 .btn-track{
-    margin-top:10px;
-    background:#c8972b;
+    background:var(--secondary);
     color:#fff;
-    border:none;
-    padding:12px 25px;
-    border-radius:10px;
-    cursor:pointer;
 }
-.btn-home{
-    margin-top:10px;
-    background:#6c757d;
-    color:#fff;
-    border:none;
-    padding:12px 25px;
-    border-radius:10px;
-    cursor:pointer;
+
+.btn-track:hover{
+    background:#b88620;
 }
+
+@media (max-width:768px){
+    .actions-bottom{
+        grid-template-columns:1fr;
+    }
+}
+
 .logo-container{
     text-align:center;
     margin-bottom:10px;
@@ -135,6 +194,14 @@ body{
     width:90%;
     max-width:850px;
     margin: 10px auto 20px;
+}
+
+@media (max-width:768px){
+    .request-form{
+        width:95%;
+        padding:18px 16px;
+        border-radius:14px;
+    }
 }
 </style>
 </head>
@@ -175,13 +242,37 @@ body{
 </div>
 
 <div class="actions">
-        <button type="button" class="btn-track" onclick="window.location.href='previousRequests.html'">متابعة طلب سابق</button>
-    <button class="btn-submit" id="submitBtn">إرسال الطلب</button>
-<button type="button" class="btn-home" onclick="window.location.href='studentMainPage.html'">
-    العودة للصفحة الرئيسية
-</button>
+
+    <button id="submitBtn" class="btn-submit">
+        إرسال الطلب
+    </button>
+
+
+    <div class="actions-bottom">
+
+        <button
+            type="button"
+            class="btn-home"
+            onclick="window.location.href='studentMainPage.html'">
+
+            العودة للصفحة الرئيسية
+
+        </button>
+
+
+        <button
+            type="button"
+            class="btn-track"
+            onclick="window.location.href='PreviousRequests.html'">
+
+            متابعة الطلبات السابقة
+
+        </button>
+
+    </div>
 
 </div>
+
 
 <script type="module" src="./request.js"></script>
 

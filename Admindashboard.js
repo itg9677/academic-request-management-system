@@ -2203,15 +2203,10 @@ async function handleTransferAdmin(e) {
 
     await setDoc(doc(db, "adminUids", newUid), { isAdmin: true, email }, { merge: true });
 
-    if (currentAdminData?.docId) {
-      // ملاحظة: لا يوجد حقل isAdmin في employees ليُحدّث — سحب الصلاحية يصير
-      // فقط بحذف مستند الأدمن القديم من adminUids (مصدر الحقيقة الوحيد)
-      await updateDoc(doc(db, "employees", currentAdminData.docId), {
-        adminRevokedAt: serverTimestamp()
-      });
-      await deleteDoc(doc(db, "adminUids", currentAdminData.uid)).catch(() => {});
-    }
-
+    // مهم: نكتب سجل النقل وهو لا يزال أدمن (قبل سحب صلاحيته)، لأن قاعدة أمان
+    // adminTransferLogs تشترط isAdmin() وقت الكتابة. لو سحبنا صلاحيته قبل هذي
+    // الخطوة، تفشل هذي الكتابة بخطأ "Missing or insufficient permissions"
+    // رغم أن نقل الصلاحية نفسه يكون تم بنجاح.
     await setDoc(doc(collection(db, "adminTransferLogs")), {
       fromAdminId:      currentAdminData?.docId || null,
       fromAdminName:    currentAdminData?.fullName || null,
@@ -2220,6 +2215,15 @@ async function handleTransferAdmin(e) {
       toEmployeeNumber: employeeNumber,
       transferredAt:    serverTimestamp()
     });
+
+    if (currentAdminData?.docId) {
+      // ملاحظة: لا يوجد حقل isAdmin في employees ليُحدّث — سحب الصلاحية يصير
+      // فقط بحذف مستند الأدمن القديم من adminUids (مصدر الحقيقة الوحيد)
+      await updateDoc(doc(db, "employees", currentAdminData.docId), {
+        adminRevokedAt: serverTimestamp()
+      });
+      await deleteDoc(doc(db, "adminUids", currentAdminData.uid)).catch(() => {});
+    }
 
     if (employeeAlreadyExists) {
       alert(`تم نقل صلاحية الأدمن إلى الموظف الموجود مسبقاً "${fullName}" بنجاح`);
@@ -2908,39 +2912,20 @@ async function updateComplaintStatus(complaint, newStatus) {
 // ── إظهار / إخفاء قسم الشكاوى (متكامل مع نظام التبويبات العام) ──
 
 function showComplaintsSection() {
-  // حماية: لو لأي سبب لم يُبنَ قسم الشكاوى بعد (مثلاً بسبب تعارض توقيت مع
-  // تبويب الحضور)، نبنيه الآن بدل ما نترك الصفحة فاضية بالكامل
-  if (!document.getElementById("complaintsSection")) {
-    injectComplaintsSection();
-    subscribeComplaints();
-  }
   const cs = document.getElementById("complaintsSection");
   if (!cs) return;
 
-  // إخفاء قسم الحضور أيضاً عند فتح الشكاوى
-  const attAdminSection = document.getElementById("attendanceSectionAdmin");
-  if (attAdminSection) attAdminSection.style.display = "none";
-
   // إخفاء عناصر التبويبات العامة (الجدول الرئيسي وبطاقاته وفلاتره)
-  // ملاحظة: نستثني عناصر قسم الحضور تمامًا هنا، لأن قسمه يُخفى/يُظهر بالكامل
-  // عبر attendanceSectionAdmin نفسه — تعديل عناصره الداخلية من هنا كان يسبب
-  // بقاء جدول الحضور مطفي دائمًا حتى بعد إعادة فتح تبويب الحضور.
   const tableWrapEl = document.getElementById("tableWrap");
   if (tableWrapEl) tableWrapEl.style.display = "none";
   document.querySelectorAll(".admin-stats-grid").forEach((el) => {
-    if (!el.closest("#complaintsSection") && !el.closest("#attendanceSectionAdmin")) el.style.display = "none";
+    if (!el.closest("#complaintsSection")) el.style.display = "none";
   });
   document.querySelectorAll(".admin-table-card").forEach((el) => {
-    if (!el.closest("#complaintsSection") && !el.closest("#attendanceSectionAdmin")) el.style.display = "none";
+    if (!el.closest("#complaintsSection")) el.style.display = "none";
   });
   document.querySelectorAll(".admin-search-row").forEach((el) => {
-    if (!el.closest("#complaintsSection") && !el.closest("#attendanceSectionAdmin")) el.style.display = "none";
-  });
-
-  // إعادة إظهار عناصر الشكاوى الداخلية بشكل صريح، في حال كانت أُطفئت سابقًا
-  // من منطق تبويب الحضور (openAttendanceAdmin) قبل هذا الإصلاح
-  cs.querySelectorAll(".admin-table-card, .admin-search-row, .admin-stats-grid").forEach((el) => {
-    el.style.display = "";
+    if (!el.closest("#complaintsSection")) el.style.display = "none";
   });
 
   const visitUploadAreaEl = document.getElementById("visitUploadArea");
@@ -2976,7 +2961,7 @@ function hideComplaintsSection() {
     if (!el.closest("#complaintsSection") && !el.closest("#attendanceSectionAdmin")) el.style.display = "";
   });
   document.querySelectorAll(".admin-stats-grid").forEach((el) => {
-    if (!el.closest("#complaintsSection") && !el.closest("#attendanceSectionAdmin")) el.style.display = "";
+    if (!el.closest("#complaintsSection")) el.style.display = "";
   });
 }
 
@@ -3355,11 +3340,7 @@ if (navSemester) {
 const navAttendanceAdmin = document.getElementById("navAttendanceAdmin");
 if (navAttendanceAdmin) {
   navAttendanceAdmin.addEventListener("click", () => {
-    // نخفي قسم الشكاوى مباشرة (بدل الاعتماد على hideComplaintsSection، لأن
-    // isAttendanceAdminOpen() لسا false هنا قبل ما تُستدعى openAttendanceAdmin
-    // بأسطر لاحقة، وهذا كان يسبب حالة غير مستقرة بين التبويبين)
-    const complaintsSectionEl = document.getElementById("complaintsSection");
-    if (complaintsSectionEl) complaintsSectionEl.style.display = "none";
+    hideComplaintsSection();
 
     // إخفاء كل الأقسام الأخرى
     dashboardSection.style.display = "none";

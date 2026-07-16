@@ -502,61 +502,70 @@ textarea:focus{
     margin-bottom:25px;
 }
 
+/* ================= الخدمات الطلابية ================= */
+
 .services-grid{
     display:grid;
-
-    grid-template-columns:
-    repeat(3,1fr);
-
-    gap:20px;
-}
-
-.service-card.complaint-card{
-    grid-column:2;
+    grid-template-columns:repeat(2, minmax(320px, 420px));
+    justify-content:center;
+    gap:24px;
+    max-width:900px;
+    margin:35px auto 0;
 }
 
 .service-card{
     background:#fff;
+    border-radius:22px;
+    padding:32px 24px;
+    min-height:190px;
 
-    border-radius:18px;
-
-    padding:30px 20px;
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+    align-items:center;
 
     text-align:center;
 
+    box-shadow:0 10px 30px rgba(15,23,42,.08);
+    transition:.25s ease;
     text-decoration:none;
-
-    color:var(--primary);
-
-    box-shadow:
-    0 5px 20px rgba(0,0,0,.08);
-
-    transition:.3s;
+    color:#1e3a5f;
 }
 
 .service-card:hover{
     transform:translateY(-6px);
-
-    box-shadow:
-    0 12px 30px rgba(26,58,107,.15);
+    box-shadow:0 18px 40px rgba(15,23,42,.14);
 }
-
 .service-icon{
-    font-size:42px;
-    margin-bottom:15px;
-}
+    width:72px;
+    height:72px;
 
+    display:flex;
+    align-items:center;
+    justify-content:center;
+
+    border-radius:20px;
+
+    background:linear-gradient(135deg,#eef4ff,#dbeafe);
+
+    font-size:38px;
+
+    margin-bottom:18px;
+
+    box-shadow:0 8px 18px rgba(59,130,246,.15);
+}
 .service-card h3{
-    margin:10px 0;
+    margin:0 0 10px;
+    font-size:1.35rem;
+    color:#19376d;
 }
 
 .service-card p{
-    color:#666;
-    font-size:14px;
     margin:0;
-    line-height:1.7;
+    color:#6b7280;
+    line-height:1.8;
+    font-size:.96rem;
 }
-
 /* ==========================
    Logout
 ========================== */
@@ -644,43 +653,234 @@ textarea:focus{
 }
 /* ================================= */
 /* صفحة رفع عذر الغياب */
-/* ================================= */
+/* =========================================
+   Absence Page
+========================================= */
 
-.absence-page {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    min-height: 100vh;
-    background: #f2f4f8;
+.absence-page{
+    background:#f5f7fb;
+    font-family:"Cairo",sans-serif;
+    margin:0;
+    padding:40px 20px;
 }
 
-.absence-page .container{
+.container{
     width:100%;
-    max-width:450px;
+    max-width:900px;
+    margin:0 auto;
+
+    background:#fff;
+
+    border-radius:24px;
+
+    padding:30px;
+
+    box-shadow:0 15px 45px rgba(0,0,0,.08);
+
+    border-top:5px solid var(--primary);
 }
 
-.absence-page h2{
+/* ================= Header ================= */
+
+.logo-container{
     text-align:center;
-    margin-bottom:20px;
+    margin-bottom:12px;
+}
+
+.logo{
+    width:140px;
+    margin-bottom:10px;
+}
+
+.header-pattern{
+    width:100%;
+    max-width:360px;
+    opacity:.85;
+}
+
+.container h2{
+    text-align:center;
     color:var(--primary);
+
+    margin:18px 0 30px;
+
+    font-size:2rem;
+
+    font-weight:700;
 }
 
-.absence-page .form-group{
-    display:flex;
-    flex-direction:column;
-    margin-bottom:15px;
+/* ================= Form ================= */
+
+.form-group{
+    margin-bottom:20px;
 }
 
-.absence-page textarea {
-    resize: none;
+.form-group label{
+    display:block;
+
+    margin-bottom:8px;
+
+    color:#1e3a5f;
+
+    font-weight:700;
 }
 
-.absence-page input,
-.absence-page textarea {
-    padding: 10px;
-    border: 1px solid #ccc;
-    border-radius: 8px;
-    font-size: 14px;
+.form-group input,
+.form-group select,
+.form-group textarea{
+
+    width:100%;
+
+    padding:14px 16px;
+
+    border:1px solid #d8dde8;
+
+    border-radius:12px;
+
+    background:#fff;
+
+    transition:.25s;
+
+    font-size:15px;
+
+    box-sizing:border-box;
+}
+
+.form-group textarea{
+
+    resize:vertical;
+
+    min-height:120px;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus{
+
+    outline:none;
+
+    border-color:var(--primary);
+
+    box-shadow:0 0 0 4px rgba(36,73,144,.10);
+}
+
+/* ================= File Upload ================= */
+
+input[type=file]{
+
+    background:#f8f9fc;
+
+    padding:12px;
+
+    border:2px dashed #c9d4ea;
+
+    border-radius:12px;
+
+    cursor:pointer;
+}
+
+/* ================= Buttons ================= */
+
+.actions{
+
+    display:grid;
+
+    gap:14px;
+
+    margin-top:28px;
+}
+
+.btn-submit{
+
+    width:100%;
+
+    background:var(--primary);
+
+    color:#fff;
+
+    border:none;
+
+    padding:15px;
+
+    border-radius:12px;
+
+    font-size:17px;
+
+    font-weight:700;
+
+    cursor:pointer;
+
+    transition:.25s;
+}
+
+.btn-submit:hover{
+
+    transform:translateY(-2px);
+
+    background:#163f83;
+}
+
+.actions-bottom{
+
+    display:grid;
+
+    grid-template-columns:1fr 1fr;
+
+    gap:12px;
+
+    margin-top:12px;
+}
+
+.btn-track,
+.btn-home{
+
+    border:none;
+
+    padding:13px;
+
+    border-radius:12px;
+
+    cursor:pointer;
+
+    font-weight:700;
+
+    transition:.25s;
+}
+
+.btn-track{
+
+    background:#d4a233;
+
+    color:#fff;
+}
+
+.btn-home{
+
+    background:#7b7b7b;
+
+    color:#fff;
+}
+
+.btn-track:hover,
+.btn-home:hover{
+
+    transform:translateY(-2px);
+}
+
+/* ================= Mobile ================= */
+
+@media (max-width:600px){
+
+.container{
+
+    padding:24px;
+}
+
+.actions-bottom{
+
+    grid-template-columns:1fr;
+}
+
 }
 
 /* أزرار الإجراءات في هذه الصفحة موحّدة عبر .actions/.btn-submit/.btn-track/.btn-home في الأعلى */
