@@ -409,8 +409,16 @@
 
 @media print {
   body * { visibility: hidden; }
-  .att-print-area { display: block !important; visibility: visible; }
-  .att-print-area * { visibility: visible; }
+  .att-print-area, .att-print-area * { visibility: visible !important; }
+  .att-print-area {
+    display: block !important;
+    position: absolute;
+    top: 0;
+    right: 0;
+    left: 0;
+    width: 100%;
+    z-index: 9999;
+  }
 }
 
 /* تنسيق طباعة رسمي */
@@ -496,4 +504,177 @@
     flex-direction: column;
     align-items: stretch;
   }
+}
+
+
+/* ===== إحصائيات الأقسام ===== */
+.att-stats-section {
+  margin-bottom: 24px;
+}
+
+.att-stats-section h3 {
+  font-size: 16px;
+  color: #1a3a6b;
+  margin: 0 0 14px;
+}
+
+.att-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.att-stat-card {
+  background: #fff;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 14px 16px;
+  text-align: center;
+  transition: box-shadow 0.15s;
+}
+
+.att-stat-card:hover {
+  box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+}
+
+.att-stat-card .att-stat-dept {
+  font-size: 13px;
+  color: #64748b;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.att-stat-card .att-stat-value {
+  font-size: 22px;
+  font-weight: 700;
+  color: #1a3a6b;
+}
+
+.att-stat-card .att-stat-label {
+  font-size: 11px;
+  color: #94a3b8;
+  margin-top: 2px;
+}
+
+.att-stat-card.best {
+  background: #eafaf2;
+  border-color: #b9ebd4;
+}
+
+.att-stat-card.best .att-stat-value {
+  color: #1a7a4a;
+}
+
+.att-stat-card.worst {
+  background: #fef0f0;
+  border-color: #f0d0d0;
+}
+
+.att-stat-card.worst .att-stat-value {
+  color: #c0392b;
+}
+
+/* شريط عدد المتغيبين */
+.att-count-bar {
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 10px 16px;
+  margin-bottom: 14px;
+  font-size: 14px;
+  color: #1a3a6b;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.att-count-bar .att-count-num {
+  background: #1a3a6b;
+  color: #fff;
+  padding: 2px 12px;
+  border-radius: 20px;
+  font-size: 14px;
+}
+
+/* تبديل إحصائيات: أسبوع/شهر */
+.att-stats-toggle {
+  display: flex;
+  gap: 0;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1.5px solid #d1d9e6;
+  margin-bottom: 14px;
+}
+
+.att-stats-period-btn {
+  padding: 8px 18px;
+  background: #fff;
+  border: none;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.att-stats-period-btn.active {
+  background: #1a3a6b;
+  color: #fff;
+}
+
+@media print {
+  .att-stats-section, .att-stats-toggle, .att-count-bar { display: none !important; }
+}
+
+
+/* ===== زر الإحصائيات القابل للطي ===== */
+.att-stats-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+  padding: 12px 16px;
+  background: #f1f5f9;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 10px;
+  margin-bottom: 0;
+  transition: background 0.15s;
+}
+
+.att-stats-header:hover {
+  background: #e8edf5;
+}
+
+.att-stats-header h3 {
+  font-size: 15px;
+  color: #1a3a6b;
+  margin: 0;
+  font-weight: 600;
+}
+
+.att-stats-header .att-stats-arrow {
+  font-size: 18px;
+  color: #64748b;
+  transition: transform 0.2s;
+  margin-right: auto;
+}
+
+.att-stats-header.open .att-stats-arrow {
+  transform: 180deg;
+}
+
+.att-stats-body {
+  display: none;
+  padding-top: 14px;
+}
+
+.att-stats-body.open {
+  display: block;
+}
+
+.att-stats-toggle {
+  margin-bottom: 14px;
 }

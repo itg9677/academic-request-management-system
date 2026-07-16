@@ -2910,17 +2910,21 @@ function showComplaintsSection() {
   const cs = document.getElementById("complaintsSection");
   if (!cs) return;
 
+  // إخفاء قسم الحضور أيضاً عند فتح الشكاوى
+  const attAdminSection = document.getElementById("attendanceSectionAdmin");
+  if (attAdminSection) attAdminSection.style.display = "none";
+
   // إخفاء عناصر التبويبات العامة (الجدول الرئيسي وبطاقاته وفلاتره)
   const tableWrapEl = document.getElementById("tableWrap");
   if (tableWrapEl) tableWrapEl.style.display = "none";
   document.querySelectorAll(".admin-stats-grid").forEach((el) => {
-    if (!el.closest("#complaintsSection")) el.style.display = "none";
+    if (!el.closest("#complaintsSection") && !el.closest("#attendanceSectionAdmin")) el.style.display = "none";
   });
   document.querySelectorAll(".admin-table-card").forEach((el) => {
-    if (!el.closest("#complaintsSection")) el.style.display = "none";
+    if (!el.closest("#complaintsSection") && !el.closest("#attendanceSectionAdmin")) el.style.display = "none";
   });
   document.querySelectorAll(".admin-search-row").forEach((el) => {
-    if (!el.closest("#complaintsSection")) el.style.display = "none";
+    if (!el.closest("#complaintsSection") && !el.closest("#attendanceSectionAdmin")) el.style.display = "none";
   });
 
   const visitUploadAreaEl = document.getElementById("visitUploadArea");
@@ -2956,7 +2960,7 @@ function hideComplaintsSection() {
     if (!el.closest("#complaintsSection") && !el.closest("#attendanceSectionAdmin")) el.style.display = "";
   });
   document.querySelectorAll(".admin-stats-grid").forEach((el) => {
-    if (!el.closest("#complaintsSection")) el.style.display = "";
+    if (!el.closest("#complaintsSection") && !el.closest("#attendanceSectionAdmin")) el.style.display = "";
   });
 }
 
@@ -3339,6 +3343,9 @@ if (navSemester) {
 const navAttendanceAdmin = document.getElementById("navAttendanceAdmin");
 if (navAttendanceAdmin) {
   navAttendanceAdmin.addEventListener("click", () => {
+    // إخفاء الشكاوى بشكل صريح
+    const csEl = document.getElementById("complaintsSection");
+    if (csEl) csEl.style.display = "none";
     hideComplaintsSection();
 
     // إخفاء كل الأقسام الأخرى

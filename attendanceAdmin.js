@@ -34,6 +34,7 @@ const ATT_DEPARTMENTS = [
 let attAdminMode = "today";  // "today" | "range"
 let attAdminDept = "all";
 let attAdminRecords = [];
+let attStatsPeriod = "week"; // "week" | "month"
 
 // ==================== أدوات مساعدة ====================
 function getTodayStr() {
@@ -94,6 +95,7 @@ export async function openAttendanceAdmin() {
   await loadAttRecords();
   renderAttAdmin();
   await loadPermissionList();
+  await loadAttStats();
 }
 
 // يُستدعى من Admindashboard.js عند مغادرة تبويب الحضور
@@ -150,6 +152,7 @@ function renderAttAdmin() {
 
   if (attAdminRecords.length === 0) {
     tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:#94a3b8;padding:30px;">لا توجد سجلات غياب</td></tr>`;
+    updateAttCountBar(0);
     return;
   }
 
@@ -172,6 +175,7 @@ function renderAttAdmin() {
 
   if (rows.length === 0) {
     tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:#94a3b8;padding:30px;">لا يوجد متغيبون في هذا النطاق</td></tr>`;
+    updateAttCountBar(0);
     return;
   }
 
@@ -186,6 +190,153 @@ function renderAttAdmin() {
       <td>${esc(r.course)} ${r.section ? `— شعبة ${esc(r.section)}` : ""}</td>
     </tr>
   `).join("");
+
+  // تحديث شريط عدد المتغيبين
+  updateAttCountBar(rows.length);
+}
+
+// ==================== شريط عدد المتغيبين ====================
+function updateAttCountBar(count) {
+  let bar = document.getElementById("attCountBar");
+  if (!bar) {
+    // إنشاء الشريط إذا لم يوجد
+    const tableCard = document.querySelector("#attendanceSectionAdmin .admin-table-card");
+    if (tableCard && tableCard.parentNode) {
+      bar = document.createElement("div");
+      bar.id = "attCountBar";
+      bar.className = "att-count-bar";
+      tableCard.parentNode.insertBefore(bar, tableCard);
+    }
+  }
+  if (bar) {
+    const deptText = attAdminDept === "all" ? "جميع الأقسام" : attAdminDept;
+    bar.innerHTML = `<i class="ti ti-users"></i> عدد المتغيبين — ${esc(deptText)}: <span class="att-count-num">${count}</span>`;
+  }
+}
+
+// ==================== إحصائيات الأقسام ====================
+async function loadAttStats() {
+  // تحميل سجلات الأسبوع أو الشهر الحالي
+  const now = new Date();
+  let startDate;
+
+  if (attStatsPeriod === "week") {
+    // بداية الأسبوع (الأحد)
+    const day = now.getDay();
+    startDate = new Date(now);
+    startDate.setDate(now.getDate() - day);
+  } else {
+    // بداية الشهر
+    startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+  }
+
+  const startStr = `${startDate.getFullYear()}-${String(startDate.getMonth()+1).padStart(2,"0")}-${String(startDate.getDate()).padStart(2,"0")}`;
+  const endStr = getTodayStr();
+
+  try {
+    const q = query(
+      collection(db, "attendanceRecords"),
+      where("date", ">=", startStr),
+      where("date", "<=", endStr)
+    );
+    const snap = await getDocs(q);
+    const records = snap.docs.map(d => d.data());
+
+    // تجميع: لكل قسم — عدد أيام "الكل حاضر" وعدد المتغيبين
+    const deptStats = {};
+    const DEPTS = ["كيمياء", "فيزياء", "أحياء", "رياضيات", "إحصاء", "أعضاء خارجيين"];
+
+    DEPTS.forEach(d => { deptStats[d] = { allPresentDays: 0, absenteeCount: 0, totalDays: 0 }; });
+
+    records.forEach(rec => {
+      const dept = rec.department;
+      if (!deptStats[dept]) return;
+
+      deptStats[dept].totalDays++;
+      if (rec.allPresent) {
+        deptStats[dept].allPresentDays++;
+      } else if (rec.absentees) {
+        deptStats[dept].absenteeCount += rec.absentees.length;
+      }
+    });
+
+    renderAttStats(deptStats);
+  } catch (err) {
+    console.error("خطأ تحميل إحصائيات الحضور:", err);
+  }
+}
+
+function renderAttStats(deptStats) {
+  let container = document.getElementById("attStatsSection");
+  if (!container) {
+    // إنشاء القسم إذا لم يوجد
+    const adminSection = document.getElementById("attendanceSectionAdmin");
+    if (adminSection) {
+      container = document.createElement("div");
+      container.id = "attStatsSection";
+      container.className = "att-stats-section";
+      adminSection.insertBefore(container, adminSection.firstChild);
+    }
+  }
+  if (!container) return;
+
+  // حساب نسبة الانضباط لكل قسم: (allPresentDays / totalDays) * 100
+  const deptArr = Object.entries(deptStats).map(([dept, s]) => {
+    const rate = s.totalDays > 0 ? Math.round((s.allPresentDays / s.totalDays) * 100) : 0;
+    return { dept, ...s, rate };
+  });
+
+  // ترتيب: الأعلى انضباطًا أولًا
+  deptArr.sort((a, b) => b.rate - a.rate);
+
+  const periodLabel = attStatsPeriod === "week" ? "هذا الأسبوع" : "هذا الشهر";
+
+  // زر قابل للطي: "إحصائيات" تحتها خط
+  let html = `
+    <div class="att-stats-header" id="attStatsHeader">
+      <h3>إحصائيات انضباط الأقسام — ${periodLabel}</h3>
+      <span class="att-stats-arrow"><i class="ti ti-chevron-down"></i></span>
+    </div>
+    <div class="att-stats-body" id="attStatsBody">
+      <div class="att-stats-toggle">
+        <button class="att-stats-period-btn ${attStatsPeriod === "week" ? "active" : ""}" data-period="week">هذا الأسبوع</button>
+        <button class="att-stats-period-btn ${attStatsPeriod === "month" ? "active" : ""}" data-period="month">هذا الشهر</button>
+      </div>
+      <div class="att-stats-grid">
+  `;
+
+  deptArr.forEach((d, i) => {
+    const cls = i === 0 && d.rate > 0 ? "best" : (i === deptArr.length - 1 && d.totalDays > 0 ? "worst" : "");
+    const rateLabel = d.totalDays > 0 ? `${d.rate}%` : "—";
+    html += `
+      <div class="att-stat-card ${cls}">
+        <div class="att-stat-dept">${esc(d.dept)}</div>
+        <div class="att-stat-value">${rateLabel}</div>
+        <div class="att-stat-label">انضباط · ${d.allPresentDays} يوم كامل · ${d.absenteeCount} غياب</div>
+      </div>
+    `;
+  });
+
+  html += `</div></div>`;
+  container.innerHTML = html;
+
+  // ربط زر الطي/الفتح
+  const header = container.querySelector("#attStatsHeader");
+  const body = container.querySelector("#attStatsBody");
+  if (header && body) {
+    header.addEventListener("click", () => {
+      header.classList.toggle("open");
+      body.classList.toggle("open");
+    });
+  }
+
+  // ربط أزرار التبديل
+  container.querySelectorAll(".att-stats-period-btn").forEach(btn => {
+    btn.addEventListener("click", async () => {
+      attStatsPeriod = btn.dataset.period;
+      await loadAttStats();
+    });
+  });
 }
 
 // ==================== الطباعة الرسمية ====================
@@ -413,6 +564,7 @@ export function bindAttendanceAdminEvents() {
 
       await loadAttRecords();
       renderAttAdmin();
+      await loadAttStats();
     });
   });
 
@@ -423,6 +575,7 @@ export function bindAttendanceAdminEvents() {
       attAdminDept = deptSelect.value;
       await loadAttRecords();
       renderAttAdmin();
+      await loadAttStats();
     });
   }
 
@@ -432,6 +585,7 @@ export function bindAttendanceAdminEvents() {
     applyBtn.addEventListener("click", async () => {
       await loadAttRecords();
       renderAttAdmin();
+      await loadAttStats();
     });
   }
 

@@ -511,13 +511,15 @@ function switchToComplaints() {
   document.querySelectorAll(".emp-tab-btn").forEach(t => t.classList.remove("active"));
   document.getElementById("navComplaintsEmp")?.classList.add("active");
 
-  // ملاحظة: رسالة الترحيب (.emp-welcome) تبقى ظاهرة دائماً، توحيدًا مع باقي التبويبات
+  // إخفاء قسم الحضور صراحةً عند فتح الشكاوى
+  const attSec = document.getElementById("attendanceSectionEmp");
+  if (attSec) attSec.style.display = "none";
 
   document.querySelectorAll(".admin-stats-grid").forEach(el => {
-    if (!el.closest("#empComplaintsSection")) el.style.display = "none";
+    if (!el.closest("#empComplaintsSection") && !el.closest("#attendanceSectionEmp")) el.style.display = "none";
   });
   document.querySelectorAll(".admin-table-card").forEach(el => {
-    if (!el.closest("#empComplaintsSection")) el.style.display = "none";
+    if (!el.closest("#empComplaintsSection") && !el.closest("#attendanceSectionEmp")) el.style.display = "none";
   });
 
   const cs = document.getElementById("empComplaintsSection");
@@ -533,11 +535,16 @@ function hideComplaintsSection() {
   const cs = document.getElementById("empComplaintsSection");
   if (cs) cs.style.display = "none";
 
+  // لا نُعيد إظهار العناصر إذا كان تبويب الحضور مفتوحًا
+  const attSec = document.getElementById("attendanceSectionEmp");
+  const attOpen = attSec && attSec.style.display !== "none";
+  if (attOpen) return;
+
   document.querySelectorAll(".admin-stats-grid").forEach(el => {
-    if (!el.closest("#empComplaintsSection")) el.style.display = "";
+    if (!el.closest("#empComplaintsSection") && !el.closest("#attendanceSectionEmp")) el.style.display = "";
   });
   document.querySelectorAll(".admin-table-card").forEach(el => {
-    if (!el.closest("#empComplaintsSection")) el.style.display = "";
+    if (!el.closest("#empComplaintsSection") && !el.closest("#attendanceSectionEmp")) el.style.display = "";
   });
 
   const empWelcome = document.querySelector(".emp-welcome");
@@ -549,6 +556,15 @@ function patchOriginalTabs() {
     if (btn.id === "navComplaintsEmp") return;
     btn.addEventListener("click", () => hideComplaintsSection(), { capture: true });
   });
+
+  // إخفاء الشكاوى عند النقر على تبويب الحضور (يُضاف بعد تهيئة السايدبار)
+  const attNav = document.getElementById("navAttendanceEmp");
+  if (attNav) {
+    attNav.addEventListener("click", () => {
+      const cs2 = document.getElementById("empComplaintsSection");
+      if (cs2) cs2.style.display = "none";
+    }, { capture: true });
+  }
 }
 
 function esc(str) {
