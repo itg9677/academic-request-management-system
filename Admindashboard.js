@@ -2106,6 +2106,7 @@ function openTransferModal() {
 
   const noteEl = document.getElementById("ta_email_note");
   if (noteEl) {
+
     noteEl.textContent = "الرجاء ادخال البريد الإلكتروني المسجل مسبقًا للموظف";
 
   }
