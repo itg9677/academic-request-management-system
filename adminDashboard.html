@@ -402,17 +402,12 @@
 
           <!-- زر رفع/تحديث ملف المقررات (Excel) — يظهر فقط في تبويب الحذف والإضافة -->
           <!-- ملاحظة: تنظيف تكرار المقررات يحصل تلقائيًا وبشكل مخفي بعد كل رفع (بالكود)، بدون زر ظاهر للأدمن -->
-          <div id="coursesUploadWrap" style="display:flex;gap:8px;align-items:center;">
+          <!-- ملاحظة: تنزيل آخر ملف مرفوع متاح من داخل نافذة الرفع نفسها، فلا حاجة لزر منفصل هنا -->
+          <div id="coursesUploadWrap">
             <button class="excel-export-btn" id="openCoursesUploadBtn" type="button">
               <i class="ti ti-file-spreadsheet"></i>
               رفع / تحديث المقررات
             </button>
-            <!-- زر ثابت يبقى ظاهرًا دائمًا (حتى بعد إغلاق النافذة أو التبويب أو إعادة فتح الصفحة)
-                 يحمّل آخر ملف مقررات تم رفعه، لأنه يقرأ رابطه المحفوظ في قاعدة البيانات وليس رابطًا مؤقتًا بالمتصفح -->
-            <a class="excel-export-btn" id="downloadLatestCoursesFileBtn" href="#" target="_blank" rel="noopener" style="display:none;">
-              <i class="ti ti-download"></i>
-              تنزيل آخر ملف مقررات
-            </a>
           </div>
 
           <select class="admin-filter-select" id="statusFilter" style="display:none">
