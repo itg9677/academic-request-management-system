@@ -3270,10 +3270,6 @@ auth.authStateReady().then(() => {
 
       currentAdminData = { docId: adminDoc.id, uid: user.uid, ...data };
       employeesCache[adminDoc.id] = data.fullName || "الأدمن";
-
-      // تعبئة زر تنزيل آخر ملف مقررات مرفوع (يبقى ظاهرًا دائمًا بعد تسجيل الدخول
-      // بغض النظر عن فتح نافذة الرفع أو إغلاقها)
-      refreshLatestCoursesFileButton();
 // ====== عرض صفحة الإحصائيات ======
 
 const navStats = document.getElementById("navStats");
@@ -3631,13 +3627,17 @@ function normalizeCourseText(val) {
     .trim();
 }
 
+// جزء موحّد (بدون حساسية لحالة الأحرف/المسافات) يُستخدم لبناء معرف المستند
+// ولمقارنة الأقسام عند تنظيف المقررات القديمة بعد كل رفع
+function normalizedIdPart(val) {
+  return normalizeCourseText(val).toUpperCase().replace(/[\/\.\#\$\[\]]/g, "-");
+}
+
 // معرف مستند ثابت لكل مقرر: نفس المقرر (بغض النظر عن اختلاف حالة الأحرف
 // أو المسافات الزائدة بين رفعة وأخرى) ينتج دائمًا نفس المعرف، فتُحدَّث
 // نفس البيانات بدل إنشاء مستند جديد مكرر في كل مرة.
 function courseDocId(courseCode, department) {
-  const codeKey = normalizeCourseText(courseCode).toUpperCase().replace(/[\/\.\#\$\[\]]/g, "-");
-  const deptKey = normalizeCourseText(department).toUpperCase().replace(/[\/\.\#\$\[\]]/g, "-");
-  return `${codeKey}_${deptKey}`;
+  return `${normalizedIdPart(courseCode)}_${normalizedIdPart(department)}`;
 }
 
 let cuParsedRows = [];   // الصفوف الصالحة الجاهزة للرفع
@@ -3878,6 +3878,14 @@ if (cuConfirmBtn) {
         }
       }
 
+      // مزامنة القسم: أي ملف مرفوع يمثّل "القائمة الكاملة" لمقررات نفس الأقسام
+      // الموجودة فيه. فنحذف تلقائيًا أي مقرر قديم كان محفوظًا لنفس القسم(الأقسام)
+      // ولم يعد موجودًا في هذا الملف (مثلاً لو تغيّر رمز المقرر) — حتى لا تبقى
+      // نسخة قديمة بجانب النسخة الجديدة وتظهر للطالبة وكأنها مادة مكررة.
+      // لا نلمس أبدًا مقررات أقسام أخرى غير موجودة في هذا الملف.
+      if (cuProgressText) cuProgressText.textContent = "جاري تحديث المقررات القديمة لنفس القسم...";
+      await removeStaleCoursesForDepartments(cuParsedRows);
+
       // تنظيف تلقائي مخفي: بعد كل رفع، نفحص مجموعة "courses" ونحذف أي
       // نسخ مكررة لنفس المقرر تلقائيًا (بدون أي تدخل أو زر من الأدمن)
       if (cuProgressText) cuProgressText.textContent = "جاري التحقق من عدم تكرار المقررات...";
@@ -3912,7 +3920,6 @@ if (cuConfirmBtn) {
       }
       cuConfirmBtn.innerHTML = '<i class="ti ti-check"></i> تم الرفع';
       loadCoursesFileInfo();
-      refreshLatestCoursesFileButton();
 
     } catch (err) {
       console.error("خطأ في رفع المقررات:", err);
@@ -3989,28 +3996,49 @@ async function loadCoursesFileInfo() {
   }
 }
 
-// زر ثابت بجانب "رفع / تحديث المقررات" يبقى ظاهرًا ويعمل في أي وقت — حتى لو
-// سُكِّر التبويب أو أُعيد فتح الصفحة من جديد — لأنه يقرأ رابط آخر ملف مرفوع
-// من قاعدة البيانات (settings/coursesFile) وليس رابطًا مؤقتًا بالمتصفح.
-async function refreshLatestCoursesFileButton() {
-  const btn = document.getElementById("downloadLatestCoursesFileBtn");
-  if (!btn) return;
+// ==================== حذف المقررات القديمة لنفس القسم بعد كل رفع ====================
+// أي ملف Excel يمثّل القائمة الكاملة لمقررات الأقسام الموجودة بداخله. فبعد
+// كتابة/تحديث كل صفوف الملف، نبحث عن أي مقرر محفوظ سابقًا لنفس هذه الأقسام
+// لكنه غير موجود في الملف الجديد (مثلاً لأن رمزه تغيّر) ونحذفه — حتى لا تبقى
+// نسخة قديمة ظاهرة للطالبة بجانب النسخة الجديدة بنفس الاسم. مقررات أي قسم
+// غير موجود في هذا الملف لا تُمس إطلاقًا.
+async function removeStaleCoursesForDepartments(uploadedRows) {
+  if (!uploadedRows.length) return;
+
+  const departmentsInFile = new Set(uploadedRows.map((r) => normalizedIdPart(r.department)));
+  const keepIds = new Set(uploadedRows.map((r) => courseDocId(r.courseCode, r.department)));
 
   try {
-    const snap = await getDoc(doc(db, "settings", "coursesFile"));
+    const snap = await getDocs(collection(db, "courses"));
+    const toDelete = [];
 
-    if (snap.exists()) {
-      const data = snap.data();
-      btn.href = data.fileUrl;
-      btn.setAttribute("download", data.fileName || "المقررات.xlsx");
-      btn.title = `آخر ملف مرفوع: ${data.fileName || ""}`;
-      btn.style.display = "";
-    } else {
-      btn.style.display = "none";
+    snap.forEach((docSnap) => {
+      const data = docSnap.data();
+      const deptKey = normalizedIdPart(data.department ?? data.dept ?? data["القسم"] ?? "");
+
+      // نتجاهل أي مقرر لقسم غير موجود بهذا الملف
+      if (!departmentsInFile.has(deptKey)) return;
+
+      const canonicalId = courseDocId(
+        data.courseCode ?? data.code ?? data["رمز المقرر"] ?? "",
+        data.department ?? data.dept ?? data["القسم"] ?? ""
+      );
+
+      if (!keepIds.has(canonicalId)) toDelete.push(docSnap.id);
+    });
+
+    if (toDelete.length) {
+      const BATCH_SIZE = 450;
+      for (let i = 0; i < toDelete.length; i += BATCH_SIZE) {
+        const chunk = toDelete.slice(i, i + BATCH_SIZE);
+        const batch = writeBatch(db);
+        chunk.forEach((id) => batch.delete(doc(db, "courses", id)));
+        await batch.commit();
+      }
+      console.log(`[مزامنة الرفع] تم حذف ${toDelete.length} مقرر قديم لم يعد موجودًا في الملف الجديد.`);
     }
   } catch (err) {
-    console.error("تعذر تحميل زر آخر ملف مقررات:", err);
-    btn.style.display = "none";
+    console.error("خطأ أثناء حذف المقررات القديمة لنفس القسم:", err);
   }
 }
 
