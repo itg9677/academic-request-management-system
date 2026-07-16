@@ -678,3 +678,60 @@
 .att-stats-toggle {
   margin-bottom: 14px;
 }
+
+
+/* ===== نطاق مخصص للإحصائيات ===== */
+.att-stats-custom-range {
+  display: none;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+  padding: 10px 14px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+}
+
+.att-stats-custom-range label {
+  font-size: 13px;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.att-stats-custom-range input[type="date"] {
+  padding: 6px 10px;
+  border: 1.5px solid #d1d9e6;
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 13px;
+}
+
+.att-stats-apply-btn {
+  padding: 7px 16px;
+  background: #c8972b;
+  color: #1e2d50;
+  border: none;
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s;
+}
+
+.att-stats-apply-btn:hover {
+  background: #b8872b;
+}
+
+/* تحسين شريط الفلاتر — 3 أزرار */
+.att-stats-toggle {
+  display: flex;
+  gap: 0;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1.5px solid #d1d9e6;
+  margin-bottom: 14px;
+  width: fit-content;
+}

@@ -33,41 +33,50 @@
     </div>
 
     <nav class="sb-nav">
-      <div class="sb-nav-item" id="navStats" style="cursor:pointer;">
-  <i class="ti ti-chart-bar"></i>
-  <span>الإحصائيات</span>
-</div>
-
+      <!-- 1. إدارة الفصل الدراسي -->
       <div class="sb-nav-item" id="navSemester" style="cursor:pointer;">
         <i class="ti ti-calendar"></i>
         <span>إدارة الفصل الدراسي</span>
       </div>
 
+      <!-- 2. متابعة الحضور -->
+      <div class="sb-nav-item" id="navAttendanceAdmin" style="cursor:pointer;">
+        <i class="ti ti-clipboard-check"></i>
+        <span>متابعة الحضور</span>
+      </div>
+
+      <!-- 3. الإحصائيات -->
+      <div class="sb-nav-item" id="navStats" style="cursor:pointer;">
+        <i class="ti ti-chart-bar"></i>
+        <span>الإحصائيات</span>
+      </div>
+
+      <!-- 4. طلبات الحذف والإضافة -->
       <div class="sb-nav-item admin-tab active" data-tab="addDrop">
         <i class="ti ti-file-text"></i>
         <span>طلبات الحذف والإضافة</span>
         <span class="sb-badge admin-tab-badge" id="badge-addDrop">0</span>
       </div>
+
+      <!-- 5. طلبات الأعذار -->
       <div class="sb-nav-item admin-tab" data-tab="excuse">
         <i class="ti ti-note"></i>
         <span>طلبات الأعذار</span>
         <span class="sb-badge admin-tab-badge" id="badge-excuse">0</span>
       </div>
+
+      <!-- 6. طلبات الزيارة -->
       <div class="sb-nav-item admin-tab" data-tab="visit">
         <i class="ti ti-map-pin"></i>
         <span>طلبات الزيارة</span>
         <span class="sb-badge admin-tab-badge" id="badge-visit">0</span>
       </div>
+
+      <!-- 7. الشكاوى والاقتراحات -->
       <div class="sb-nav-item admin-tab" data-tab="complaints" id="navComplaintsAdmin">
         <i class="ti ti-message-report"></i>
         <span>الشكاوى والاقتراحات</span>
         <span class="sb-badge admin-tab-badge" id="badge-complaints">0</span>
-      </div>
-
-      <!-- تبويب متابعة الحضور -->
-      <div class="sb-nav-item" id="navAttendanceAdmin" style="cursor:pointer;">
-        <i class="ti ti-clipboard-check"></i>
-        <span>متابعة الحضور</span>
       </div>
     </nav>
 

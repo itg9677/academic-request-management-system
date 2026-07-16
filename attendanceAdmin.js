@@ -34,7 +34,10 @@ const ATT_DEPARTMENTS = [
 let attAdminMode = "today";  // "today" | "range"
 let attAdminDept = "all";
 let attAdminRecords = [];
-let attStatsPeriod = "week"; // "week" | "month"
+let attStatsPeriod = "week"; // "week" | "month" | "custom"
+let attStatsCustomFrom = "";
+let attStatsCustomTo = "";
+let attStatsOpen = false; // هل الإحصائيات مفتوحة
 
 // ==================== أدوات مساعدة ====================
 function getTodayStr() {
@@ -227,22 +230,24 @@ function updateAttCountBar(count) {
 
 // ==================== إحصائيات الأقسام ====================
 async function loadAttStats() {
-  // تحميل سجلات الأسبوع أو الشهر الحالي
   const now = new Date();
-  let startDate;
+  let startStr, endStr;
 
   if (attStatsPeriod === "week") {
-    // بداية الأسبوع (الأحد)
     const day = now.getDay();
-    startDate = new Date(now);
+    const startDate = new Date(now);
     startDate.setDate(now.getDate() - day);
+    startStr = `${startDate.getFullYear()}-${String(startDate.getMonth()+1).padStart(2,"0")}-${String(startDate.getDate()).padStart(2,"0")}`;
+    endStr = getTodayStr();
+  } else if (attStatsPeriod === "month") {
+    const startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+    startStr = `${startDate.getFullYear()}-${String(startDate.getMonth()+1).padStart(2,"0")}-${String(startDate.getDate()).padStart(2,"0")}`;
+    endStr = getTodayStr();
   } else {
-    // بداية الشهر
-    startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+    if (!attStatsCustomFrom || !attStatsCustomTo) { renderAttStats({}); return; }
+    startStr = attStatsCustomFrom;
+    endStr = attStatsCustomTo;
   }
-
-  const startStr = `${startDate.getFullYear()}-${String(startDate.getMonth()+1).padStart(2,"0")}-${String(startDate.getDate()).padStart(2,"0")}`;
-  const endStr = getTodayStr();
 
   try {
     const q = query(
@@ -253,16 +258,14 @@ async function loadAttStats() {
     const snap = await getDocs(q);
     const records = snap.docs.map(d => d.data());
 
-    // تجميع: لكل قسم — عدد أيام "الكل حاضر" وعدد المتغيبين
     const deptStats = {};
-    const DEPTS = ["كيمياء", "فيزياء", "أحياء", "رياضيات", "إحصاء", "أعضاء خارجيين"];
+    const DEPTS = ["كيمياء", "فيزياء", "أحياء", "رياضيات", "إحصاء", "أعضاء خارجين"];
 
     DEPTS.forEach(d => { deptStats[d] = { allPresentDays: 0, absenteeCount: 0, totalDays: 0 }; });
 
     records.forEach(rec => {
       const dept = rec.department;
       if (!deptStats[dept]) return;
-
       deptStats[dept].totalDays++;
       if (rec.allPresent) {
         deptStats[dept].allPresentDays++;
@@ -271,7 +274,7 @@ async function loadAttStats() {
       }
     });
 
-    renderAttStats(deptStats);
+    renderAttStats(deptStats)
   } catch (err) {
     console.error("خطأ تحميل إحصائيات الحضور:", err);
   }
@@ -280,13 +283,11 @@ async function loadAttStats() {
 function renderAttStats(deptStats) {
   let container = document.getElementById("attStatsSection");
   if (!container) {
-    // إنشاء القسم إذا لم يوجد
     const adminSection = document.getElementById("attendanceSectionAdmin");
     if (adminSection) {
       container = document.createElement("div");
       container.id = "attStatsSection";
       container.className = "att-stats-section";
-      // إدراج الإحصائيات بعد بطاقة إعطاء الصلاحية (آخر عنصر داخل القسم)
       const permCard = adminSection.querySelector(".att-permission-card");
       if (permCard && permCard.parentNode === adminSection) {
         permCard.after(container);
@@ -297,27 +298,36 @@ function renderAttStats(deptStats) {
   }
   if (!container) return;
 
-  // حساب نسبة الانضباط لكل قسم: (allPresentDays / totalDays) * 100
   const deptArr = Object.entries(deptStats).map(([dept, s]) => {
     const rate = s.totalDays > 0 ? Math.round((s.allPresentDays / s.totalDays) * 100) : 0;
     return { dept, ...s, rate };
   });
 
-  // ترتيب: الأعلى انضباطًا أولًا
   deptArr.sort((a, b) => b.rate - a.rate);
 
-  const periodLabel = attStatsPeriod === "week" ? "هذا الأسبوع" : "هذا الشهر";
+  const periodLabel = attStatsPeriod === "week" ? "هذا الأسبوع"
+                    : attStatsPeriod === "month" ? "هذا الشهر"
+                    : "نطاق مخصص";
 
-  // زر قابل للطي: "إحصائيات" تحتها خط
+  const openClass = attStatsOpen ? " open" : "";
+
   let html = `
-    <div class="att-stats-header" id="attStatsHeader">
+    <div class="att-stats-header${openClass}" id="attStatsHeader">
       <h3>إحصائيات انضباط الأقسام — ${periodLabel}</h3>
       <span class="att-stats-arrow"><i class="ti ti-chevron-down"></i></span>
     </div>
-    <div class="att-stats-body" id="attStatsBody">
+    <div class="att-stats-body${openClass}" id="attStatsBody">
       <div class="att-stats-toggle">
         <button class="att-stats-period-btn ${attStatsPeriod === "week" ? "active" : ""}" data-period="week">هذا الأسبوع</button>
         <button class="att-stats-period-btn ${attStatsPeriod === "month" ? "active" : ""}" data-period="month">هذا الشهر</button>
+        <button class="att-stats-period-btn ${attStatsPeriod === "custom" ? "active" : ""}" data-period="custom">تحديد نطاق</button>
+      </div>
+      <div class="att-stats-custom-range" id="attStatsCustomRange" style="${attStatsPeriod === "custom" ? "display:flex" : "display:none"}">
+        <label>من</label>
+        <input type="date" id="attStatsFrom" value="${attStatsCustomFrom}" />
+        <label>إلى</label>
+        <input type="date" id="attStatsTo" value="${attStatsCustomTo}" />
+        <button class="att-stats-apply-btn" id="attStatsApplyBtn"><i class="ti ti-check"></i> تطبيق</button>
       </div>
       <div class="att-stats-grid">
   `;
@@ -337,23 +347,56 @@ function renderAttStats(deptStats) {
   html += `</div></div>`;
   container.innerHTML = html;
 
-  // ربط زر الطي/الفتح
+  // ربط زر الطي/الفتح — يظل مفتوح حتى يغلقه اليوزر
   const header = container.querySelector("#attStatsHeader");
   const body = container.querySelector("#attStatsBody");
   if (header && body) {
     header.addEventListener("click", () => {
       header.classList.toggle("open");
       body.classList.toggle("open");
+      attStatsOpen = body.classList.contains("open");
     });
   }
 
-  // ربط أزرار التبديل
+  // ربط أزرار الفلترة
   container.querySelectorAll(".att-stats-period-btn").forEach(btn => {
     btn.addEventListener("click", async () => {
-      attStatsPeriod = btn.dataset.period;
+      const period = btn.dataset.period;
+      attStatsPeriod = period;
+
+      const rangeDiv = container.querySelector("#attStatsCustomRange");
+      if (rangeDiv) {
+        rangeDiv.style.display = period === "custom" ? "flex" : "none";
+      }
+
+      container.querySelectorAll(".att-stats-period-btn").forEach(b =>
+        b.classList.toggle("active", b.dataset.period === period)
+      );
+
+      const label = period === "week" ? "هذا الأسبوع"
+                  : period === "month" ? "هذا الشهر"
+                  : "نطاق مخصص";
+      const h3 = container.querySelector("#attStatsHeader h3");
+      if (h3) h3.textContent = `إحصائيات انضباط الأقسام — ${label}`;
+
+      if (period === "custom") return;
       await loadAttStats();
     });
   });
+
+  // زر تطبيق النطاق المخصص
+  const applyBtn = container.querySelector("#attStatsApplyBtn");
+  if (applyBtn) {
+    applyBtn.addEventListener("click", async () => {
+      const fromInput = container.querySelector("#attStatsFrom");
+      const toInput = container.querySelector("#attStatsTo");
+      attStatsCustomFrom = fromInput ? fromInput.value : "";
+      attStatsCustomTo = toInput ? toInput.value : "";
+      if (!attStatsCustomFrom || !attStatsCustomTo) return;
+      attStatsPeriod = "custom";
+      await loadAttStats();
+    });
+  }
 }
 
 // ==================== الطباعة الرسمية ====================
@@ -514,7 +557,7 @@ async function grantPermission() {
       const lookupSnap = await getDocs(query(
         collection(db, "employeeLookup"),
         where("__name__", ">=", empNum),
-        where("__name__", "<=", empNum + "\uf8ff")
+        where("__name__", "<=", empNum + "")
       ));
       if (!lookupSnap.empty) {
         // وجدنا في lookup — نبحث عن الإيميل ونطابقه مع employees
