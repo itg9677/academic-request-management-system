@@ -5,6 +5,120 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>رفع عذر الغياب</title>
     <link rel="stylesheet" href="style.css">
+    <style>    
+        /* =====================================================
+   أزرار النموذج
+===================================================== */
+
+.actions{
+
+    margin-top:35px;
+
+    display:flex;
+
+    flex-direction:column;
+
+    gap:18px;
+
+}
+
+.btn-submit{
+
+    width:100%;
+
+    padding:15px;
+
+    border:none;
+
+    border-radius:14px;
+
+    background:var(--primary);
+
+    color:#fff;
+
+    font-size:17px;
+
+    font-weight:700;
+
+    font-family:'Tajawal',sans-serif;
+
+    cursor:pointer;
+
+    transition:.25s;
+
+}
+
+.btn-submit:hover{
+
+    background:#15325c;
+
+    transform:translateY(-2px);
+
+    box-shadow:0 10px 22px rgba(26,58,107,.20);
+
+}
+
+.actions-bottom{
+
+    display:grid;
+
+    grid-template-columns:1fr 1fr;
+
+    gap:14px;
+
+}
+
+.btn-home,
+.btn-track{
+
+    width:100%;
+
+    padding:13px;
+
+    border:none;
+
+    border-radius:12px;
+
+    font-size:15px;
+
+    font-weight:700;
+
+    font-family:'Tajawal',sans-serif;
+
+    cursor:pointer;
+
+    transition:.25s;
+
+}
+
+.btn-home{
+
+    background:#6b7280;
+
+    color:#fff;
+
+}
+
+.btn-home:hover{
+
+    background:#59616d;
+
+}
+
+.btn-track{
+
+    background:var(--secondary);
+
+    color:#fff;
+
+}
+
+.btn-track:hover{
+
+    background:#b88620;
+
+}
+    </style>
 </head>
 
 <body class="absence-page">
@@ -66,11 +180,31 @@
             <input type="file" id="fileInput" accept=".pdf,.png,.jpg,.jpeg" required>
         </div>
 
-        <div class="actions">
-                        <button type="button" class="btn-track" onclick="window.location.href='ExcusesHistory.html'">متابعة الطلبات السابقة</button>
-            <button type="submit" class="btn-submit">إرسال الطلب</button>
-            <button type="button" class="btn-home" onclick="window.location.href='studentMainPage.html'">العودة للصفحة الرئيسية</button>
-        </div>
+<div class="actions">
+
+    <button type="submit" class="btn-submit">
+        إرسال الطلب
+    </button>
+
+    <div class="actions-bottom">
+
+        <button type="button"
+                class="btn-home"
+                onclick="location.href='studentMainPage.html'">
+
+            العودة للصفحة الرئيسية
+
+        </button>
+
+        <button type="button"
+                class="btn-track"
+                onclick="location.href='Previouscomplaints.html'">
+
+            متابعة الطلبات السابقة
+
+        </button>
+
+    </div>
     </form>
 </div>
 
