@@ -2907,20 +2907,35 @@ async function updateComplaintStatus(complaint, newStatus) {
 // ── إظهار / إخفاء قسم الشكاوى (متكامل مع نظام التبويبات العام) ──
 
 function showComplaintsSection() {
+  // حماية: لو لأي سبب لم يُبنَ قسم الشكاوى بعد (مثلاً بسبب تعارض توقيت مع
+  // تبويب الحضور)، نبنيه الآن بدل ما نترك الصفحة فاضية بالكامل
+  if (!document.getElementById("complaintsSection")) {
+    injectComplaintsSection();
+    subscribeComplaints();
+  }
   const cs = document.getElementById("complaintsSection");
   if (!cs) return;
 
   // إخفاء عناصر التبويبات العامة (الجدول الرئيسي وبطاقاته وفلاتره)
+  // ملاحظة: نستثني عناصر قسم الحضور تمامًا هنا، لأن قسمه يُخفى/يُظهر بالكامل
+  // عبر attendanceSectionAdmin نفسه — تعديل عناصره الداخلية من هنا كان يسبب
+  // بقاء جدول الحضور مطفي دائمًا حتى بعد إعادة فتح تبويب الحضور.
   const tableWrapEl = document.getElementById("tableWrap");
   if (tableWrapEl) tableWrapEl.style.display = "none";
   document.querySelectorAll(".admin-stats-grid").forEach((el) => {
-    if (!el.closest("#complaintsSection")) el.style.display = "none";
+    if (!el.closest("#complaintsSection") && !el.closest("#attendanceSectionAdmin")) el.style.display = "none";
   });
   document.querySelectorAll(".admin-table-card").forEach((el) => {
-    if (!el.closest("#complaintsSection")) el.style.display = "none";
+    if (!el.closest("#complaintsSection") && !el.closest("#attendanceSectionAdmin")) el.style.display = "none";
   });
   document.querySelectorAll(".admin-search-row").forEach((el) => {
-    if (!el.closest("#complaintsSection")) el.style.display = "none";
+    if (!el.closest("#complaintsSection") && !el.closest("#attendanceSectionAdmin")) el.style.display = "none";
+  });
+
+  // إعادة إظهار عناصر الشكاوى الداخلية بشكل صريح، في حال كانت أُطفئت سابقًا
+  // من منطق تبويب الحضور (openAttendanceAdmin) قبل هذا الإصلاح
+  cs.querySelectorAll(".admin-table-card, .admin-search-row, .admin-stats-grid").forEach((el) => {
+    el.style.display = "";
   });
 
   const visitUploadAreaEl = document.getElementById("visitUploadArea");
@@ -3339,7 +3354,11 @@ if (navSemester) {
 const navAttendanceAdmin = document.getElementById("navAttendanceAdmin");
 if (navAttendanceAdmin) {
   navAttendanceAdmin.addEventListener("click", () => {
-    hideComplaintsSection();
+    // نخفي قسم الشكاوى مباشرة (بدل الاعتماد على hideComplaintsSection، لأن
+    // isAttendanceAdminOpen() لسا false هنا قبل ما تُستدعى openAttendanceAdmin
+    // بأسطر لاحقة، وهذا كان يسبب حالة غير مستقرة بين التبويبين)
+    const complaintsSectionEl = document.getElementById("complaintsSection");
+    if (complaintsSectionEl) complaintsSectionEl.style.display = "none";
 
     // إخفاء كل الأقسام الأخرى
     dashboardSection.style.display = "none";

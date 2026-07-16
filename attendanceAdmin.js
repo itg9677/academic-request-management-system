@@ -68,19 +68,30 @@ export async function openAttendanceAdmin() {
   const idsToHide = ["dashboardSection","semesterSection","tableWrap","loadingState","visitUploadArea"];
   idsToHide.forEach(id => { const el=document.getElementById(id); if(el) el.style.display="none"; });
 
-  document.querySelectorAll(".admin-search-row").forEach(el => el.style.display = "none");
-  document.querySelectorAll(".admin-stats-grid").forEach(el => el.style.display = "none");
-
-  // إخفاء admin-table-card التي تخص الجدول الرئيسي (ليس قسم الحضور)
-  document.querySelectorAll(".admin-table-card").forEach(el => {
-    if (!el.closest("#attendanceSectionAdmin")) el.style.display = "none";
+  // نستثني عناصر قسم الشكاوى تمامًا هنا، لأن قسمه يُخفى/يُظهر بالكامل عبر
+  // complaintsSection نفسه — تعديل عناصره الداخلية من هنا كان يسبب بقاء
+  // جدول الشكاوى مطفي دائمًا حتى بعد إعادة فتح تبويب الشكاوى.
+  document.querySelectorAll(".admin-search-row").forEach(el => {
+    if (!el.closest("#complaintsSection")) el.style.display = "none";
+  });
+  document.querySelectorAll(".admin-stats-grid").forEach(el => {
+    if (!el.closest("#complaintsSection")) el.style.display = "none";
   });
 
-  // إظهار قسم الحضور بشكل صريح
+  // إخفاء admin-table-card التي تخص الجدول الرئيسي (ليس قسم الحضور ولا الشكاوى)
+  document.querySelectorAll(".admin-table-card").forEach(el => {
+    if (!el.closest("#attendanceSectionAdmin") && !el.closest("#complaintsSection")) el.style.display = "none";
+  });
+
+  // إظهار قسم الحضور بشكل صريح (بدون تراكم على style.cssText مع كل فتح)
   const section = document.getElementById("attendanceSectionAdmin");
   if (section) {
-    section.style.display  = "block";
-    section.style.cssText += ";display:block !important;";
+    section.style.setProperty("display", "block", "important");
+    // إعادة إظهار عناصره الداخلية بشكل صريح، في حال أُطفئت سابقًا من منطق
+    // تبويب الشكاوى (showComplaintsSection) قبل هذا الإصلاح
+    section.querySelectorAll(".admin-table-card, .admin-search-row, .admin-stats-grid").forEach(el => {
+      el.style.display = "";
+    });
   }
 
   // تعيين التاريخ الافتراضي
@@ -100,7 +111,7 @@ export async function openAttendanceAdmin() {
 export function closeAttendanceAdmin() {
   attAdminOpen = false;
   const section = document.getElementById("attendanceSectionAdmin");
-  if (section) section.style.display = "none";
+  if (section) section.style.setProperty("display", "none", "important");
 }
 
 // يُستدعى من hideComplaintsSection بعد تعديله في Admindashboard.js
