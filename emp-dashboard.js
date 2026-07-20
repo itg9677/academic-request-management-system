@@ -1438,6 +1438,13 @@ auth.authStateReady().then(() => {
       const empData = empSnap.data();
       if (empData.role !== "employee") { window.location.replace("EmployeeLogin.html"); return; }
 
+      // موظفو "الشؤون التعليمية" لهم صفحة مخصصة لمتابعة الحضور فقط —
+      // نمنعهم من الوصول لهذه الصفحة (كل الصلاحيات) حتى لو دخلوا الرابط مباشرة
+      if ((empData.department || "").trim() === "الشؤون التعليمية") {
+        window.location.replace("attendanceOnlyDashboard.html");
+        return;
+      }
+
       currentEmployee = { uid: user.uid, ...empData };
       isAffairs = (empData.department || "").trim() === "شؤون الطالبات";
       // ✅ إظهار/إخفاء فلتر الأقسام — يظهر فقط لشؤون الطالبات وفقط في تبويب الحذف/الإضافة
@@ -1457,7 +1464,10 @@ if (!isAffairs && visitTabBtn) {
   }
 }
 
-// ====== فحص صلاحية متابعة الحضور ======
+// ====== فحص صلاحية متابعة الحضور (لموظفي الأقسام العادية اللي عندهم صلاحيات
+// ثانية زي الحذف/الإضافة، ومنحهم الأدمن صلاحية تحضير إضافية) ======
+// موظفو "الشؤون التعليمية" لا يصلون لهذا الكود أصلاً لأنهم تحوّلوا لصفحتهم
+// المخصصة بالأعلى، فهذا الفحص خاص فقط بباقي الموظفين.
 try {
   const permSnap = await getDoc(doc(db, "attendancePermissions", user.uid));
   if (permSnap.exists()) {

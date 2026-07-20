@@ -168,6 +168,16 @@ async function submitComplaint() {
     }
   }
 }
+// =====================================================
+//  ربط زر الإرسال بالدالة
+//  (الزر داخل <form>، لذلك لازم نمنع الـ submit الافتراضي
+//   حتى ما تنعمل reload/ريفريش للصفحة عند الضغط)
+// =====================================================
+document.getElementById("submitBtn")
+  .addEventListener("click", async (e) => {
+    e.preventDefault();
+    await submitComplaint();
+  });
 
 // =====================================================
 //  تعريض الدوال للـ HTML (onclick)
