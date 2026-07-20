@@ -61,6 +61,25 @@ function esc(str) {
   }[c]));
 }
 
+// يستخرج قائمة المقررات من سجل المتغيب — يدعم الصيغة الجديدة (courses: [...])
+// والصيغة القديمة (course/section مباشرة) للسجلات المحفوظة سابقًا
+function getAbsCourses(abs) {
+  if (Array.isArray(abs.courses) && abs.courses.length > 0) {
+    return abs.courses;
+  }
+  if (abs.course) {
+    return [{ course: abs.course, section: abs.section || "" }];
+  }
+  return [{ course: "-", section: "" }];
+}
+
+// يبني نص كل مقررات العضو مجمّعة بسطر واحد، مثال: "رياضيات101 — شعبة 2، فيزياء201 — شعبة 1"
+function formatCoursesText(abs) {
+  return getAbsCourses(abs)
+    .map(c => `${c.course || "-"}${c.section ? " — شعبة " + c.section : ""}`)
+    .join("، ");
+}
+
 // ==================== فتح تبويب الحضور ====================
 // flag يحدد هل قسم الحضور مفتوح حالياً
 let attAdminOpen = false;
@@ -181,8 +200,7 @@ function renderAttAdmin() {
         recordedByName: rec.recordedByName || "-",
         name:           abs.name           || "-",
         employeeNumber: abs.employeeNumber || "-",
-        course:         abs.course         || "-",
-        section:        abs.section       || "-"
+        coursesText:    formatCoursesText(abs)
       });
     });
   });
@@ -201,7 +219,7 @@ function renderAttAdmin() {
       <td>${esc(r.department)}</td>
       <td>${esc(r.name)}</td>
       <td>${esc(r.employeeNumber)}</td>
-      <td>${esc(r.course)} ${r.section ? `— شعبة ${esc(r.section)}` : ""}</td>
+      <td>${esc(r.coursesText)}</td>
     </tr>
   `).join("");
 
@@ -411,8 +429,7 @@ function printAttReport() {
         recordedByName: rec.recordedByName || "-",
         name:           abs.name           || "-",
         employeeNumber: abs.employeeNumber || "-",
-        course:         abs.course         || "-",
-        section:        abs.section       || "-"
+        coursesText:    formatCoursesText(abs)
       });
     });
   });
@@ -438,8 +455,7 @@ function printAttReport() {
       <td>${esc(r.department)}</td>
       <td>${esc(r.name)}</td>
       <td>${esc(r.employeeNumber)}</td>
-      <td>${esc(r.course)}</td>
-      <td>${esc(r.section)}</td>
+      <td>${esc(r.coursesText)}</td>
       <td>${formatDateAr(r.date)}</td>
     </tr>
   `).join("");
@@ -463,8 +479,7 @@ function printAttReport() {
             <th>القسم</th>
             <th>اسم العضو</th>
             <th>الرقم الوظيفي</th>
-            <th>المقرر</th>
-            <th>الشعبة</th>
+            <th>المقررات</th>
             <th>التاريخ</th>
           </tr>
         </thead>

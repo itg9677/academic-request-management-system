@@ -23,7 +23,8 @@ import {
 
 let attPermission = null;   // { trackingDepartment, employeeName, employeeNumber }
 let attRecordId   = null;   // معرّف سجل اليوم (لو موجود)
-let attAbsentees  = [];     // [{ name, employeeNumber, course, section }]
+let attAbsentees  = [];     // [{ name, employeeNumber, courses: [{course, section}] }] — القائمة الرسمية بالجدول
+let attPending    = [];     // نفس الشكل — قائمة مؤقتة لما يتم إضافته قبل الضغط على "حفظ التحضير"
 let attAllPresent = false;
 
 const DEPARTMENTS = ["كيمياء", "فيزياء", "أحياء", "رياضيات", "إحصاء", "أعضاء خارجيين"];
@@ -94,6 +95,9 @@ export async function openAttendanceTab() {
   const dateEl = document.getElementById("attEmpDate");
   if (dateEl) dateEl.textContent = formatTodayArabic();
 
+  // تفريغ أي مقررات كانت قيد الإضافة ولم تُحفظ
+  attPending = [];
+
   // تحميل سجل اليوم
   await loadTodayRecord();
 
@@ -131,7 +135,7 @@ async function loadTodayRecord() {
 
 // ==================== حفظ السجل ====================
 async function saveRecord() {
-  if (!attPermission) return;
+  if (!attPermission) return false;
   const today = getTodayStr();
 
   const recordData = {
@@ -155,10 +159,11 @@ async function saveRecord() {
       await setDoc(ref, recordData);
       attRecordId = ref.id;
     }
-    renderAttState();
+    return true;
   } catch (err) {
     console.error("خطأ حفظ السجل:", err);
     alert("حدث خطأ أثناء الحفظ");
+    return false;
   }
 }
 
@@ -192,6 +197,7 @@ function renderAttState() {
   }
 
   renderAbsenteesTable();
+  renderPendingPreview();
 }
 
 function renderAbsenteesTable() {
@@ -208,13 +214,35 @@ function renderAbsenteesTable() {
       <td>${i + 1}</td>
       <td>${esc(a.name)}</td>
       <td>${esc(a.employeeNumber)}</td>
-      <td>${esc(a.course)}</td>
-      <td>${esc(a.section)}</td>
-      <td><button class="att-remove-btn" data-idx="${i}" title="حذف"><i class="ti ti-x"></i></button></td>
+      <td>
+        <div class="att-courses-list">
+          ${(a.courses || []).map((c, ci) => `
+            <div class="att-course-line">
+              <span>${esc(c.course)}${c.section ? " - " + esc(c.section) : ""}</span>
+              <span class="att-course-x" data-idx="${i}" data-cidx="${ci}" title="حذف المقرر">×</span>
+            </div>
+          `).join("")}
+        </div>
+      </td>
+      <td><button class="att-remove-btn" data-idx="${i}" title="حذف العضو بالكامل"><i class="ti ti-trash"></i></button></td>
     </tr>
   `).join("");
 
-  // ربط أزرار الحذف
+  // حذف مقرر واحد من عضو (وإذا لم يتبقَ أي مقرر يُحذف العضو بالكامل)
+  tbody.querySelectorAll(".att-course-x").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const idx  = parseInt(btn.dataset.idx);
+      const cidx = parseInt(btn.dataset.cidx);
+      attAbsentees[idx].courses.splice(cidx, 1);
+      if (attAbsentees[idx].courses.length === 0) {
+        attAbsentees.splice(idx, 1);
+      }
+      attAllPresent = false;
+      renderAttState();
+    });
+  });
+
+  // حذف عضو بالكامل (مع كل مقرراته)
   tbody.querySelectorAll(".att-remove-btn").forEach(btn => {
     btn.addEventListener("click", () => {
       const idx = parseInt(btn.dataset.idx);
@@ -225,11 +253,96 @@ function renderAbsenteesTable() {
   });
 }
 
+function renderPendingPreview() {
+  const wrap = document.getElementById("attPendingWrap");
+  const list = document.getElementById("attPendingList");
+  if (!wrap || !list) return;
+
+  if (attPending.length === 0) {
+    wrap.style.display = "none";
+    list.innerHTML = "";
+    return;
+  }
+
+  wrap.style.display = "block";
+  list.innerHTML = attPending.map((a, i) => `
+    <div class="att-pending-item">
+      <div class="att-pending-name">${esc(a.name)} — ${esc(a.employeeNumber)}</div>
+      <div class="att-courses-list">
+        ${a.courses.map((c, ci) => `
+          <div class="att-course-line">
+            <span>${esc(c.course)}${c.section ? " - " + esc(c.section) : ""}</span>
+            <span class="att-course-x" data-idx="${i}" data-cidx="${ci}" title="حذف المقرر">×</span>
+          </div>
+        `).join("")}
+      </div>
+    </div>
+  `).join("");
+
+  // حذف مقرر واحد من القائمة المؤقتة
+  list.querySelectorAll(".att-course-x").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const idx  = parseInt(btn.dataset.idx);
+      const cidx = parseInt(btn.dataset.cidx);
+      attPending[idx].courses.splice(cidx, 1);
+      if (attPending[idx].courses.length === 0) {
+        attPending.splice(idx, 1);
+      }
+      renderPendingPreview();
+    });
+  });
+}
+
 function esc(str) {
   if (str == null) return "";
   return String(str).replace(/[&<>"']/g, c => ({
     "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
   }[c]));
+}
+
+// يقرأ حقول النموذج الحالية ويضيفها للقائمة المؤقتة (attPending)
+// showAlerts=true تظهر رسائل تنبيه لو الحقول ناقصة؛ لو الحقول فاضية تمامًا يتجاهل بصمت
+function stageCurrentFormEntry(showAlerts) {
+  const nameEl = document.getElementById("attAbsName");
+  const numEl  = document.getElementById("attAbsEmpNum");
+  const crsEl  = document.getElementById("attAbsCourse");
+  const secEl  = document.getElementById("attAbsSection");
+
+  const name   = nameEl?.value.trim();
+  const empNum = numEl?.value.trim();
+  const course = crsEl?.value.trim();
+  const section= secEl?.value.trim();
+
+  // ما فيه شي مكتوب بالحقول — عادي، ما نسوي شي
+  if (!name && !empNum && !course && !section) return false;
+
+  if (!name || !empNum) {
+    if (showAlerts) alert("الاسم والرقم الوظيفي مطلوبان");
+    return false;
+  }
+  if (!course) {
+    if (showAlerts) alert("الرجاء إدخال اسم المقرر");
+    return false;
+  }
+
+  // البحث عن العضو (بنفس الاسم والرقم الوظيفي) في القائمة المؤقتة لإضافة المقرر له بدلاً من تكرار اسمه
+  const idx = attPending.findIndex(a => a.employeeNumber === empNum && a.name === name);
+
+  if (idx !== -1) {
+    // تفادي تكرار نفس المقرر والشعبة لنفس العضو
+    const isDup = attPending[idx].courses.some(c => c.course === course && c.section === section);
+    if (!isDup) {
+      attPending[idx].courses.push({ course, section });
+    }
+  } else {
+    attPending.push({ name, employeeNumber: empNum, courses: [{ course, section }] });
+  }
+
+  // تفريغ حقلي المقرر والشعبة فقط — إبقاء الاسم والرقم الوظيفي لإضافة مقرر آخر بسهولة
+  if (crsEl) crsEl.value = "";
+  if (secEl) secEl.value = "";
+
+  return true;
 }
 
 // ==================== ربط الأحداث ====================
@@ -246,7 +359,9 @@ export function bindAttendanceEvents() {
     allBtn.addEventListener("click", async () => {
       attAllPresent = true;
       attAbsentees = [];
-      await saveRecord();
+      attPending = [];
+      const ok = await saveRecord();
+      if (ok) renderAttState();
     });
   }
 
@@ -267,46 +382,56 @@ export function bindAttendanceEvents() {
     });
   }
 
-  // إضافة متغيب
+  // إضافة متغيب / إضافة مقرر آخر لنفس العضو — إلى القائمة المؤقتة فقط (لا يظهر بالجدول إلا بعد الحفظ)
   const addBtn = document.getElementById("attAddAbsentBtn");
   if (addBtn) {
     addBtn.addEventListener("click", () => {
-      const name   = document.getElementById("attAbsName")?.value.trim();
-      const empNum = document.getElementById("attAbsEmpNum")?.value.trim();
-      const course = document.getElementById("attAbsCourse")?.value.trim();
-      const section= document.getElementById("attAbsSection")?.value.trim();
-
-      if (!name || !empNum) {
-        alert("الاسم والرقم الوظيفي مطلوبان");
-        return;
-      }
-
-      attAbsentees.push({ name, employeeNumber: empNum, course, section });
-      attAllPresent = false;
-
-      // تفريغ الحقول
-      const elName = document.getElementById("attAbsName");
-      const elNum  = document.getElementById("attAbsEmpNum");
-      const elCrs  = document.getElementById("attAbsCourse");
-      const elSec  = document.getElementById("attAbsSection");
-      if (elName) elName.value   = "";
-      if (elNum)  elNum.value    = "";
-      if (elCrs)  elCrs.value    = "";
-      if (elSec)  elSec.value    = "";
-
-      renderAttState();
+      stageCurrentFormEntry(true);
+      renderPendingPreview();
     });
   }
 
-  // حفظ بعد إضافة المتغيبين
+  // حفظ التحضير — هنا تنتقل المقررات المضافة (سواء عبر زر "إضافة" أو المكتوبة بالحقول الآن) من القائمة المؤقتة إلى الجدول الفعلي وتُحفظ
   const saveBtn = document.getElementById("attSaveAbsentBtn");
   if (saveBtn) {
     saveBtn.addEventListener("click", async () => {
-      if (attAbsentees.length === 0) {
+      // لو المستخدم كاتب بيانات بالحقول ولسا ما ضغط "إضافة"، نضيفها تلقائيًا قبل الحفظ
+      stageCurrentFormEntry(true);
+
+      if (attPending.length === 0 && attAbsentees.length === 0) {
         alert("أضف متغيبًا واحدًا على الأقل أو استخدم زر «الكل حاضر»");
         return;
       }
-      await saveRecord();
+
+      // دمج القائمة المؤقتة داخل الجدول الفعلي
+      attPending.forEach(p => {
+        const idx = attAbsentees.findIndex(a => a.employeeNumber === p.employeeNumber && a.name === p.name);
+        if (idx !== -1) {
+          p.courses.forEach(c => {
+            const isDup = attAbsentees[idx].courses.some(ec => ec.course === c.course && ec.section === c.section);
+            if (!isDup) attAbsentees[idx].courses.push(c);
+          });
+        } else {
+          attAbsentees.push({ name: p.name, employeeNumber: p.employeeNumber, courses: [...p.courses] });
+        }
+      });
+      attPending = [];
+      attAllPresent = false;
+
+      const ok = await saveRecord();
+      if (ok) {
+        // تفريغ حقول الإدخال فقط — الجدول يبقى ظاهرًا بما تم حفظه فعليًا
+        const elName = document.getElementById("attAbsName");
+        const elNum  = document.getElementById("attAbsEmpNum");
+        const elCrs  = document.getElementById("attAbsCourse");
+        const elSec  = document.getElementById("attAbsSection");
+        if (elName) elName.value = "";
+        if (elNum)  elNum.value  = "";
+        if (elCrs)  elCrs.value  = "";
+        if (elSec)  elSec.value  = "";
+
+        renderAttState();
+      }
     });
   }
 }
