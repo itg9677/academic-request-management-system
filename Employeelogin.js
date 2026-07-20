@@ -66,6 +66,16 @@ form.addEventListener("submit", async (e) => {
 
         if (adminSnap.exists()) {
             window.location.href = "adminDashboard.html";
+            return;
+        }
+
+        // 🎯 التحقق من قسم الموظف — موظف "الشؤون التعليمية" يُوجَّه مباشرة
+        // لصفحة متابعة الحضور والغياب فقط، بدون أي صلاحيات أخرى
+        const empSnap = await getDoc(doc(db, "employees", user.uid));
+        const empData = empSnap.exists() ? empSnap.data() : null;
+
+        if (empData && (empData.department || "").trim() === "الشؤون التعليمية") {
+            window.location.href = "attendanceOnlyDashboard.html";
         } else {
             window.location.href = "employeedashboard.html";
         }
