@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>متابعة الحضور والغياب — الشؤون التعليمية</title>
+  <link rel="icon" href="data:,">
+
+  <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="EmpStyle.css" />
+  <link rel="stylesheet" href="adminStyle.css" />
+  <link rel="stylesheet" href="sidebarStyle.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tabler-icons/3.35.0/tabler-icons.min.css" />
+  <link rel="stylesheet" href="attendanceStyle.css" />
+  <style>
+    * { font-family: 'Tajawal', sans-serif !important; }
+
+    /* حالة الانتظار / الخطأ (تظهر افتراضيًا حتى تتأكد الصفحة من عرض واجهة التحضير) */
+    .att-waiting-permission {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+      text-align: center;
+      background: #fff;
+      border: 1.5px solid #e2e8f0;
+      border-radius: 14px;
+      padding: 60px 24px;
+      color: #64748b;
+    }
+    .att-waiting-permission i {
+      font-size: 42px;
+      color: #c8972b;
+    }
+    .att-waiting-permission.is-error i {
+      color: #c0392b;
+    }
+    .att-waiting-permission h3 {
+      margin: 0;
+      color: #1a3a6b;
+      font-size: 18px;
+    }
+    .att-waiting-permission p {
+      margin: 0;
+      max-width: 420px;
+      line-height: 1.8;
+    }
+  </style>
+</head>
+<body class="sidebar-layout admin-page employee-dashboard-page">
+
+  <!-- ===== Sidebar ===== -->
+  <aside class="sb-sidebar">
+    <div class="sb-brand">
+      <div class="sb-brand-icon"><i class="ti ti-school"></i></div>
+      <div>
+        <div class="sb-brand-title">نظام الخدمات الطلابية</div>
+        <div class="sb-brand-sub">الشؤون التعليمية</div>
+      </div>
+    </div>
+
+    <nav class="sb-nav">
+      <div class="sb-nav-item emp-tab-btn active" data-tab="attendance">
+        <i class="ti ti-clipboard-check"></i>
+        <span>متابعة الحضور والغياب</span>
+      </div>
+    </nav>
+
+    <div class="sb-user">
+      <i class="ti ti-user-circle sb-user-avatar"></i>
+      <div>
+        <div class="sb-user-name"  id="empName">...</div>
+        <div class="sb-user-email" id="empEmail">...</div>
+      </div>
+    </div>
+    <button class="sb-logout-btn" id="logoutBtn">
+      <i class="ti ti-logout"></i> تسجيل الخروج
+    </button>
+  </aside>
+
+  <!-- ===== Main ===== -->
+  <div class="sb-main">
+
+    <!-- Topbar -->
+    <div class="sb-topbar">
+      <div class="sb-topbar-title">متابعة الحضور والغياب</div>
+
+      <div class="sb-topbar-logo">
+        <img src="images/Qassim_University_logo.svg.png" alt="جامعة القصيم" />
+      </div>
+
+      <div class="sb-topbar-dates">
+        <div class="sb-date-hijri" id="hijriDate">...</div>
+        <div class="sb-date-greg"  id="gregDate">...</div>
+      </div>
+    </div>
+
+    <main class="admin-main">
+
+      <!-- Welcome -->
+      <div class="emp-welcome">
+        <div class="emp-welcome-hi">مرحبًا بك</div>
+        <div class="emp-welcome-name">أ. <span id="empNameWelcome">...</span></div>
+        <div class="emp-welcome-dept">
+          <i class="ti ti-building"></i>
+          <span>الشؤون التعليمية</span>
+        </div>
+      </div>
+
+      <!-- حالة الانتظار/الخطأ: ظاهرة افتراضيًا، تُخفى فقط بعد تأكيد عرض واجهة التحضير بنجاح
+           بهالشكل الصفحة ما تطلع فاضية أبدًا — دايمًا فيها رسالة واضحة أو واجهة التحضير -->
+      <div class="att-waiting-permission" id="attWaitingPermission">
+        <i class="ti ti-clock-hour-4"></i>
+        <h3 id="attWaitingTitle">بانتظار منح الصلاحية</h3>
+        <p id="attWaitingText">
+          لم تُمنح صلاحية تسجيل الحضور والغياب لحسابك بعد. يرجى التواصل مع الأدمن
+          لمنحك الصلاحية وتحديد القسم الذي ستتابعين حضوره، ثم أعيدي تحميل الصفحة
+          وستظهر لك واجهة التحضير مباشرة.
+        </p>
+      </div>
+
+      <!-- ==================== متابعة الحضور ==================== -->
+      <section class="attendance-section" id="attendanceSectionEmp" style="display:none;">
+        <div class="attendance-header">
+          <h2>متابعة حضور أعضاء هيئة التدريس</h2>
+          <div class="att-date" id="attEmpDate"></div>
+          <div style="font-size:14px;color:#64748b;margin-top:4px;">القسم: <span id="attEmpDept"></span></div>
+        </div>
+
+        <div class="att-status att-status-pending" id="attEmpStatus">لم يتم تسجيل التحضير بعد</div>
+
+        <div class="att-actions">
+          <button class="att-btn att-btn-all-present" id="attBtnAllPresent">
+            <i class="ti ti-checks"></i> الكل حاضر
+          </button>
+          <button class="att-btn att-btn-except" id="attBtnExcept">
+            <i class="ti ti-user-minus"></i> الكل حاضر ما عدا
+          </button>
+        </div>
+
+        <div class="att-absent-section" id="attAbsentSection" style="display:none;">
+          <h3>إضافة متغيب</h3>
+          <div class="att-absent-form">
+            <div class="att-field">
+              <label>اسم العضو</label>
+              <input type="text" id="attAbsName" placeholder="الاسم الكامل" />
+            </div>
+            <div class="att-field">
+              <label>الرقم الوظيفي</label>
+              <input type="text" id="attAbsEmpNum" placeholder="الرقم الوظيفي" />
+            </div>
+            <div class="att-field">
+              <label>المقرر</label>
+              <input type="text" id="attAbsCourse" placeholder="اسم المقرر" />
+            </div>
+            <div class="att-field">
+              <label>الشعبة</label>
+              <input type="text" id="attAbsSection" placeholder="رقم الشعبة" />
+            </div>
+            <button class="att-add-absent-btn" id="attAddAbsentBtn">
+              <i class="ti ti-plus"></i> إضافة
+            </button>
+          </div>
+
+          <table class="att-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>الاسم</th>
+                <th>الرقم الوظيفي</th>
+                <th>المقرر</th>
+                <th>الشعبة</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="attAbsentTbody"></tbody>
+          </table>
+
+          <button class="att-btn att-btn-all-present" id="attSaveAbsentBtn" style="margin-top:14px;">
+            <i class="ti ti-device-floppy"></i> حفظ التحضير
+          </button>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <script type="module" src="attendanceOnlyDashboard.js"></script>
+</body>
+</html>
