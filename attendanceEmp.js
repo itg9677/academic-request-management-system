@@ -26,6 +26,7 @@ let attRecordId   = null;   // معرّف سجل اليوم (لو موجود)
 let attAbsentees  = [];     // [{ name, employeeNumber, courses: [{course, section}] }] — القائمة الرسمية بالجدول
 let attPending    = [];     // نفس الشكل — قائمة مؤقتة لما يتم إضافته قبل الضغط على "حفظ التحضير"
 let attAllPresent = false;
+let attEditingIdx = -1;  // index of absentee being edited (-1 = not editing)
 
 const DEPARTMENTS = ["كيمياء", "فيزياء", "أحياء", "رياضيات", "إحصاء", "أعضاء خارجيين"];
 
@@ -201,35 +202,45 @@ function renderAttState() {
 }
 
 function renderAbsenteesTable() {
-  const tbody = document.getElementById("attAbsentTbody");
-  if (!tbody) return;
+  const container = document.getElementById("attAbsentCards");
+  if (!container) return;
+
+  // إظهار/إخفاء رأس المتغيبين
+  const absenteesHeader = document.getElementById("attAbsenteesHeader");
+  if (absenteesHeader) {
+    absenteesHeader.style.display = attAbsentees.length > 0 ? "flex" : "none";
+  }
 
   if (attAbsentees.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;color:#94a3b8;">لا يوجد متغيبون</td></tr>`;
+    container.innerHTML = "";
     return;
   }
 
-  tbody.innerHTML = attAbsentees.map((a, i) => `
-    <tr>
-      <td>${i + 1}</td>
-      <td>${esc(a.name)}</td>
-      <td>${esc(a.employeeNumber)}</td>
-      <td>
-        <div class="att-courses-list">
-          ${(a.courses || []).map((c, ci) => `
-            <div class="att-course-line">
-              <span>${esc(c.course)}${c.section ? " - " + esc(c.section) : ""}</span>
-              <span class="att-course-x" data-idx="${i}" data-cidx="${ci}" title="حذف المقرر">×</span>
-            </div>
-          `).join("")}
+  container.innerHTML = attAbsentees.map((a, i) => `
+    <div class="att-absentee-card ${attEditingIdx === i ? "att-editing-card" : ""}" data-idx="${i}">
+      <div class="att-card-header">
+        <div class="att-card-identity">
+          <span class="att-card-name">${esc(a.name)}</span>
+          <span class="att-card-num">${esc(a.employeeNumber)}</span>
         </div>
-      </td>
-      <td><button class="att-remove-btn" data-idx="${i}" title="حذف العضو بالكامل"><i class="ti ti-trash"></i></button></td>
-    </tr>
+        <div class="att-card-actions">
+          <button class="att-edit-btn" data-idx="${i}" title="تعديل"><i class="ti ti-edit"></i></button>
+          <button class="att-remove-btn" data-idx="${i}" title="حذف"><i class="ti ti-trash"></i></button>
+        </div>
+      </div>
+      <div class="att-card-courses">
+        ${(a.courses || []).map((c, ci) => `
+          <span class="att-course-chip">
+            ${esc(c.course)}${c.section ? " · ش" + esc(c.section) : ""}
+            <span class="att-chip-x" data-idx="${i}" data-cidx="${ci}">×</span>
+          </span>
+        `).join("")}
+      </div>
+    </div>
   `).join("");
 
-  // حذف مقرر واحد من عضو (وإذا لم يتبقَ أي مقرر يُحذف العضو بالكامل)
-  tbody.querySelectorAll(".att-course-x").forEach(btn => {
+  // حذف مقرر واحد (chip × )
+  container.querySelectorAll(".att-chip-x").forEach(btn => {
     btn.addEventListener("click", () => {
       const idx  = parseInt(btn.dataset.idx);
       const cidx = parseInt(btn.dataset.cidx);
@@ -242,15 +253,68 @@ function renderAbsenteesTable() {
     });
   });
 
-  // حذف عضو بالكامل (مع كل مقرراته)
-  tbody.querySelectorAll(".att-remove-btn").forEach(btn => {
+  // تعديل بطاقة كاملة
+  container.querySelectorAll(".att-edit-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const idx = parseInt(btn.dataset.idx);
+      const a = attAbsentees[idx];
+      if (!a) return;
+
+      attEditingIdx = idx;
+      stageCurrentFormEntry(false);
+
+      const nameEl = document.getElementById("attAbsName");
+      const numEl  = document.getElementById("attAbsEmpNum");
+      const crsEl  = document.getElementById("attAbsCourse");
+      const secEl  = document.getElementById("attAbsSection");
+
+      if (nameEl) nameEl.value = a.name;
+      if (numEl)  numEl.value  = a.employeeNumber;
+      if (a.courses && a.courses.length > 0) {
+        if (crsEl) crsEl.value = a.courses[0].course || "";
+        if (secEl) secEl.value = a.courses[0].section || "";
+      }
+
+      // نقل باقي المقررات للقائمة المؤقتة
+      if (a.courses && a.courses.length > 1) {
+        for (let ci = 1; ci < a.courses.length; ci++) {
+          const dup = attPending.findIndex(p => p.employeeNumber === a.employeeNumber && p.name === a.name);
+          if (dup !== -1) {
+            attPending[dup].courses.push(a.courses[ci]);
+          } else {
+            attPending.push({ name: a.name, employeeNumber: a.employeeNumber, courses: [a.courses[ci]] });
+          }
+        }
+      }
+      attAbsentees.splice(idx, 1);
+      attAllPresent = false;
+
+      const addBtn = document.getElementById("attAddAbsentBtn");
+      if (addBtn) {
+        addBtn.innerHTML = '<i class="ti ti-check"></i> تحديث';
+        addBtn.classList.add("att-editing-active");
+      }
+
+      renderAttState();
+      renderPendingPreview();
+      if (nameEl) nameEl.focus();
+    });
+  });
+
+  // حذف بطاقة كاملة
+  container.querySelectorAll(".att-remove-btn").forEach(btn => {
     btn.addEventListener("click", () => {
       const idx = parseInt(btn.dataset.idx);
       attAbsentees.splice(idx, 1);
       attAllPresent = false;
+      if (attEditingIdx === idx) attEditingIdx = -1;
       renderAttState();
     });
   });
+
+  // تحديث عداد المتغيبين
+  const countEl = document.getElementById("attAbsenteesCount");
+  if (countEl) countEl.textContent = attAbsentees.length;
 }
 
 function renderPendingPreview() {
@@ -265,22 +329,28 @@ function renderPendingPreview() {
   }
 
   wrap.style.display = "block";
-  list.innerHTML = attPending.map((a, i) => `
-    <div class="att-pending-item">
-      <div class="att-pending-name">${esc(a.name)} — ${esc(a.employeeNumber)}</div>
-      <div class="att-courses-list">
-        ${a.courses.map((c, ci) => `
-          <div class="att-course-line">
-            <span>${esc(c.course)}${c.section ? " - " + esc(c.section) : ""}</span>
-            <span class="att-course-x" data-idx="${i}" data-cidx="${ci}" title="حذف المقرر">×</span>
-          </div>
-        `).join("")}
-      </div>
-    </div>
-  `).join("");
 
-  // حذف مقرر واحد من القائمة المؤقتة
-  list.querySelectorAll(".att-course-x").forEach(btn => {
+  // نجمع كل المقررات المضافة مؤقتاً (لنفس الموظف المكتوب بالحقل أو لأي موظف)
+  // نعرضها كـ chips في صف واحد داخل الفورم
+  const allChips = [];
+  attPending.forEach((a, i) => {
+    a.courses.forEach((c, ci) => {
+      allChips.push({ name: a.name, empNum: a.employeeNumber, course: c.course, section: c.section, idx: i, cidx: ci });
+    });
+  });
+
+  list.innerHTML = `
+    <div class="att-pending-chips-row">
+      ${allChips.map(ch => `
+        <span class="att-course-chip pending-chip" title="${esc(ch.name)} — ${esc(ch.empNum)}">
+          ${esc(ch.course)}${ch.section ? " – شعبة " + esc(ch.section) : ""}
+          <span class="att-chip-x" data-idx="${ch.idx}" data-cidx="${ch.cidx}">×</span>
+        </span>
+      `).join("")}
+    </div>
+  `;
+
+  list.querySelectorAll(".att-chip-x").forEach(btn => {
     btn.addEventListener("click", () => {
       const idx  = parseInt(btn.dataset.idx);
       const cidx = parseInt(btn.dataset.cidx);
@@ -342,6 +412,16 @@ function stageCurrentFormEntry(showAlerts) {
   if (crsEl) crsEl.value = "";
   if (secEl) secEl.value = "";
 
+  // لو كنا في وضع التعديل، نReset زر الإضافة
+  if (attEditingIdx >= 0) {
+    attEditingIdx = -1;
+    const addBtn = document.getElementById("attAddAbsentBtn");
+    if (addBtn) {
+      addBtn.innerHTML = '<i class="ti ti-plus"></i> إضافة';
+      addBtn.classList.remove("att-editing-active");
+    }
+  }
+
   return true;
 }
 
@@ -391,47 +471,57 @@ export function bindAttendanceEvents() {
     });
   }
 
-  // حفظ التحضير — هنا تنتقل المقررات المضافة (سواء عبر زر "إضافة" أو المكتوبة بالحقول الآن) من القائمة المؤقتة إلى الجدول الفعلي وتُحفظ
+  // ======= دالة مشتركة: دمج attPending في attAbsentees ثم حفظ =======
+  async function commitAndSave() {
+    stageCurrentFormEntry(true);
+
+    if (attPending.length === 0 && attAbsentees.length === 0) {
+      alert("أضف متغيبًا واحدًا على الأقل أو استخدم زر «الكل حاضر»");
+      return false;
+    }
+
+    attPending.forEach(p => {
+      const idx = attAbsentees.findIndex(a => a.employeeNumber === p.employeeNumber && a.name === p.name);
+      if (idx !== -1) {
+        p.courses.forEach(c => {
+          const isDup = attAbsentees[idx].courses.some(ec => ec.course === c.course && ec.section === c.section);
+          if (!isDup) attAbsentees[idx].courses.push(c);
+        });
+      } else {
+        attAbsentees.push({ name: p.name, employeeNumber: p.employeeNumber, courses: [...p.courses] });
+      }
+    });
+    attPending = [];
+    attAllPresent = false;
+
+    const ok = await saveRecord();
+    if (ok) {
+      const elName = document.getElementById("attAbsName");
+      const elNum  = document.getElementById("attAbsEmpNum");
+      const elCrs  = document.getElementById("attAbsCourse");
+      const elSec  = document.getElementById("attAbsSection");
+      if (elName) elName.value = "";
+      if (elNum)  elNum.value  = "";
+      if (elCrs)  elCrs.value  = "";
+      if (elSec)  elSec.value  = "";
+      renderAttState();
+    }
+    return ok;
+  }
+
+  // زر "حفظ التحضير" (أسفل القائمة)
   const saveBtn = document.getElementById("attSaveAbsentBtn");
   if (saveBtn) {
     saveBtn.addEventListener("click", async () => {
-      // لو المستخدم كاتب بيانات بالحقول ولسا ما ضغط "إضافة"، نضيفها تلقائيًا قبل الحفظ
-      stageCurrentFormEntry(true);
+      await commitAndSave();
+    });
+  }
 
-      if (attPending.length === 0 && attAbsentees.length === 0) {
-        alert("أضف متغيبًا واحدًا على الأقل أو استخدم زر «الكل حاضر»");
-        return;
-      }
-
-      // دمج القائمة المؤقتة داخل الجدول الفعلي
-      attPending.forEach(p => {
-        const idx = attAbsentees.findIndex(a => a.employeeNumber === p.employeeNumber && a.name === p.name);
-        if (idx !== -1) {
-          p.courses.forEach(c => {
-            const isDup = attAbsentees[idx].courses.some(ec => ec.course === c.course && ec.section === c.section);
-            if (!isDup) attAbsentees[idx].courses.push(c);
-          });
-        } else {
-          attAbsentees.push({ name: p.name, employeeNumber: p.employeeNumber, courses: [...p.courses] });
-        }
-      });
-      attPending = [];
-      attAllPresent = false;
-
-      const ok = await saveRecord();
-      if (ok) {
-        // تفريغ حقول الإدخال فقط — الجدول يبقى ظاهرًا بما تم حفظه فعليًا
-        const elName = document.getElementById("attAbsName");
-        const elNum  = document.getElementById("attAbsEmpNum");
-        const elCrs  = document.getElementById("attAbsCourse");
-        const elSec  = document.getElementById("attAbsSection");
-        if (elName) elName.value = "";
-        if (elNum)  elNum.value  = "";
-        if (elCrs)  elCrs.value  = "";
-        if (elSec)  elSec.value  = "";
-
-        renderAttState();
-      }
+  // زر "إضافة وحفظ" (داخل الفورم — يضيف العنصر الحالي ويحفظ مباشرة)
+  const saveInlineBtn = document.getElementById("attSaveInlineBtn");
+  if (saveInlineBtn) {
+    saveInlineBtn.addEventListener("click", async () => {
+      await commitAndSave();
     });
   }
 }

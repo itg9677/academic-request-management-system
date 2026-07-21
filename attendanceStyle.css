@@ -792,3 +792,316 @@
   margin-bottom: 14px;
   width: fit-content;
 }
+
+
+
+/* ============================================================
+   واجهة البطاقات v2 — مطابقة للتصميم المطلوب
+   ============================================================ */
+
+/* بطاقة الفورم */
+.att-add-form-card {
+  background: #fff;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 18px 18px 14px;
+  margin-top: 14px;
+}
+
+/* صفوف الحقول */
+.att-field-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+  align-items: flex-end;
+}
+
+.att-field-row .att-field {
+  flex: 1;
+  min-width: 150px;
+}
+
+.att-field-row .att-field.att-field-sm {
+  flex: 0 0 130px;
+  min-width: 100px;
+}
+
+/* صف المقرر + زر إضافة */
+.att-course-row {
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+.att-course-row .att-field input {
+  margin-bottom: 0;
+}
+
+.att-field label {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  color: #475569;
+  margin-bottom: 5px;
+}
+
+.att-required { color: #e53e3e; margin-right: 2px; }
+
+.att-field input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 9px 12px;
+  border: 1.5px solid #d1d9e6;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 14px;
+  transition: border-color 0.15s;
+  background: #fff;
+  direction: rtl;
+}
+
+.att-field input:focus {
+  outline: none;
+  border-color: #1a3a6b;
+}
+
+.att-form-btns {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+/* زر إضافة مقرر */
+.att-add-absent-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 16px;
+  background: #1a3a6b;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s;
+}
+.att-add-absent-btn:hover { background: #14305a; }
+
+/* زر حفظ داخل الفورم */
+.att-save-inline-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 20px;
+  background: #c8972b;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.att-save-inline-btn:hover { background: #b8872b; }
+
+/* زر حفظ التحضير النهائي */
+.att-save-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 12px;
+  background: #1a3a6b;
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 16px;
+  transition: background 0.15s;
+}
+.att-save-btn:hover { background: #14305a; }
+
+/* ======= Chips المقررات المؤقتة ======= */
+.att-pending-chips-wrap {
+  margin-bottom: 10px;
+}
+
+.att-pending-chips-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 6px 0 2px;
+}
+
+/* ======= قسم المتغيبين ======= */
+.att-absentees-section {
+  margin-bottom: 4px;
+}
+
+.att-absentees-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 14px;
+  font-weight: 600;
+  color: #1a3a6b;
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 2px solid #e2e8f0;
+}
+
+.att-absentees-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 7px;
+  background: #1a3a6b;
+  color: #fff;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* ======= بطاقة متغيب ======= */
+.att-absent-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.att-absentee-card {
+  background: #fff;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 14px 16px;
+  transition: border-color 0.15s;
+}
+
+.att-absentee-card:hover { border-color: #c6d3e8; }
+
+.att-editing-card {
+  border-color: #c8972b !important;
+  background: #fffbf0;
+}
+
+.att-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.att-card-identity {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.att-card-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: #1e2d50;
+}
+
+.att-card-num {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.att-card-actions {
+  display: flex;
+  gap: 6px;
+}
+
+/* أزرار التعديل والحذف */
+.att-edit-btn,
+.att-remove-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1.5px solid #e2e8f0;
+  background: #f8fafc;
+  cursor: pointer;
+  font-size: 15px;
+  transition: all 0.15s;
+}
+
+.att-edit-btn { color: #1a3a6b; }
+.att-edit-btn:hover { background: #e8edf5; border-color: #1a3a6b; }
+
+.att-remove-btn { color: #e53e3e; }
+.att-remove-btn:hover { background: #fee2e2; border-color: #e53e3e; }
+
+/* ======= Chips المقررات في البطاقة ======= */
+.att-card-courses {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.att-course-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  background: #eef2fb;
+  color: #1a3a6b;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 500;
+  border: 1px solid #d0daf0;
+}
+
+.att-course-chip.pending-chip {
+  background: #fff7e6;
+  color: #92400e;
+  border-color: #fcd34d;
+}
+
+.att-chip-x {
+  cursor: pointer;
+  font-size: 13px;
+  color: #94a3b8;
+  padding: 0 1px;
+  transition: color 0.1s;
+}
+.att-chip-x:hover { color: #e53e3e; }
+
+/* حالة فارغة */
+.att-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 24px 0 8px;
+  color: #94a3b8;
+  font-size: 14px;
+}
+.att-empty-state i { font-size: 30px; opacity: 0.35; }
+
+/* row actions */
+.att-row-actions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  justify-content: center;
+}
+
+.att-editing-row { background: #fef9e7 !important; }
+.att-editing-active { background: #c8972b !important; color: #fff !important; border-color: #c8972b !important; }
+.att-editing-active:hover { background: #b8872b !important; }

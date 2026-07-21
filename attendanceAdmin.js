@@ -277,7 +277,7 @@ async function loadAttStats() {
     const records = snap.docs.map(d => d.data());
 
     const deptStats = {};
-    const DEPTS = ["كيمياء", "فيزياء", "أحياء", "رياضيات", "إحصاء", "أعضاء خارجين"];
+    const DEPTS = ["كيمياء", "فيزياء", "أحياء", "رياضيات", "إحصاء", "أعضاء خارجيين"];
 
     DEPTS.forEach(d => { deptStats[d] = { allPresentDays: 0, absenteeCount: 0, totalDays: 0 }; });
 
@@ -317,6 +317,8 @@ function renderAttStats(deptStats) {
   if (!container) return;
 
   const deptArr = Object.entries(deptStats).map(([dept, s]) => {
+    // نسبة الانضباط: (أيام الكل حاضر / إجمالي الأيام المسجلة) × 100
+    // لو فيه غياب بس مو يوم كامل، نحسب النسبة من الأيام الكاملة
     const rate = s.totalDays > 0 ? Math.round((s.allPresentDays / s.totalDays) * 100) : 0;
     return { dept, ...s, rate };
   });
@@ -351,13 +353,14 @@ function renderAttStats(deptStats) {
   `;
 
   deptArr.forEach((d, i) => {
-    const cls = i === 0 && d.rate > 0 ? "best" : (i === deptArr.length - 1 && d.totalDays > 0 ? "worst" : "");
-    const rateLabel = d.totalDays > 0 ? `${d.rate}%` : "—";
+    const cls = i === 0 && d.rate > 0 ? "best" : (i === deptArr.length - 1 && d.totalDays > 0 && d.absenteeCount > 0 ? "worst" : "");
+    const rateLabel = d.totalDays > 0 ? `${d.rate}%` : "لا يوجد";
+    const hasData = d.totalDays > 0;
     html += `
       <div class="att-stat-card ${cls}">
         <div class="att-stat-dept">${esc(d.dept)}</div>
         <div class="att-stat-value">${rateLabel}</div>
-        <div class="att-stat-label">انضباط · ${d.allPresentDays} يوم كامل · ${d.absenteeCount} غياب</div>
+        <div class="att-stat-label">${d.totalDays > 0 ? d.totalDays + " يوم مسجل · " + d.allPresentDays + " يوم كامل · " + d.absenteeCount + " غياب" : "لم يُسجل حضور في هذه الفترة"}</div>
       </div>
     `;
   });
