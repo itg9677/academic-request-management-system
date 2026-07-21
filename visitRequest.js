@@ -67,7 +67,7 @@ window.removeCourseRow = function (rowId) {
     const tbody = document.getElementById("coursesBody");
 
     if (tbody.children.length <= 1) {
-        alert("لازم يبقى مادة واحدة على الأقل");
+        alert("لابد من إضافة مادة واحدة على الاقل");
         return;
     }
 

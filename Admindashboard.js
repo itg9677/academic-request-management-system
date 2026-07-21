@@ -37,6 +37,9 @@ const employeesCache = {};
 const tabData = { addDrop: [], excuse: [], visit: [], complaints: [] };
 
 let currentTab          = "addDrop";
+// يتتبّع أي قسم ظاهر حاليًا في الصفحة (طلبات / فصل دراسي / إحصائيات / حضور / شكاوى)
+// مهم لمنع renderTab() من إعادة إظهار جدول الطلبات فوق قسم آخر (تداخل التبويبات)
+let activeSection       = "requests";
 let currentStatusFilter = "all";
 let currentDeptFilter   = "all";
 let currentExcuseDept      = "all";
@@ -297,8 +300,10 @@ async function loadAllData() {
   const loadingEl   = document.getElementById("loadingState");
   const tableWrapEl = document.getElementById("tableWrap");
 
-  loadingEl.style.display  = "";
-  tableWrapEl.style.display = "none";
+  if (activeSection === "requests") {
+    loadingEl.style.display  = "";
+    tableWrapEl.style.display = "none";
+  }
 
   try {
 
@@ -328,8 +333,10 @@ async function loadAllData() {
   } catch (err) {
     console.error("loadAllData error:", err);
   } finally {
-    loadingEl.style.display  = "none";
-    tableWrapEl.style.display = "";
+    if (activeSection === "requests") {
+      loadingEl.style.display  = "none";
+      tableWrapEl.style.display = "";
+    }
   }
 
   await renderTab();
@@ -650,11 +657,14 @@ async function renderTab() {
   const cfg   = tabConfig[currentTab];
   const items = tabData[currentTab];
 
-  // تأكد من إظهار الجدول ومنطقة البحث عند كل render
+  // تأكد من إظهار الجدول ومنطقة البحث عند كل render — لكن فقط إذا كان قسم
+  // "الطلبات" هو الظاهر فعليًا، وإلا نتسبب بتداخل مع قسم الفصل الدراسي/الإحصائيات/الحضور
   const tableWrapEl = document.getElementById("tableWrap");
   const searchRowEl = document.querySelector(".admin-search-row");
-  if (tableWrapEl) tableWrapEl.style.display = "";
-  if (searchRowEl) searchRowEl.style.display = "";
+  if (activeSection === "requests") {
+    if (tableWrapEl) tableWrapEl.style.display = "";
+    if (searchRowEl) searchRowEl.style.display = "";
+  }
 
   const uniqueStudentUids = [...new Set(items.map((it) => it[cfg.studentField]).filter(Boolean))];
   await Promise.all(uniqueStudentUids.map((uid) => getStudent(uid)));
@@ -2914,6 +2924,7 @@ async function updateComplaintStatus(complaint, newStatus) {
 function showComplaintsSection() {
   const cs = document.getElementById("complaintsSection");
   if (!cs) return;
+  activeSection = "complaints";
 
   // إخفاء عناصر التبويبات العامة (الجدول الرئيسي وبطاقاته وفلاتره)
   const tableWrapEl = document.getElementById("tableWrap");
@@ -2970,6 +2981,7 @@ function hideComplaintsSection() {
 document.querySelectorAll(".admin-tab").forEach((btn) => {
   btn.addEventListener("click", () => {
     currentTab = btn.dataset.tab;
+    activeSection = "requests";
 
     document.querySelectorAll(".admin-tab").forEach((t) => t.classList.remove("active"));
     btn.classList.add("active");
@@ -3289,6 +3301,7 @@ function getEmpName(uid) {
 
 // إظهار الإحصائيات
 navStats.addEventListener("click", () => {
+  activeSection = "stats";
   closeAttendanceAdmin();
   hideComplaintsSection();
   dashboardSection.style.display = "";
@@ -3315,6 +3328,7 @@ navStats.addEventListener("click", () => {
 // إظهار قسم إدارة الفصل الدراسي
 if (navSemester) {
   navSemester.addEventListener("click", async () => {
+    activeSection = "semester";
     closeAttendanceAdmin();
     hideComplaintsSection();
     dashboardSection.style.display = "none";
@@ -3340,6 +3354,7 @@ if (navSemester) {
 const navAttendanceAdmin = document.getElementById("navAttendanceAdmin");
 if (navAttendanceAdmin) {
   navAttendanceAdmin.addEventListener("click", () => {
+    activeSection = "attendance";
     hideComplaintsSection();
 
     // إخفاء كل الأقسام الأخرى
