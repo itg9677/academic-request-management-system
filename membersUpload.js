@@ -89,6 +89,7 @@ let muUnknownSheetsCount = 0; // شيتات لم تُعرف كقسم معتمد
 let muDuplicateInFileCount = 0;
 let muCurrentFile = null;
 let muDeptsInFile = new Set();
+let muUploadDone = false; // تصير true بعد نجاح الرفع؛ عندها ضغط الزر يقفل النافذة بدل إعادة الرفع
 
 // ==================== عناصر DOM ====================
 let el = {};
@@ -122,6 +123,7 @@ function resetModal() {
   muDuplicateInFileCount = 0;
   muCurrentFile = null;
   muDeptsInFile = new Set();
+  muUploadDone = false;
   if (el.fileInput) el.fileInput.value = "";
   if (el.fileNameEl) { el.fileNameEl.style.display = "none"; el.fileNameEl.textContent = ""; }
   if (el.previewWrap) el.previewWrap.style.display = "none";
@@ -321,6 +323,16 @@ async function loadCurrentFileInfo() {
 }
 
 // ==================== تأكيد الرفع ====================
+// إذا كان الرفع انتهى بنجاح، الضغط على الزر (تم الرفع) يغلق النافذة فقط
+// بدل ما يحاول يرفع الملف من جديد
+function handleConfirmBtnClick() {
+  if (muUploadDone) {
+    closeModal();
+    return;
+  }
+  confirmUpload();
+}
+
 async function confirmUpload() {
   if (!muParsedRows.length) return;
 
@@ -364,6 +376,8 @@ async function confirmUpload() {
           ? `<br><a href="${localDownloadUrl}" download="${esc(muCurrentFile.name)}" style="color:#1a3a6b;font-weight:600;text-decoration:underline;display:inline-flex;align-items:center;gap:4px;margin-top:8px;"><i class="ti ti-download"></i> تنزيل نفس الملف الذي رفعته (للتعديل)</a>`
           : "");
     }
+    muUploadDone = true;
+    el.confirmBtn.disabled = false;
     el.confirmBtn.innerHTML = '<i class="ti ti-check"></i> تم الرفع';
     loadCurrentFileInfo();
   } catch (err) {
@@ -410,5 +424,5 @@ export function initMembersUpload(adminName) {
     });
   }
 
-  if (el.confirmBtn) el.confirmBtn.addEventListener("click", confirmUpload);
+  if (el.confirmBtn) el.confirmBtn.addEventListener("click", handleConfirmBtnClick);
 }
