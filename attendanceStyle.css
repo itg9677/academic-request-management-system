@@ -1105,3 +1105,39 @@
 .att-editing-row { background: #fef9e7 !important; }
 .att-editing-active { background: #c8972b !important; color: #fff !important; border-color: #c8972b !important; }
 .att-editing-active:hover { background: #b8872b !important; }
+
+/* ==================== اقتراحات الأسماء عند تسجيل الغياب ====================
+   تظهر فقط إذا كان القسم لديه بيانات أعضاء مرفوعة (departmentMembers)،
+   وإلا يبقى الحقل حقل كتابة حرة كما كان قبل هذه الميزة */
+.att-autocomplete-wrap { position: relative; }
+.att-autocomplete-list {
+  position: absolute;
+  z-index: 20;
+  top: 100%;
+  right: 0;
+  left: 0;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  margin-top: 4px;
+  max-height: 220px;
+  overflow-y: auto;
+  box-shadow: 0 6px 18px rgba(0,0,0,.08);
+}
+.att-autocomplete-item {
+  padding: 8px 12px;
+  cursor: pointer;
+  font-size: 13.5px;
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+.att-autocomplete-item:hover,
+.att-autocomplete-item.active { background: #f2f6fc; }
+.att-autocomplete-item .att-ac-num { color: #94a3b8; font-size: 12px; }
+.att-autocomplete-empty {
+  padding: 8px 12px;
+  font-size: 12.5px;
+  color: #94a3b8;
+}
+#attAbsEmpNum[readonly] { background: #f4f6f9; color: #475569; }

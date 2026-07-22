@@ -16,6 +16,8 @@ import { getAuth, createUserWithEmailAndPassword } from "https://www.gstatic.com
 
 // استيراد وحدة متابعة الحضور
 import { openAttendanceAdmin, closeAttendanceAdmin, isAttendanceAdminOpen, bindAttendanceAdminEvents } from "./attendanceAdmin.js";
+// استيراد وحدة رفع/تحديث بيانات الأعضاء (Excel)
+import { initMembersUpload } from "./membersUpload.js";
 
 console.log("FILE LOADED");
 
@@ -4155,6 +4157,7 @@ async function cleanupDuplicateCourses() {
       injectComplaintsSection();
       subscribeComplaints();
       bindAttendanceAdminEvents();
+      initMembersUpload(data.fullName);
 
     } catch (err) {
       console.error("Auth error:", err);

@@ -528,6 +528,12 @@
           <button class="att-print-btn" id="attPrintBtn">
             <i class="ti ti-printer"></i> طباعة التقرير
           </button>
+
+          <!-- زر رفع/تحديث بيانات الأعضاء (Excel) — نفس أسلوب رفع ملف المقررات -->
+          <button class="excel-export-btn" id="openMembersUploadBtn" type="button">
+            <i class="ti ti-file-spreadsheet"></i>
+            رفع / تحديث بيانات الأعضاء
+          </button>
         </div>
 
         <!-- جدول المتغيبين -->
@@ -660,6 +666,65 @@
     <div class="sp-overlay" id="coursesUploadOverlay" style="display:none;"></div>
   </div>
 
+  <!-- ===== Modal: رفع / تحديث بيانات الأعضاء ===== -->
+  <div class="admin-side-panel transfer-modal-box" id="membersUploadModal" style="display:none;">
+    <div class="sp-header">
+      <div>
+        <div class="sp-title">رفع / تحديث بيانات الأعضاء</div>
+        <div class="sp-sub">ملف Excel — شيت لكل قسم (بدون الأعضاء الخارجيين)</div>
+      </div>
+      <button class="sp-close-btn" id="muCloseBtn" aria-label="إغلاق">
+        <i class="ti ti-x"></i>
+      </button>
+    </div>
+
+    <div class="sp-body">
+      <div class="sp-detail-card" style="padding:16px;">
+
+        <div id="muCurrentFileWrap" style="margin-bottom:12px;display:none;"></div>
+
+        <div id="muDropZone" class="cu-drop-zone">
+          <i class="ti ti-file-upload" style="font-size:28px;"></i>
+          <div style="margin-top:8px;">اضغط لاختيار ملف Excel (.xlsx / .xls)</div>
+          <div style="font-size:12px;color:#888;margin-top:4px;">
+            كل شيت باسم القسم (مثل: قسم الأحياء، قسم الإحصاء وبحوث العمليات...)،
+            وبه أعمدة: الاسم، الرقم الوظيفي، المقر. الأعضاء بـ"المقر الرئيسي" فقط يظهرون لتسجيل الحضور.
+          </div>
+          <input type="file" id="muFileInput" accept=".xlsx,.xls" style="display:none;">
+        </div>
+
+        <div id="muFileName" style="margin-top:10px;font-size:14px;color:#1a3a6b;display:none;"></div>
+
+        <div id="muPreviewWrap" style="margin-top:14px;display:none;">
+          <div class="sp-detail-label" style="margin-bottom:6px;">معاينة الملف</div>
+          <div id="muPreviewSummary" style="font-size:14px;margin-bottom:8px;"></div>
+          <div style="max-height:220px;overflow:auto;border:1px solid #eee;border-radius:8px;">
+            <table class="admin-table" id="muPreviewTable" style="width:100%;font-size:13px;"></table>
+          </div>
+          <div id="muSkippedNote" style="font-size:12px;color:#b00;margin-top:6px;display:none;"></div>
+        </div>
+
+        <div id="muProgressWrap" style="margin-top:14px;display:none;">
+          <div class="admin-loading"><i class="ti ti-loader-2 spin"></i> <span id="muProgressText">جاري الرفع...</span></div>
+        </div>
+
+        <div id="muResultNote" style="margin-top:12px;font-size:14px;display:none;"></div>
+
+      </div>
+    </div>
+
+    <div class="sp-footer" style="display:flex;gap:10px;">
+      <button class="sp-print-btn" id="muConfirmBtn" type="button" style="flex:1;background:#1a3a6b;" disabled>
+        <i class="ti ti-check"></i> تأكيد الرفع
+      </button>
+      <button class="sp-close-btn" id="muCancelBtn" type="button" style="flex:0 0 auto;">
+        إلغاء
+      </button>
+    </div>
+
+    <div class="sp-overlay" id="membersUploadOverlay" style="display:none;"></div>
+  </div>
+
   <style>
     .cu-drop-zone {
       border: 2px dashed #c9d3e0;
@@ -676,6 +741,10 @@
       padding:6px 8px; text-align:right; border-bottom:1px solid #f0f0f0; white-space:nowrap;
     }
     #cuPreviewTable th { background:#f5f7fa; position:sticky; top:0; }
+    #muPreviewTable th, #muPreviewTable td {
+      padding:6px 8px; text-align:right; border-bottom:1px solid #f0f0f0; white-space:nowrap;
+    }
+    #muPreviewTable th { background:#f5f7fa; position:sticky; top:0; }
   </style>
 
   <!-- ===== Modal: نقل صلاحية الأدمن ===== -->

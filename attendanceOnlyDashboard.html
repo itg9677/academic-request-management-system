@@ -143,9 +143,10 @@
         <div class="att-absent-section" id="attAbsentSection" style="display:none;">
           <h3>إضافة متغيب</h3>
           <div class="att-absent-form">
-            <div class="att-field">
+            <div class="att-field att-autocomplete-wrap">
               <label>اسم العضو</label>
-              <input type="text" id="attAbsName" placeholder="الاسم الكامل" />
+              <input type="text" id="attAbsName" placeholder="الاسم الكامل" autocomplete="off" />
+              <div class="att-autocomplete-list" id="attNameSuggestions" style="display:none;"></div>
             </div>
             <div class="att-field">
               <label>الرقم الوظيفي</label>
