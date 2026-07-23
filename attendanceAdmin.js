@@ -338,6 +338,7 @@ function renderAttAdmin() {
         employeeNumber: abs.employeeNumber || "-",
         reason:         getAbsReason(abs),
         coursesText:    formatCoursesText(abs)
+
       });
     });
   });
@@ -358,7 +359,7 @@ function renderAttAdmin() {
       <td>${esc(r.department)}</td>
       <td>${esc(r.name)}</td>
       <td>${esc(r.employeeNumber)}</td>
-      <td>${esc(r.reason)}</td>
+            <td>${esc(r.reason)}</td>
       <td>${esc(r.coursesText)}</td>
     </tr>
   `).join("");
@@ -366,7 +367,20 @@ function renderAttAdmin() {
   // تحديث شريط عدد المتغيبين
   updateAttCountBar(rows.length);
 }
+// يبني نص "مقرر — شعبة" لكل مقررات الغياب، يدعم شكل مصفوفة courses[]
+// (المتعدد عبر شرائح "إضافة مقرر") وأيضاً الشكل القديم course/section المفرد
+function formatAbsCourses(abs) {
+  const list = Array.isArray(abs.courses) && abs.courses.length
+    ? abs.courses
+    : (abs.course || abs.section ? [{ course: abs.course, section: abs.section }] : []);
 
+  if (!list.length) return "-";
+
+  return list
+    .map(c => c.course ? `${c.course}${c.section ? ` — شعبة ${c.section}` : ""}` : "")
+    .filter(Boolean)
+    .join("، ") || "-";
+}
 // ==================== شريط عدد المتغيبين ====================
 function updateAttCountBar(count) {
   let bar = document.getElementById("attCountBar");
@@ -442,18 +456,13 @@ async function loadAttStats() {
 function renderAttStats(deptStats) {
   let container = document.getElementById("attStatsSection");
   if (!container) {
-    const adminSection = document.getElementById("attendanceSectionAdmin");
-    if (adminSection) {
+    // يُضاف داخل كارد "إحصائيات الغياب" فقط — لا يظهر إلا عند اختيار هذا الكارد
+    const statsWrap = document.getElementById("attHubStats");
+    if (statsWrap) {
       container = document.createElement("div");
       container.id = "attStatsSection";
       container.className = "att-stats-section att-stats-section-top";
-      // الكارد فوق كل شيء بقسم الحضور — مباشرة بعد العنوان وقبل الفلاتر والجدول وباقي البطاقات
-      const header = adminSection.querySelector(".attendance-header");
-      if (header && header.parentNode === adminSection) {
-        header.after(container);
-      } else {
-        adminSection.insertBefore(container, adminSection.firstChild);
-      }
+      statsWrap.appendChild(container);
     }
   }
   if (!container) return;
@@ -781,6 +790,7 @@ function printAttReport() {
         employeeNumber: abs.employeeNumber || "-",
         reason:         getAbsReason(abs),
         coursesText:    formatCoursesText(abs)
+
       });
     });
   });
@@ -982,7 +992,35 @@ async function grantPermission() {
 }
 
 // ==================== ربط الأحداث ====================
+// ==================== التنقل بين بطاقات تبويب متابعة الحضور ====================
+// البطاقات الثلاث تبقى ظاهرة دائمًا فوق المحتوى؛ الضغط على بطاقة يبدّل
+// فقط محتوى القسم المعروض تحتها (متابعة الحضور / منح الصلاحية / الإحصائيات)
+function bindAttHubCards() {
+  const cardsWrap = document.getElementById("attHubCards");
+  if (!cardsWrap) return;
+
+  const targets = {
+    track: document.getElementById("attHubTrack"),
+    grant: document.getElementById("attHubGrant"),
+    stats: document.getElementById("attHubStats")
+  };
+
+  cardsWrap.querySelectorAll(".att-hub-card").forEach(card => {
+    card.addEventListener("click", () => {
+      const target = card.dataset.target;
+
+      cardsWrap.querySelectorAll(".att-hub-card").forEach(c => c.classList.toggle("active", c === card));
+
+      Object.entries(targets).forEach(([key, el]) => {
+        if (el) el.style.display = key === target ? "" : "none";
+      });
+    });
+  });
+}
+
 export function bindAttendanceAdminEvents() {
+
+  bindAttHubCards();
 
   // تبديل الوضع: اليوم / نطاق
   document.querySelectorAll(".att-mode-btn").forEach(btn => {
