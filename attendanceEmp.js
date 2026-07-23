@@ -250,7 +250,17 @@ function renderMissingBanner() {
   `;
 }
 
-// يُستدعى بعد أي حفظ ناجح — يعيد فحص الأيام الناقصة ويحدّث الفورم للانتقال التلقائي
+// يُستدعى بعد حفظ جزئي (إضافة متغيب واحد أثناء نفس اليوم) — يحدّث تنبيه الأيام
+// الناقصة وحدود اختيار التاريخ فقط، بدون تحريك attSelectedDate — يبقى المستخدم
+// بنفس اليوم لإكمال إضافة بقية المتغيبين قبل الانتقال
+async function refreshMissingState() {
+  await computeMissingDates();
+  applyDatePickerConstraints();
+  renderMissingBanner();
+}
+
+// يُستدعى بعد الحفظ النهائي لليوم — يعيد فحص الأيام الناقصة وينتقل تلقائيًا
+// لأقدم يوم ناقص تالٍ (أو يبقى/يرجع لليوم الحالي لو ما فيه أيام ناقصة)
 async function afterSuccessfulSave() {
   await computeMissingDates();
   const today = getTodayStr();
@@ -786,7 +796,9 @@ export function bindAttendanceEvents() {
   }
 
   // ======= دالة مشتركة: دمج attPending في attAbsentees ثم حفظ =======
-  async function commitAndSave() {
+  // advanceDate=true (الحفظ النهائي): ينتقل تلقائيًا لأقدم يوم ناقص تالٍ
+  // advanceDate=false (الحفظ الجزئي أثناء الإضافة): يبقى بنفس اليوم لإكمال إضافة بقية المتغيبين
+  async function commitAndSave(advanceDate) {
     stageCurrentFormEntry(true);
 
     if (attPending.length === 0 && attAbsentees.length === 0) {
@@ -824,25 +836,31 @@ export function bindAttendanceEvents() {
       const grp = document.getElementById("attReasonGroup");
       if (grp) grp.querySelectorAll(".att-reason-btn").forEach(b => b.classList.remove("active"));
 
-      await afterSuccessfulSave();
+      if (advanceDate) {
+        await afterSuccessfulSave();
+      } else {
+        await refreshMissingState();
+      }
       renderAttState();
     }
     return ok;
   }
 
-  // زر "حفظ التحضير" (أسفل القائمة)
+  // زر "حفظ التحضير النهائي" (أسفل القائمة) — ينهي تحضير اليوم وينتقل تلقائيًا
+  // لليوم الناقص التالي إن وجد
   const saveBtn = document.getElementById("attSaveAbsentBtn");
   if (saveBtn) {
     saveBtn.addEventListener("click", async () => {
-      await commitAndSave();
+      await commitAndSave(true);
     });
   }
 
-  // زر "إضافة وحفظ" (داخل الفورم — يضيف العنصر الحالي ويحفظ مباشرة)
+  // زر "حفظ" داخل الفورم (يضيف المتغيب الحالي ويحفظ) — يبقى بنفس اليوم عشان
+  // تقدرين تكملين إضافة بقية المتغيبين قبل ما تنتقلين
   const saveInlineBtn = document.getElementById("attSaveInlineBtn");
   if (saveInlineBtn) {
     saveInlineBtn.addEventListener("click", async () => {
-      await commitAndSave();
+      await commitAndSave(false);
     });
   }
 }

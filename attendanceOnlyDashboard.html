@@ -122,11 +122,30 @@
       </div>
 
       <!-- ==================== متابعة الحضور ==================== -->
+      <style>
+        /* تنسيق مبسّط لأزرار سبب الغياب وتنبيه الأيام الناقصة —
+           أضيفي هذه القواعد إلى attendanceStyle.css لو حبيتي توحيد التنسيق مع بقية الأزرار */
+        .att-reason-group { display:flex; gap:8px; margin-top:6px; flex-wrap:wrap; }
+        .att-reason-btn {
+          padding:8px 14px; border-radius:8px; border:1px solid #cbd5e1;
+          background:#fff; color:#334155; font-size:13px; cursor:pointer;
+        }
+        .att-reason-btn.active { color:#fff; border-color:transparent; }
+        .att-reason-btn[data-reason="اضطراري"].active { background:#f59e0b; }
+        .att-reason-btn[data-reason="بعذر"].active { background:#3b82f6; }
+        .att-reason-btn[data-reason="بدون عذر"].active { background:#ef4444; }
+        .att-missing-banner i { font-size:16px; }
+      </style>
       <section class="attendance-section" id="attendanceSectionEmp" style="display:none;">
         <div class="attendance-header">
           <h2>متابعة حضور أعضاء هيئة التدريس</h2>
           <div class="att-date" id="attEmpDate"></div>
           <div style="font-size:14px;color:#64748b;margin-top:4px;">القسم: <span id="attEmpDept"></span></div>
+          <div style="margin-top:10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+            <label for="attDatePicker" style="font-size:14px;color:#334155;">تاريخ يوم التحضير:</label>
+            <input type="date" id="attDatePicker" />
+          </div>
+          <div class="att-missing-banner" id="attMissingBanner" style="display:none;align-items:center;gap:8px;margin-top:10px;padding:10px 14px;border-radius:8px;background:#fef3c7;color:#92400e;font-size:13px;"></div>
         </div>
 
         <div class="att-status att-status-pending" id="attEmpStatus">لم يتم تسجيل التحضير بعد</div>
@@ -141,46 +160,69 @@
         </div>
 
         <div class="att-absent-section" id="attAbsentSection" style="display:none;">
-          <h3>إضافة متغيب</h3>
-          <div class="att-absent-form">
-            <div class="att-field att-autocomplete-wrap">
-              <label>اسم العضو</label>
-              <input type="text" id="attAbsName" placeholder="الاسم الكامل" autocomplete="off" />
-              <div class="att-autocomplete-list" id="attNameSuggestions" style="display:none;"></div>
+
+          <!-- ======= قائمة المتغيبين (بطاقات) — تظهر قبل الفورم ======= -->
+          <div class="att-absentees-section">
+            <div class="att-absentees-header" id="attAbsenteesHeader" style="display:none;">
+              <span>المتغيبون</span>
+              <span class="att-absentees-count" id="attAbsenteesCount">0</span>
             </div>
-            <div class="att-field">
-              <label>الرقم الوظيفي</label>
-              <input type="text" id="attAbsEmpNum" placeholder="الرقم الوظيفي" />
-            </div>
-            <div class="att-field">
-              <label>المقرر</label>
-              <input type="text" id="attAbsCourse" placeholder="اسم المقرر" />
-            </div>
-            <div class="att-field">
-              <label>الشعبة</label>
-              <input type="text" id="attAbsSection" placeholder="رقم الشعبة" />
-            </div>
-            <button class="att-add-absent-btn" id="attAddAbsentBtn">
-              <i class="ti ti-plus"></i> إضافة
-            </button>
+            <div class="att-absent-cards" id="attAbsentCards"></div>
           </div>
 
-          <table class="att-table">
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>الاسم</th>
-                <th>الرقم الوظيفي</th>
-                <th>المقرر</th>
-                <th>الشعبة</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody id="attAbsentTbody"></tbody>
-          </table>
+          <!-- ======= فورم إضافة متغيب ======= -->
+          <div class="att-add-form-card" id="attAddFormCard">
+            <div class="att-absent-form">
+              <!-- الصف الأول: اسم العضو + الرقم الوظيفي -->
+              <div class="att-field-row">
+                <div class="att-field att-autocomplete-wrap">
+                  <label>اسم العضو <span class="att-required">*</span></label>
+                  <input type="text" id="attAbsName" placeholder="الاسم الكامل" autocomplete="off" />
+                  <div class="att-autocomplete-list" id="attNameSuggestions" style="display:none;"></div>
+                </div>
+                <div class="att-field att-field-sm">
+                  <label>الرقم الوظيفي <span class="att-required">*</span></label>
+                  <input type="text" id="attAbsEmpNum" placeholder="مثال: 41211" autocomplete="off" />
+                </div>
+              </div>
+              <!-- سبب الغياب -->
+              <div class="att-field-row">
+                <div class="att-field" style="width:100%;">
+                  <label>سبب الغياب <span class="att-required">*</span></label>
+                  <div class="att-reason-group" id="attReasonGroup">
+                    <button type="button" class="att-reason-btn" data-reason="اضطراري">اضطراري</button>
+                    <button type="button" class="att-reason-btn" data-reason="بعذر">بعذر</button>
+                    <button type="button" class="att-reason-btn" data-reason="بدون عذر">بدون عذر</button>
+                  </div>
+                </div>
+              </div>
 
-          <button class="att-btn att-btn-all-present" id="attSaveAbsentBtn" style="margin-top:14px;">
-            <i class="ti ti-device-floppy"></i> حفظ التحضير
+              <!-- chips المقررات المضافة مؤقتاً لهذا الموظف -->
+              <div class="att-pending-chips-wrap" id="attPendingWrap" style="display:none;">
+                <div id="attPendingList"></div>
+              </div>
+              <!-- الصف الثاني: المقرر + الشعبة + زر إضافة مقرر -->
+              <div class="att-field-row att-course-row">
+                <div class="att-field">
+                  <input type="text" id="attAbsCourse" placeholder="اسم المقرر" autocomplete="off" />
+                </div>
+                <div class="att-field att-field-sm">
+                  <input type="text" id="attAbsSection" placeholder="الشعبة" autocomplete="off" />
+                </div>
+                <button class="att-add-absent-btn" id="attAddAbsentBtn">
+                  <i class="ti ti-plus"></i> إضافة مقرر
+                </button>
+              </div>
+              <div class="att-form-btns">
+                <button class="att-save-inline-btn" id="attSaveInlineBtn">
+                  <i class="ti ti-device-floppy"></i> حفظ
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <button class="att-save-btn" id="attSaveAbsentBtn">
+            <i class="ti ti-device-floppy"></i> حفظ التحضير النهائي
           </button>
         </div>
       </section>
