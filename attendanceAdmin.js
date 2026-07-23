@@ -39,7 +39,10 @@ let attAdminRecords = [];
 let attStatsPeriod = "week"; // "week" | "month" | "custom"
 let attStatsCustomFrom = "";
 let attStatsCustomTo = "";
-let attStatsOpen = false; // هل الإحصائيات مفتوحة
+let attStatsOpen = true; // هل الإحصائيات مفتوحة — تبدأ مفتوحة دائمًا بدون الحاجة للضغط عليها
+let attStatsRecords = []; // آخر سجلات تم جلبها لحساب الإحصائيات — تُستخدم لعرض تفاصيل أعضاء كل قسم
+let attAdminNameFilter = ""; // نص البحث الحالي لفلترة الجدول باسم العضو
+let attEmployeesList = []; // قائمة الأعضاء (name + employeeNumber) من مجموعة employees — لاقتراحات البحث
 let attSemesterStart = ""; // تاريخ بداية الفصل الدراسي — YYYY-MM-DD
 
 // ==================== أدوات مساعدة ====================
@@ -86,6 +89,34 @@ function formatCoursesText(abs) {
 // سبب الغياب — قد يكون غير موجود بسجلات قديمة قبل إضافة هذه الميزة
 function getAbsReason(abs) {
   return abs.reason || "-";
+}
+
+// ==================== قائمة الأعضاء لفلتر البحث بالاسم ====================
+async function loadAttEmployeesList() {
+  try {
+    const snap = await getDocs(collection(db, "departmentMembers"));
+    attEmployeesList = snap.docs
+      .map(d => d.data())
+      .filter(data => data.active !== false) // نستبعد الأعضاء غير الفعّالين فقط
+      .map(data => ({
+        name: data.name || "-",
+        employeeNumber: data.employeeNumber || "-",
+        department: data.department || ""
+      }));
+  } catch (err) {
+    console.error("خطأ تحميل قائمة الأعضاء:", err);
+    attEmployeesList = [];
+  }
+}
+
+// يفلتر صفوف جدول الغياب المعروضة حسب نص البحث الحالي (اسم العضو أو رقمه الوظيفي)
+function applyAttNameFilter(rows) {
+  const term = attAdminNameFilter.trim();
+  if (!term) return rows;
+  return rows.filter(r =>
+    String(r.name || "").includes(term) ||
+    String(r.employeeNumber || "").includes(term)
+  );
 }
 
 // ==================== فتح تبويب الحضور ====================
@@ -139,6 +170,7 @@ export async function openAttendanceAdmin() {
   renderSemesterStartBox();
   await loadPermissionList();
   await loadAttStats();
+  await loadAttEmployeesList();
 }
 
 // يُستدعى من Admindashboard.js عند مغادرة تبويب الحضور
@@ -283,6 +315,8 @@ function renderAttAdmin() {
     });
   });
 
+  rows = applyAttNameFilter(rows);
+
   if (rows.length === 0) {
     tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:#94a3b8;padding:30px;">لا يوجد متغيبون في هذا النطاق</td></tr>`;
     updateAttCountBar(0);
@@ -354,6 +388,7 @@ async function loadAttStats() {
     );
     const snap = await getDocs(q);
     const records = snap.docs.map(d => d.data());
+    attStatsRecords = records; // نحتفظ بالسجلات الخام لعرض تفاصيل الأعضاء عند الضغط
 
     const deptStats = {};
     const DEPTS = ["كيمياء", "فيزياء", "أحياء", "رياضيات", "إحصاء", "أعضاء خارجيين"];
@@ -384,12 +419,13 @@ function renderAttStats(deptStats) {
     if (adminSection) {
       container = document.createElement("div");
       container.id = "attStatsSection";
-      container.className = "att-stats-section";
-      const permCard = adminSection.querySelector(".att-permission-card");
-      if (permCard && permCard.parentNode === adminSection) {
-        permCard.after(container);
+      container.className = "att-stats-section att-stats-section-top";
+      // الكارد فوق كل شيء بقسم الحضور — مباشرة بعد العنوان وقبل الفلاتر والجدول وباقي البطاقات
+      const header = adminSection.querySelector(".attendance-header");
+      if (header && header.parentNode === adminSection) {
+        header.after(container);
       } else {
-        adminSection.appendChild(container);
+        adminSection.insertBefore(container, adminSection.firstChild);
       }
     }
   }
@@ -436,7 +472,7 @@ function renderAttStats(deptStats) {
     const rateLabel = d.totalDays > 0 ? `${d.rate}%` : "لا يوجد";
     const hasData = d.totalDays > 0;
     html += `
-      <div class="att-stat-card ${cls}">
+      <div class="att-stat-card ${cls}" data-dept="${esc(d.dept)}" title="اضغط لعرض تفاصيل أعضاء القسم">
         <div class="att-stat-dept">${esc(d.dept)}</div>
         <div class="att-stat-value">${rateLabel}</div>
         <div class="att-stat-label">${d.totalDays > 0 ? d.totalDays + " يوم مسجل · " + d.allPresentDays + " يوم كامل · " + d.absenteeCount + " غياب" : "لم يُسجل حضور في هذه الفترة"}</div>
@@ -457,6 +493,13 @@ function renderAttStats(deptStats) {
       attStatsOpen = body.classList.contains("open");
     });
   }
+
+  // ربط الضغط على كارد كل قسم لعرض تفاصيل أعضائه
+  container.querySelectorAll(".att-stat-card").forEach(card => {
+    card.addEventListener("click", () => {
+      openDeptDetailModal(card.dataset.dept, periodLabel);
+    });
+  });
 
   // ربط أزرار الفلترة
   container.querySelectorAll(".att-stats-period-btn").forEach(btn => {
@@ -499,6 +542,204 @@ function renderAttStats(deptStats) {
   }
 }
 
+// ==================== تفاصيل أعضاء القسم (عند الضغط على كارد الإحصائيات) ====================
+// لكل عضو ظهر في سجلات الغياب داخل القسم: اسمه، رقمه الوظيفي، عدد مرات غيابه
+// ونسبة غيابه = (عدد مرات الغياب ÷ إجمالي الأيام المسجلة للقسم) × 100
+// (نفس أساس حساب نسبة انضباط القسم نفسه، فتكون النِسب قابلة للمقارنة مع بعضها)
+function getDeptEmployeeStats(dept) {
+  const recs = attStatsRecords.filter(r => r.department === dept);
+  const totalDays = recs.length;
+  const empMap = {};
+
+  recs.forEach(rec => {
+    if (rec.allPresent) return;
+    (rec.absentees || []).forEach(abs => {
+      const key = `${abs.employeeNumber || "-"}|${abs.name || "-"}`;
+      if (!empMap[key]) {
+        empMap[key] = {
+          name: abs.name || "-",
+          employeeNumber: abs.employeeNumber || "-",
+          absentCount: 0
+        };
+      }
+      empMap[key].absentCount++;
+    });
+  });
+
+  const list = Object.values(empMap).map(e => ({
+    ...e,
+    rate: totalDays > 0 ? Math.round((e.absentCount / totalDays) * 100) : 0
+  }));
+
+  list.sort((a, b) => b.rate - a.rate); // الأعلى غيابًا أولاً
+  return { totalDays, list };
+}
+
+// كل أيام غياب عضو معيّن داخل القسم مع مقرراته وسبب/نوع عذره في كل يوم
+function getMemberAbsenceDetails(dept, employeeNumber, name) {
+  const recs = attStatsRecords.filter(r => r.department === dept);
+  const totalDays = recs.length;
+  const absences = [];
+
+  recs.forEach(rec => {
+    if (rec.allPresent) return;
+    (rec.absentees || []).forEach(abs => {
+      const empNum = abs.employeeNumber || "-";
+      const empName = abs.name || "-";
+      if (empNum === employeeNumber && empName === name) {
+        absences.push({
+          date: rec.date,
+          coursesText: formatCoursesText(abs),
+          reason: getAbsReason(abs)
+        });
+      }
+    });
+  });
+
+  absences.sort((a, b) => (b.date || "").localeCompare(a.date || ""));
+  const rate = totalDays > 0 ? Math.round((absences.length / totalDays) * 100) : 0;
+  return { totalDays, absences, rate };
+}
+
+// ينشئ (إذا لزم) نافذة التفاصيل المشتركة بين عرض القسم وعرض العضو
+function ensureAttDeptModal() {
+  let overlay = document.getElementById("attDeptModalOverlay");
+  if (overlay) return overlay;
+
+  overlay = document.createElement("div");
+  overlay.id = "attDeptModalOverlay";
+  overlay.className = "att-dept-modal-overlay";
+  overlay.innerHTML = `
+    <div class="att-dept-modal" id="attDeptModal">
+      <div class="att-dept-modal-header">
+        <button class="att-dept-modal-back" id="attDeptModalBackBtn" style="display:none;">
+          <i class="ti ti-arrow-right"></i> رجوع
+        </button>
+        <h3 id="attDeptModalTitle">تفاصيل القسم</h3>
+        <button class="sp-close-btn" id="attDeptModalCloseBtn" aria-label="إغلاق">
+          <i class="ti ti-x"></i>
+        </button>
+      </div>
+      <div class="att-dept-modal-body" id="attDeptModalBody"></div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  overlay.addEventListener("click", (e) => {
+    if (e.target === overlay) closeDeptDetailModal();
+  });
+  overlay.querySelector("#attDeptModalCloseBtn").addEventListener("click", closeDeptDetailModal);
+
+  return overlay;
+}
+
+// المستوى الأول: قائمة أعضاء القسم ونسبة غياب كل واحد منهم
+function openDeptDetailModal(dept, periodLabel) {
+  const overlay = ensureAttDeptModal();
+  overlay.dataset.dept = dept;
+  overlay.dataset.period = periodLabel || "";
+
+  const backBtn = overlay.querySelector("#attDeptModalBackBtn");
+  if (backBtn) backBtn.style.display = "none";
+
+  const { list } = getDeptEmployeeStats(dept);
+
+  const titleEl = overlay.querySelector("#attDeptModalTitle");
+  if (titleEl) titleEl.textContent = `قسم ${dept} — ${periodLabel || ""}`;
+
+  const bodyEl = overlay.querySelector("#attDeptModalBody");
+  if (bodyEl) {
+    if (list.length === 0) {
+      bodyEl.innerHTML = `<div style="text-align:center;color:#94a3b8;padding:30px;">لا يوجد غياب مسجل لهذا القسم في هذه الفترة</div>`;
+    } else {
+      bodyEl.innerHTML = `
+        <table class="att-table">
+          <thead>
+            <tr>
+              <th>اسم العضو</th>
+              <th>الرقم الوظيفي</th>
+              <th>نسبة الغياب</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${list.map(e => `
+              <tr class="att-dept-emp-row" data-emp-number="${esc(e.employeeNumber)}" data-emp-name="${esc(e.name)}" title="اضغط لعرض تفاصيل غياب هذا العضو">
+                <td>${esc(e.name)}</td>
+                <td>${esc(e.employeeNumber)}</td>
+                <td>${e.rate}%</td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+      `;
+      bodyEl.querySelectorAll(".att-dept-emp-row").forEach(row => {
+        row.addEventListener("click", () => {
+          openMemberDetailModal(dept, row.dataset.empNumber, row.dataset.empName, periodLabel);
+        });
+      });
+    }
+  }
+
+  overlay.classList.add("open");
+}
+
+// المستوى الثاني: تفاصيل غياب عضو معيّن — تواريخ الغياب، المقررات، ونوع العذر في كل يوم
+function openMemberDetailModal(dept, employeeNumber, name, periodLabel) {
+  const overlay = ensureAttDeptModal();
+
+  const backBtn = overlay.querySelector("#attDeptModalBackBtn");
+  if (backBtn) {
+    backBtn.style.display = "";
+    backBtn.onclick = () => openDeptDetailModal(dept, periodLabel);
+  }
+
+  const { totalDays, absences, rate } = getMemberAbsenceDetails(dept, employeeNumber, name);
+
+  const titleEl = overlay.querySelector("#attDeptModalTitle");
+  if (titleEl) titleEl.textContent = `${name} (${employeeNumber}) — ${dept}`;
+
+  const bodyEl = overlay.querySelector("#attDeptModalBody");
+  if (bodyEl) {
+    const rateLine = `
+      <div style="margin-bottom:14px;font-size:14px;color:#475569;">
+        نسبة الغياب: <strong style="color:#1a3a6b;">${rate}%</strong>
+        (${absences.length} غياب من أصل ${totalDays} يوم مسجل للقسم)
+      </div>
+    `;
+    if (absences.length === 0) {
+      bodyEl.innerHTML = rateLine + `<div style="text-align:center;color:#94a3b8;padding:20px;">لا يوجد غياب مسجل لهذا العضو في هذه الفترة</div>`;
+    } else {
+      bodyEl.innerHTML = rateLine + `
+        <table class="att-table">
+          <thead>
+            <tr>
+              <th>التاريخ</th>
+              <th>المقررات</th>
+              <th>نوع العذر</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${absences.map(a => `
+              <tr>
+                <td>${formatDateAr(a.date)}</td>
+                <td>${esc(a.coursesText)}</td>
+                <td>${esc(a.reason)}</td>
+              </tr>
+            `).join("")}
+          </tbody>
+        </table>
+      `;
+    }
+  }
+
+  overlay.classList.add("open");
+}
+
+function closeDeptDetailModal() {
+  const overlay = document.getElementById("attDeptModalOverlay");
+  if (overlay) overlay.classList.remove("open");
+}
+
 // ==================== الطباعة الرسمية ====================
 function printAttReport() {
   let rows = [];
@@ -517,6 +758,8 @@ function printAttReport() {
     });
   });
 
+  rows = applyAttNameFilter(rows);
+
   if (rows.length === 0) {
     alert("لا يوجد متغيبون للطباعة");
     return;
@@ -530,6 +773,7 @@ function printAttReport() {
     : `من ${formatDateAr(document.getElementById("attRangeFrom")?.value)} إلى ${formatDateAr(document.getElementById("attRangeTo")?.value)}`;
 
   let deptText = attAdminDept === "all" ? "جميع الأقسام" : attAdminDept;
+  const memberFilterText = attAdminNameFilter.trim();
 
   let count = 1;
   const rowsHTML = rows.map(r => `
@@ -554,6 +798,7 @@ function printAttReport() {
       <div class="att-print-meta">
         <span><strong>النطاق:</strong> ${dateRangeText}</span>
         <span><strong>القسم:</strong> ${deptText}</span>
+        ${memberFilterText ? `<span><strong>العضو:</strong> ${esc(memberFilterText)}</span>` : ""}
         <span><strong>تاريخ الطباعة:</strong> ${formatDateAr(getTodayStr())}</span>
       </div>
       <table>
@@ -736,6 +981,67 @@ export function bindAttendanceAdminEvents() {
       await loadAttRecords();
       renderAttAdmin();
       await loadAttStats();
+    });
+  }
+
+  // فلتر البحث باسم العضو (يفلتر الجدول والطباعة مباشرة بدون إعادة تحميل من فايربيس)
+  const nameInput = document.getElementById("attAdminNameFilter");
+  const nameSuggestions = document.getElementById("attAdminNameSuggestions");
+  const nameClearBtn = document.getElementById("attAdminNameFilterClear");
+
+  function hideNameSuggestions() {
+    if (nameSuggestions) { nameSuggestions.style.display = "none"; nameSuggestions.innerHTML = ""; }
+  }
+
+  function updateNameClearBtn() {
+    if (nameClearBtn) nameClearBtn.style.display = attAdminNameFilter.trim() ? "flex" : "none";
+  }
+
+  if (nameInput) {
+    nameInput.addEventListener("input", () => {
+      attAdminNameFilter = nameInput.value;
+      updateNameClearBtn();
+      renderAttAdmin();
+
+      const term = nameInput.value.trim();
+      if (!term || !nameSuggestions) { hideNameSuggestions(); return; }
+
+      const matches = attEmployeesList.filter(e => e.name.includes(term)).slice(0, 8);
+      if (matches.length === 0) {
+        nameSuggestions.innerHTML = `<div class="att-autocomplete-empty">لا يوجد عضو مطابق</div>`;
+      } else {
+        nameSuggestions.innerHTML = matches.map(e => `
+          <div class="att-autocomplete-item" data-name="${esc(e.name)}">
+            <span>${esc(e.name)}</span>
+            <span class="att-ac-num">${esc(e.employeeNumber)}</span>
+          </div>
+        `).join("");
+        nameSuggestions.querySelectorAll(".att-autocomplete-item").forEach(item => {
+          item.addEventListener("click", () => {
+            nameInput.value = item.dataset.name;
+            attAdminNameFilter = item.dataset.name;
+            updateNameClearBtn();
+            hideNameSuggestions();
+            renderAttAdmin();
+          });
+        });
+      }
+      nameSuggestions.style.display = "block";
+    });
+
+    nameInput.addEventListener("blur", () => {
+      // تأخير بسيط عشان الضغط على اقتراح يسجَّل قبل الإخفاء
+      setTimeout(hideNameSuggestions, 150);
+    });
+  }
+
+  if (nameClearBtn) {
+    nameClearBtn.addEventListener("click", () => {
+      attAdminNameFilter = "";
+      if (nameInput) nameInput.value = "";
+      updateNameClearBtn();
+      hideNameSuggestions();
+      renderAttAdmin();
     });
   }
 

@@ -524,6 +524,14 @@
             </select>
           </div>
 
+          <div class="att-name-filter att-autocomplete-wrap">
+            <input type="text" id="attAdminNameFilter" placeholder="بحث باسم العضو..." autocomplete="off" />
+            <button type="button" id="attAdminNameFilterClear" class="att-name-filter-clear" title="إلغاء الفلتر" style="display:none;">
+              <i class="ti ti-x"></i>
+            </button>
+            <div class="att-autocomplete-list" id="attAdminNameSuggestions" style="display:none;"></div>
+          </div>
+
           <div class="att-date-range" id="attDateRange">
             <label>من</label>
             <input type="date" id="attRangeFrom" />
