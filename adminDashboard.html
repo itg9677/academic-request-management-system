@@ -500,83 +500,48 @@
           <h2>متابعة حضور أعضاء هيئة التدريس</h2>
         </div>
 
-        <!-- أزرار: اليوم / نطاق + فلترة + طباعة -->
-        <div class="att-admin-controls">
-          <div class="att-mode-toggle">
-            <button class="att-mode-btn active" data-mode="today">حضور اليوم</button>
-            <button class="att-mode-btn" data-mode="range">تحديد نطاق</button>
-          </div>
-
-          <div class="att-dept-filter">
-            <select id="attAdminDeptFilter">
-              <option value="all">جميع الأقسام</option>
-              <option value="كيمياء">كيمياء</option>
-              <option value="فيزياء">فيزياء</option>
-              <option value="أحياء">أحياء</option>
-              <option value="رياضيات">رياضيات</option>
-              <option value="إحصاء">إحصاء</option>
-              <option value="أعضاء خارجيين">أعضاء خارجيين</option>
-            </select>
-          </div>
-
-          <div class="att-name-filter att-autocomplete-wrap">
-            <input type="text" id="attAdminNameFilter" placeholder="بحث باسم العضو..." autocomplete="off" />
-            <button type="button" id="attAdminNameFilterClear" class="att-name-filter-clear" title="إلغاء الفلتر" style="display:none;">
-              <i class="ti ti-x"></i>
-            </button>
-            <div class="att-autocomplete-list" id="attAdminNameSuggestions" style="display:none;"></div>
-          </div>
-
-          <div class="att-date-range" id="attDateRange">
-            <label>من</label>
-            <input type="date" id="attRangeFrom" />
-            <label>إلى</label>
-            <input type="date" id="attRangeTo" />
-            <button class="att-print-btn" id="attApplyRange" style="background:#c8972b;">
-              <i class="ti ti-check"></i> تطبيق
-            </button>
-          </div>
-
-          <button class="att-print-btn" id="attPrintBtn">
-            <i class="ti ti-printer"></i> طباعة التقرير
-          </button>
-          <!-- زر رفع/تحديث بيانات الأعضاء (Excel) — نفس أسلوب رفع ملف المقررات -->
+        <!-- شريط علوي ثابت — يبقى ظاهرًا دائمًا مهما كان الكارد المختار -->
+        <div class="att-hub-topbar">
           <button class="excel-export-btn" id="openMembersUploadBtn" type="button">
             <i class="ti ti-file-spreadsheet"></i>
             رفع / تحديث بيانات الأعضاء
           </button>
         </div>
 
-        <!-- جدول المتغيبين -->
-        <div class="admin-table-card">
-          <table class="att-table">
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>التاريخ</th>
-                <th>القسم</th>
-                <th>اسم العضو</th>
-                <th>الرقم الوظيفي</th>
-                <th>سبب الغياب</th>
-                <th>المقرر — الشعبة</th>
-              </tr>
-            </thead>
-            <tbody id="attAdminTbody"></tbody>
-          </table>
+        <!-- بطاقات التنقل الثلاث -->
+        <div class="att-hub-cards" id="attHubCards">
+          <div class="att-hub-card active" data-target="track">
+            <div class="att-hub-icon"><i class="ti ti-clipboard-check"></i></div>
+            <div class="att-hub-title">متابعة الحضور</div>
+            <div class="att-hub-desc">سجل الحضور اليومي لجميع الأقسام، تصفية حسب القسم أو نطاق تاريخ، وطباعة التقرير.</div>
+            <div class="att-hub-arrow">فتح <i class="ti ti-arrow-left"></i></div>
+          </div>
+          <div class="att-hub-card" data-target="grant">
+            <div class="att-hub-icon"><i class="ti ti-user-plus"></i></div>
+            <div class="att-hub-title">منح صلاحية التحضير لموظف</div>
+            <div class="att-hub-desc">تحديد موظف وربطه بقسم معيّن ليصبح مسؤولًا عن تسجيل حضوره اليومي.</div>
+            <div class="att-hub-arrow">فتح <i class="ti ti-arrow-left"></i></div>
+          </div>
+          <div class="att-hub-card" data-target="stats">
+            <div class="att-hub-icon"><i class="ti ti-chart-bar"></i></div>
+            <div class="att-hub-title">إحصائيات الغياب</div>
+            <div class="att-hub-desc">نسب الانضباط والغياب لكل قسم خلال أسبوع أو شهر أو نطاق مخصص.</div>
+            <div class="att-hub-arrow">فتح <i class="ti ti-arrow-left"></i></div>
+          </div>
         </div>
 
-        <!-- إعطاء صلاحية التحضير -->
-        <div class="att-permission-card" style="margin-top:24px;">
-          <h3>إعطاء صلاحية التحضير لموظف</h3>
-          <div class="att-permission-form">
-            <div class="att-field">
-              <label>الرقم الوظيفي</label>
-              <input type="text" id="attPermEmpNum" placeholder="أدخل الرقم الوظيفي" />
+        <!-- محتوى: متابعة الحضور -->
+        <div class="att-hub-content" id="attHubTrack">
+          <!-- أزرار: اليوم / نطاق + فلترة + طباعة -->
+          <div class="att-admin-controls">
+            <div class="att-mode-toggle">
+              <button class="att-mode-btn active" data-mode="today">حضور اليوم</button>
+              <button class="att-mode-btn" data-mode="range">تحديد نطاق</button>
             </div>
-            <div class="att-field">
-              <label>القسم المتابَع</label>
-              <select id="attPermDept">
-                <option value="">اختر القسم</option>
+
+            <div class="att-dept-filter">
+              <select id="attAdminDeptFilter">
+                <option value="all">جميع الأقسام</option>
                 <option value="كيمياء">كيمياء</option>
                 <option value="فيزياء">فيزياء</option>
                 <option value="أحياء">أحياء</option>
@@ -585,12 +550,80 @@
                 <option value="أعضاء خارجيين">أعضاء خارجيين</option>
               </select>
             </div>
-            <button id="attGrantPermBtn">
-              <i class="ti ti-user-plus"></i> منح الصلاحية
+
+            <div class="att-name-filter att-autocomplete-wrap">
+              <input type="text" id="attAdminNameFilter" placeholder="بحث باسم العضو..." autocomplete="off" />
+              <button type="button" id="attAdminNameFilterClear" class="att-name-filter-clear" title="إلغاء الفلتر" style="display:none;">
+                <i class="ti ti-x"></i>
+              </button>
+              <div class="att-autocomplete-list" id="attAdminNameSuggestions" style="display:none;"></div>
+            </div>
+
+            <div class="att-date-range" id="attDateRange">
+              <label>من</label>
+              <input type="date" id="attRangeFrom" />
+              <label>إلى</label>
+              <input type="date" id="attRangeTo" />
+              <button class="att-print-btn" id="attApplyRange" style="background:#c8972b;">
+                <i class="ti ti-check"></i> تطبيق
+              </button>
+            </div>
+
+            <button class="att-print-btn" id="attPrintBtn">
+              <i class="ti ti-printer"></i> طباعة التقرير
             </button>
           </div>
-          <div class="att-permission-list" id="attPermissionList"></div>
+
+          <!-- جدول المتغيبين -->
+          <div class="admin-table-card">
+            <table class="att-table">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>التاريخ</th>
+                  <th>القسم</th>
+                  <th>اسم العضو</th>
+                  <th>الرقم الوظيفي</th>
+                  <th>سبب الغياب</th>
+                  <th>المقرر — الشعبة</th>
+                </tr>
+              </thead>
+              <tbody id="attAdminTbody"></tbody>
+            </table>
+          </div>
         </div>
+
+        <!-- محتوى: منح صلاحية التحضير لموظف -->
+        <div class="att-hub-content" id="attHubGrant" style="display:none;">
+          <div class="att-permission-card">
+            <h3>إعطاء صلاحية التحضير لموظف</h3>
+            <div class="att-permission-form">
+              <div class="att-field">
+                <label>الرقم الوظيفي</label>
+                <input type="text" id="attPermEmpNum" placeholder="أدخل الرقم الوظيفي" />
+              </div>
+              <div class="att-field">
+                <label>القسم المتابَع</label>
+                <select id="attPermDept">
+                  <option value="">اختر القسم</option>
+                  <option value="كيمياء">كيمياء</option>
+                  <option value="فيزياء">فيزياء</option>
+                  <option value="أحياء">أحياء</option>
+                  <option value="رياضيات">رياضيات</option>
+                  <option value="إحصاء">إحصاء</option>
+                  <option value="أعضاء خارجيين">أعضاء خارجيين</option>
+                </select>
+              </div>
+              <button id="attGrantPermBtn">
+                <i class="ti ti-user-plus"></i> منح الصلاحية
+              </button>
+            </div>
+            <div class="att-permission-list" id="attPermissionList"></div>
+          </div>
+        </div>
+
+        <!-- محتوى: إحصائيات الغياب (يُملأ ديناميكيًا من attendanceAdmin.js) -->
+        <div class="att-hub-content" id="attHubStats" style="display:none;"></div>
       </section>
 
       <!-- منطقة الطباعة -->
