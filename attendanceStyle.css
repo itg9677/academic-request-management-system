@@ -725,23 +725,9 @@
   margin-top: 2px;
 }
 
-.att-stat-card.best {
-  background: #eafaf2;
-  border-color: #b9ebd4;
-}
 
-.att-stat-card.best .att-stat-value {
-  color: #1a7a4a;
-}
 
-.att-stat-card.worst {
-  background: #fef0f0;
-  border-color: #f0d0d0;
-}
 
-.att-stat-card.worst .att-stat-value {
-  color: #c0392b;
-}
 
 /* شريط عدد المتغيبين */
 .att-count-bar {

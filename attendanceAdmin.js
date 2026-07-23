@@ -19,6 +19,8 @@ import {
    • فلترة أقسام (الكل، كيمياء، فيزياء، أحشاء، رياضيات، إحصاء، أعضاء خارجيين)
    • طباعة رسمية بالشعار + "تم التحضير بواسطة"
    • إعطاء/سحب صلاحية التحضير من الموظفين
+   • تحديد تاريخ بداية الفصل الدراسي — يُستخدم بواجهة الموظف لإجباره على
+     تسجيل كل أيام الأسبوع (أحد–خميس) الناقصة بالترتيب قبل أي يوم لاحق
 ============================================================ */
 
 const ATT_DEPARTMENTS = [
@@ -91,9 +93,11 @@ function getAbsReason(abs) {
 
 // ==================== قائمة الأعضاء لفلتر البحث بالاسم ====================
 async function loadAttEmployeesList() {
+  let list = [];
+
   try {
     const snap = await getDocs(collection(db, "departmentMembers"));
-    attEmployeesList = snap.docs
+    list = snap.docs
       .map(d => d.data())
       .filter(data => data.active !== false) // نستبعد الأعضاء غير الفعّالين فقط
       .map(data => ({
@@ -103,8 +107,33 @@ async function loadAttEmployeesList() {
       }));
   } catch (err) {
     console.error("خطأ تحميل قائمة الأعضاء:", err);
-    attEmployeesList = [];
   }
+
+  // "أعضاء خارجيين" ما عندهم مستندات في departmentMembers — يتسجلون مباشرة
+  // داخل attendanceRecords فقط. نجمع أسماءهم من هناك عشان تظهر باقتراحات البحث
+  try {
+    const extSnap = await getDocs(query(
+      collection(db, "attendanceRecords"),
+      where("department", "==", "أعضاء خارجيين")
+    ));
+    const seen = new Set(list.map(e => `${e.employeeNumber}|${e.name}`));
+    extSnap.docs.forEach(d => {
+      const rec = d.data();
+      (rec.absentees || []).forEach(abs => {
+        const name = abs.name || "-";
+        const employeeNumber = abs.employeeNumber || "-";
+        const key = `${employeeNumber}|${name}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          list.push({ name, employeeNumber, department: "أعضاء خارجيين" });
+        }
+      });
+    });
+  } catch (err) {
+    console.error("خطأ تحميل أعضاء خارجيين من سجلات الحضور:", err);
+  }
+
+  attEmployeesList = list;
 }
 
 // يفلتر صفوف جدول الغياب المعروضة حسب نص البحث الحالي (اسم العضو أو رقمه الوظيفي)
@@ -116,7 +145,6 @@ function applyAttNameFilter(rows) {
     String(r.employeeNumber || "").includes(term)
   );
 }
-
 
 // ==================== فتح تبويب الحضور ====================
 // flag يحدد هل قسم الحضور مفتوح حالياً
@@ -165,6 +193,8 @@ export async function openAttendanceAdmin() {
   // تحميل البيانات
   await loadAttRecords();
   renderAttAdmin();
+  await loadAttSemesterStart();
+  renderSemesterStartBox();
   await loadPermissionList();
   await loadAttStats();
   await loadAttEmployeesList();
@@ -181,6 +211,73 @@ export function closeAttendanceAdmin() {
 // لمنع إعادة إظهار admin-table-card عند إخفاء الشكاوى بينما الحضور مفتوح
 export function isAttendanceAdminOpen() {
   return attAdminOpen;
+}
+
+// ==================== بداية الفصل الدراسي ====================
+async function loadAttSemesterStart() {
+  try {
+    const snap = await getDoc(doc(db, "attendanceSettings", "global"));
+    attSemesterStart = snap.exists() ? (snap.data().semesterStartDate || "") : "";
+  } catch (err) {
+    console.error("خطأ تحميل بداية الفصل الدراسي:", err);
+    attSemesterStart = "";
+  }
+}
+
+function renderSemesterStartBox() {
+  let box = document.getElementById("attSemesterStartBox");
+  const adminSection = document.getElementById("attendanceSectionAdmin");
+  if (!box) {
+    if (!adminSection) return;
+    box = document.createElement("div");
+    box.id = "attSemesterStartBox";
+    box.className = "att-permission-card"; // إعادة استخدام نفس تنسيق بطاقات القسم
+    const permCard = adminSection.querySelector(".att-permission-card");
+    if (permCard && permCard.parentNode === adminSection) {
+      adminSection.insertBefore(box, permCard);
+    } else {
+      adminSection.appendChild(box);
+    }
+  }
+
+  box.innerHTML = `
+    <h3 style="margin:0 0 10px;">بداية الفصل الدراسي (لتحضير الموظفين)</h3>
+    <p style="font-size:13px;color:#64748b;margin:0 0 10px;">
+      يُستخدم هذا التاريخ لإجبار الموظفين المخوّلين بالتحضير على تسجيل كل أيام الأسبوع
+      (الأحد–الخميس) بدءًا منه بالترتيب، قبل السماح لهم بتسجيل أي يوم لاحق.
+    </p>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+      <input type="date" id="attSemesterStartInput" value="${esc(attSemesterStart)}" />
+      <button class="att-save-btn" id="attSemesterStartSaveBtn" style="width:auto;padding:8px 16px;">
+        <i class="ti ti-device-floppy"></i> حفظ
+      </button>
+      ${attSemesterStart
+        ? `<span style="font-size:13px;color:#16a34a;">الحالي: ${esc(formatDateAr(attSemesterStart))}</span>`
+        : `<span style="font-size:13px;color:#dc2626;">لم يتم التحديد بعد</span>`}
+    </div>
+  `;
+
+  const saveBtn = box.querySelector("#attSemesterStartSaveBtn");
+  if (saveBtn) {
+    saveBtn.addEventListener("click", async () => {
+      const input = box.querySelector("#attSemesterStartInput");
+      const val = input ? input.value : "";
+      if (!val) { alert("الرجاء اختيار تاريخ"); return; }
+      try {
+        await setDoc(doc(db, "attendanceSettings", "global"), {
+          semesterStartDate: val,
+          updatedBy: auth.currentUser.uid,
+          updatedAt: serverTimestamp()
+        }, { merge: true });
+        attSemesterStart = val;
+        alert("تم حفظ تاريخ بداية الفصل الدراسي");
+        renderSemesterStartBox();
+      } catch (err) {
+        console.error("خطأ حفظ بداية الفصل الدراسي:", err);
+        alert("حدث خطأ أثناء الحفظ");
+      }
+    });
+  }
 }
 
 // ==================== تحميل السجلات ====================
@@ -239,8 +336,8 @@ function renderAttAdmin() {
         recordedByName: rec.recordedByName || "-",
         name:           abs.name           || "-",
         employeeNumber: abs.employeeNumber || "-",
-        course:         abs.course         || "-",
-        section:        abs.section       || "-"
+        reason:         getAbsReason(abs),
+        coursesText:    formatCoursesText(abs)
       });
     });
   });
@@ -248,7 +345,7 @@ function renderAttAdmin() {
   rows = applyAttNameFilter(rows);
 
   if (rows.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:#94a3b8;padding:30px;">لا يوجد متغيبون في هذا النطاق</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:#94a3b8;padding:30px;">لا يوجد متغيبون في هذا النطاق</td></tr>`;
     updateAttCountBar(0);
     return;
   }
@@ -261,7 +358,8 @@ function renderAttAdmin() {
       <td>${esc(r.department)}</td>
       <td>${esc(r.name)}</td>
       <td>${esc(r.employeeNumber)}</td>
-      <td>${esc(r.course)} ${r.section ? `— شعبة ${esc(r.section)}` : ""}</td>
+      <td>${esc(r.reason)}</td>
+      <td>${esc(r.coursesText)}</td>
     </tr>
   `).join("");
 
@@ -320,7 +418,7 @@ async function loadAttStats() {
     attStatsRecords = records; // نحتفظ بالسجلات الخام لعرض تفاصيل الأعضاء عند الضغط
 
     const deptStats = {};
-    const DEPTS = ["كيمياء", "فيزياء", "أحياء", "رياضيات", "إحصاء", "أعضاء خارجين"];
+    const DEPTS = ["كيمياء", "فيزياء", "أحياء", "رياضيات", "إحصاء", "أعضاء خارجيين"];
 
     DEPTS.forEach(d => { deptStats[d] = { allPresentDays: 0, absenteeCount: 0, totalDays: 0 }; });
 
@@ -361,11 +459,13 @@ function renderAttStats(deptStats) {
   if (!container) return;
 
   const deptArr = Object.entries(deptStats).map(([dept, s]) => {
-    const rate = s.totalDays > 0 ? Math.round((s.allPresentDays / s.totalDays) * 100) : 0;
+    // نسبة الغياب: (الأيام اللي فيها غياب ÷ إجمالي الأيام المسجلة) × 100
+    const rate = s.totalDays > 0 ? Math.round(((s.totalDays - s.allPresentDays) / s.totalDays) * 100) : 0;
     return { dept, ...s, rate };
   });
 
-  deptArr.sort((a, b) => b.rate - a.rate);
+  // الأقل غيابًا أولًا (الأفضل انضباطًا)، والأكثر غيابًا في الآخر
+  deptArr.sort((a, b) => a.rate - b.rate);
 
   const periodLabel = attStatsPeriod === "week" ? "هذا الأسبوع"
                     : attStatsPeriod === "month" ? "هذا الشهر"
@@ -375,7 +475,7 @@ function renderAttStats(deptStats) {
 
   let html = `
     <div class="att-stats-header${openClass}" id="attStatsHeader">
-      <h3>إحصائيات انضباط الأقسام — ${periodLabel}</h3>
+      <h3>إحصائيات غياب الأقسام — ${periodLabel}</h3>
       <span class="att-stats-arrow"><i class="ti ti-chevron-down"></i></span>
     </div>
     <div class="att-stats-body${openClass}" id="attStatsBody">
@@ -395,13 +495,14 @@ function renderAttStats(deptStats) {
   `;
 
   deptArr.forEach((d, i) => {
-    const cls = i === 0 && d.rate > 0 ? "best" : (i === deptArr.length - 1 && d.totalDays > 0 ? "worst" : "");
-    const rateLabel = d.totalDays > 0 ? `${d.rate}%` : "—";
+    const cls = i === 0 && d.totalDays > 0 ? "best" : (i === deptArr.length - 1 && d.totalDays > 0 && d.rate > 0 ? "worst" : "");
+    const rateLabel = d.totalDays > 0 ? `${d.rate}%` : "لا يوجد";
+    const hasData = d.totalDays > 0;
     html += `
       <div class="att-stat-card ${cls}" data-dept="${esc(d.dept)}" title="اضغط لعرض تفاصيل أعضاء القسم">
         <div class="att-stat-dept">${esc(d.dept)}</div>
         <div class="att-stat-value">${rateLabel}</div>
-        <div class="att-stat-label">انضباط · ${d.allPresentDays} يوم كامل · ${d.absenteeCount} غياب</div>
+        <div class="att-stat-label">${d.totalDays > 0 ? d.totalDays + " يوم مسجل · " + d.allPresentDays + " يوم كامل · " + d.absenteeCount + " غياب" : "لم يُسجل حضور في هذه الفترة"}</div>
       </div>
     `;
   });
@@ -446,7 +547,7 @@ function renderAttStats(deptStats) {
                   : period === "month" ? "هذا الشهر"
                   : "نطاق مخصص";
       const h3 = container.querySelector("#attStatsHeader h3");
-      if (h3) h3.textContent = `إحصائيات انضباط الأقسام — ${label}`;
+      if (h3) h3.textContent = `إحصائيات غياب الأقسام — ${label}`;
 
       if (period === "custom") return;
       await loadAttStats();
@@ -678,8 +779,8 @@ function printAttReport() {
         recordedByName: rec.recordedByName || "-",
         name:           abs.name           || "-",
         employeeNumber: abs.employeeNumber || "-",
-        course:         abs.course         || "-",
-        section:        abs.section       || "-"
+        reason:         getAbsReason(abs),
+        coursesText:    formatCoursesText(abs)
       });
     });
   });
@@ -708,8 +809,8 @@ function printAttReport() {
       <td>${esc(r.department)}</td>
       <td>${esc(r.name)}</td>
       <td>${esc(r.employeeNumber)}</td>
-      <td>${esc(r.course)}</td>
-      <td>${esc(r.section)}</td>
+      <td>${esc(r.reason)}</td>
+      <td>${esc(r.coursesText)}</td>
       <td>${formatDateAr(r.date)}</td>
     </tr>
   `).join("");
@@ -734,8 +835,8 @@ function printAttReport() {
             <th>القسم</th>
             <th>اسم العضو</th>
             <th>الرقم الوظيفي</th>
-            <th>المقرر</th>
-            <th>الشعبة</th>
+            <th>سبب الغياب</th>
+            <th>المقررات</th>
             <th>التاريخ</th>
           </tr>
         </thead>
@@ -857,25 +958,6 @@ async function grantPermission() {
     const empData = empDoc.data();
     const empUid = empDoc.id;
     const empName = empData.fullName || "-";
-    const empOwnDept = (empData.department || "").trim();
-
-    // ==================== تحقق تطابق القسم ====================
-    // موظفو "الشؤون التعليمية" وظيفتهم متابعة حضور أي قسم آخر (بما فيها
-    // "أعضاء خارجيين")، فلا يُشترط تطابق قسمهم المسجَّل مع القسم المتابَع.
-    //
-    // أما بقية الموظفين (فيزياء، كيمياء، أحياء، رياضيات، إحصاء...) فلا يُمنح
-    // الصلاحية إلا إذا كان القسم المتابَع المُختار يطابق تمامًا قسمهم
-    // المسجَّل فعليًا بحسابهم — هذا يمنع خطأ إدخال رقم وظيفي يخص موظفًا من
-    // قسم مختلف عن القسم المطلوب متابعته.
-    if (empOwnDept !== "الشؤون التعليمية" && empOwnDept !== trackDept) {
-      alert(
-        `⚠️ الرقم الوظيفي غير مطابق لهذا القسم.\n` +
-        `الموظف "${empName}" مسجَّل في قسم "${empOwnDept || "غير معروف"}"، ` +
-        `بينما اخترتِ متابعة قسم "${trackDept}".\n` +
-        `تأكدي من الرقم الوظيفي أو اختاري القسم الصحيح.`
-      );
-      return;
-    }
 
     // حفظ الصلاحية
     await setDoc(doc(db, "attendancePermissions", empUid), {
