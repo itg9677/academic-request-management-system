@@ -239,8 +239,8 @@ function renderAttAdmin() {
         recordedByName: rec.recordedByName || "-",
         name:           abs.name           || "-",
         employeeNumber: abs.employeeNumber || "-",
-        course:         abs.course         || "-",
-        section:        abs.section       || "-"
+        reason:         abs.reason         || "-",
+        coursesText:    formatAbsCourses(abs)
       });
     });
   });
@@ -261,14 +261,28 @@ function renderAttAdmin() {
       <td>${esc(r.department)}</td>
       <td>${esc(r.name)}</td>
       <td>${esc(r.employeeNumber)}</td>
-      <td>${esc(r.course)} ${r.section ? `— شعبة ${esc(r.section)}` : ""}</td>
+            <td>${esc(r.reason)}</td>
+      <td>${esc(r.coursesText)}</td>
     </tr>
   `).join("");
 
   // تحديث شريط عدد المتغيبين
   updateAttCountBar(rows.length);
 }
+// يبني نص "مقرر — شعبة" لكل مقررات الغياب، يدعم شكل مصفوفة courses[]
+// (المتعدد عبر شرائح "إضافة مقرر") وأيضاً الشكل القديم course/section المفرد
+function formatAbsCourses(abs) {
+  const list = Array.isArray(abs.courses) && abs.courses.length
+    ? abs.courses
+    : (abs.course || abs.section ? [{ course: abs.course, section: abs.section }] : []);
 
+  if (!list.length) return "-";
+
+  return list
+    .map(c => c.course ? `${c.course}${c.section ? ` — شعبة ${c.section}` : ""}` : "")
+    .filter(Boolean)
+    .join("، ") || "-";
+}
 // ==================== شريط عدد المتغيبين ====================
 function updateAttCountBar(count) {
   let bar = document.getElementById("attCountBar");
@@ -678,8 +692,8 @@ function printAttReport() {
         recordedByName: rec.recordedByName || "-",
         name:           abs.name           || "-",
         employeeNumber: abs.employeeNumber || "-",
-        course:         abs.course         || "-",
-        section:        abs.section       || "-"
+        reason:         abs.reason         || "-",
+        coursesText:    formatAbsCourses(abs)
       });
     });
   });
@@ -708,8 +722,8 @@ function printAttReport() {
       <td>${esc(r.department)}</td>
       <td>${esc(r.name)}</td>
       <td>${esc(r.employeeNumber)}</td>
-      <td>${esc(r.course)}</td>
-      <td>${esc(r.section)}</td>
+      <td>${esc(r.reason)}</td>
+      <td>${esc(r.coursesText)}</td>
       <td>${formatDateAr(r.date)}</td>
     </tr>
   `).join("");
