@@ -19,6 +19,8 @@ import {
    • فلترة أقسام (الكل، كيمياء، فيزياء، أحشاء، رياضيات، إحصاء، أعضاء خارجيين)
    • طباعة رسمية بالشعار + "تم التحضير بواسطة"
    • إعطاء/سحب صلاحية التحضير من الموظفين
+   • تحديد تاريخ بداية الفصل الدراسي — يُستخدم بواجهة الموظف لإجباره على
+     تسجيل كل أيام الأسبوع (أحد–خميس) الناقصة بالترتيب قبل أي يوم لاحق
 ============================================================ */
 
 const ATT_DEPARTMENTS = [
@@ -38,6 +40,7 @@ let attStatsPeriod = "week"; // "week" | "month" | "custom"
 let attStatsCustomFrom = "";
 let attStatsCustomTo = "";
 let attStatsOpen = false; // هل الإحصائيات مفتوحة
+let attSemesterStart = ""; // تاريخ بداية الفصل الدراسي — YYYY-MM-DD
 
 // ==================== أدوات مساعدة ====================
 function getTodayStr() {
@@ -78,6 +81,11 @@ function formatCoursesText(abs) {
   return getAbsCourses(abs)
     .map(c => `${c.course || "-"}${c.section ? " — شعبة " + c.section : ""}`)
     .join("، ");
+}
+
+// سبب الغياب — قد يكون غير موجود بسجلات قديمة قبل إضافة هذه الميزة
+function getAbsReason(abs) {
+  return abs.reason || "-";
 }
 
 // ==================== فتح تبويب الحضور ====================
@@ -127,6 +135,8 @@ export async function openAttendanceAdmin() {
   // تحميل البيانات
   await loadAttRecords();
   renderAttAdmin();
+  await loadAttSemesterStart();
+  renderSemesterStartBox();
   await loadPermissionList();
   await loadAttStats();
 }
@@ -142,6 +152,73 @@ export function closeAttendanceAdmin() {
 // لمنع إعادة إظهار admin-table-card عند إخفاء الشكاوى بينما الحضور مفتوح
 export function isAttendanceAdminOpen() {
   return attAdminOpen;
+}
+
+// ==================== بداية الفصل الدراسي ====================
+async function loadAttSemesterStart() {
+  try {
+    const snap = await getDoc(doc(db, "attendanceSettings", "global"));
+    attSemesterStart = snap.exists() ? (snap.data().semesterStartDate || "") : "";
+  } catch (err) {
+    console.error("خطأ تحميل بداية الفصل الدراسي:", err);
+    attSemesterStart = "";
+  }
+}
+
+function renderSemesterStartBox() {
+  let box = document.getElementById("attSemesterStartBox");
+  const adminSection = document.getElementById("attendanceSectionAdmin");
+  if (!box) {
+    if (!adminSection) return;
+    box = document.createElement("div");
+    box.id = "attSemesterStartBox";
+    box.className = "att-permission-card"; // إعادة استخدام نفس تنسيق بطاقات القسم
+    const permCard = adminSection.querySelector(".att-permission-card");
+    if (permCard && permCard.parentNode === adminSection) {
+      adminSection.insertBefore(box, permCard);
+    } else {
+      adminSection.appendChild(box);
+    }
+  }
+
+  box.innerHTML = `
+    <h3 style="margin:0 0 10px;">بداية الفصل الدراسي (لتحضير الموظفين)</h3>
+    <p style="font-size:13px;color:#64748b;margin:0 0 10px;">
+      يُستخدم هذا التاريخ لإجبار الموظفين المخوّلين بالتحضير على تسجيل كل أيام الأسبوع
+      (الأحد–الخميس) بدءًا منه بالترتيب، قبل السماح لهم بتسجيل أي يوم لاحق.
+    </p>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+      <input type="date" id="attSemesterStartInput" value="${esc(attSemesterStart)}" />
+      <button class="att-save-btn" id="attSemesterStartSaveBtn" style="width:auto;padding:8px 16px;">
+        <i class="ti ti-device-floppy"></i> حفظ
+      </button>
+      ${attSemesterStart
+        ? `<span style="font-size:13px;color:#16a34a;">الحالي: ${esc(formatDateAr(attSemesterStart))}</span>`
+        : `<span style="font-size:13px;color:#dc2626;">لم يتم التحديد بعد</span>`}
+    </div>
+  `;
+
+  const saveBtn = box.querySelector("#attSemesterStartSaveBtn");
+  if (saveBtn) {
+    saveBtn.addEventListener("click", async () => {
+      const input = box.querySelector("#attSemesterStartInput");
+      const val = input ? input.value : "";
+      if (!val) { alert("الرجاء اختيار تاريخ"); return; }
+      try {
+        await setDoc(doc(db, "attendanceSettings", "global"), {
+          semesterStartDate: val,
+          updatedBy: auth.currentUser.uid,
+          updatedAt: serverTimestamp()
+        }, { merge: true });
+        attSemesterStart = val;
+        alert("تم حفظ تاريخ بداية الفصل الدراسي");
+        renderSemesterStartBox();
+      } catch (err) {
+        console.error("خطأ حفظ بداية الفصل الدراسي:", err);
+        alert("حدث خطأ أثناء الحفظ");
+      }
+    });
+  }
 }
 
 // ==================== تحميل السجلات ====================
@@ -200,13 +277,14 @@ function renderAttAdmin() {
         recordedByName: rec.recordedByName || "-",
         name:           abs.name           || "-",
         employeeNumber: abs.employeeNumber || "-",
+        reason:         getAbsReason(abs),
         coursesText:    formatCoursesText(abs)
       });
     });
   });
 
   if (rows.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;color:#94a3b8;padding:30px;">لا يوجد متغيبون في هذا النطاق</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:#94a3b8;padding:30px;">لا يوجد متغيبون في هذا النطاق</td></tr>`;
     updateAttCountBar(0);
     return;
   }
@@ -219,6 +297,7 @@ function renderAttAdmin() {
       <td>${esc(r.department)}</td>
       <td>${esc(r.name)}</td>
       <td>${esc(r.employeeNumber)}</td>
+      <td>${esc(r.reason)}</td>
       <td>${esc(r.coursesText)}</td>
     </tr>
   `).join("");
@@ -432,6 +511,7 @@ function printAttReport() {
         recordedByName: rec.recordedByName || "-",
         name:           abs.name           || "-",
         employeeNumber: abs.employeeNumber || "-",
+        reason:         getAbsReason(abs),
         coursesText:    formatCoursesText(abs)
       });
     });
@@ -458,6 +538,7 @@ function printAttReport() {
       <td>${esc(r.department)}</td>
       <td>${esc(r.name)}</td>
       <td>${esc(r.employeeNumber)}</td>
+      <td>${esc(r.reason)}</td>
       <td>${esc(r.coursesText)}</td>
       <td>${formatDateAr(r.date)}</td>
     </tr>
@@ -482,6 +563,7 @@ function printAttReport() {
             <th>القسم</th>
             <th>اسم العضو</th>
             <th>الرقم الوظيفي</th>
+            <th>سبب الغياب</th>
             <th>المقررات</th>
             <th>التاريخ</th>
           </tr>

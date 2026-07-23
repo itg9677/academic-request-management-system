@@ -71,12 +71,16 @@
         <span>طلبات الزيارة</span>
         <span class="sb-badge admin-tab-badge" id="badge-visit">0</span>
       </div>
-
-      <!-- 7. الشكاوى والاقتراحات -->
       <div class="sb-nav-item admin-tab" data-tab="complaints" id="navComplaintsAdmin">
         <i class="ti ti-message-report"></i>
         <span>الشكاوى والاقتراحات</span>
         <span class="sb-badge admin-tab-badge" id="badge-complaints">0</span>
+      </div>
+
+      <!-- تبويب متابعة الحضور -->
+      <div class="sb-nav-item" id="navAttendanceAdmin" style="cursor:pointer;">
+        <i class="ti ti-clipboard-check"></i>
+        <span>متابعة الحضور</span>
       </div>
     </nav>
 
@@ -411,12 +415,17 @@
 
           <!-- زر رفع/تحديث ملف المقررات (Excel) — يظهر فقط في تبويب الحذف والإضافة -->
           <!-- ملاحظة: تنظيف تكرار المقررات يحصل تلقائيًا وبشكل مخفي بعد كل رفع (بالكود)، بدون زر ظاهر للأدمن -->
-          <!-- ملاحظة: تنزيل آخر ملف مرفوع متاح من داخل نافذة الرفع نفسها، فلا حاجة لزر منفصل هنا -->
-          <div id="coursesUploadWrap">
+          <div id="coursesUploadWrap" style="display:flex;gap:8px;align-items:center;">
             <button class="excel-export-btn" id="openCoursesUploadBtn" type="button">
               <i class="ti ti-file-spreadsheet"></i>
               رفع / تحديث المقررات
             </button>
+            <!-- زر ثابت يبقى ظاهرًا دائمًا (حتى بعد إغلاق النافذة أو التبويب أو إعادة فتح الصفحة)
+                 يحمّل آخر ملف مقررات تم رفعه، لأنه يقرأ رابطه المحفوظ في قاعدة البيانات وليس رابطًا مؤقتًا بالمتصفح -->
+            <a class="excel-export-btn" id="downloadLatestCoursesFileBtn" href="#" target="_blank" rel="noopener" style="display:none;">
+              <i class="ti ti-download"></i>
+              تنزيل آخر ملف مقررات
+            </a>
           </div>
 
           <select class="admin-filter-select" id="statusFilter" style="display:none">
@@ -491,7 +500,7 @@
 
 
       <!-- ==================== متابعة الحضور ==================== -->
-      <section class="attendance-section" id="attendanceSectionAdmin">
+      <section class="attendance-section" id="attendanceSectionAdmin" style="display:none">
         <div class="attendance-header">
           <h2>متابعة حضور أعضاء هيئة التدريس</h2>
         </div>
@@ -499,7 +508,7 @@
         <!-- أزرار: اليوم / نطاق + فلترة + طباعة -->
         <div class="att-admin-controls">
           <div class="att-mode-toggle">
-            <button class="att-mode-btn active" data-mode="today">غياب اليوم</button>
+            <button class="att-mode-btn active" data-mode="today">حضور اليوم</button>
             <button class="att-mode-btn" data-mode="range">تحديد نطاق</button>
           </div>
 
@@ -528,12 +537,6 @@
           <button class="att-print-btn" id="attPrintBtn">
             <i class="ti ti-printer"></i> طباعة التقرير
           </button>
-
-          <!-- زر رفع/تحديث بيانات الأعضاء (Excel) — نفس أسلوب رفع ملف المقررات -->
-          <button class="excel-export-btn" id="openMembersUploadBtn" type="button">
-            <i class="ti ti-file-spreadsheet"></i>
-            رفع / تحديث بيانات الأعضاء
-          </button>
         </div>
 
         <!-- جدول المتغيبين -->
@@ -546,6 +549,7 @@
                 <th>القسم</th>
                 <th>اسم العضو</th>
                 <th>الرقم الوظيفي</th>
+                <th>سبب الغياب</th>
                 <th>المقرر — الشعبة</th>
               </tr>
             </thead>
@@ -666,65 +670,6 @@
     <div class="sp-overlay" id="coursesUploadOverlay" style="display:none;"></div>
   </div>
 
-  <!-- ===== Modal: رفع / تحديث بيانات الأعضاء ===== -->
-  <div class="admin-side-panel transfer-modal-box" id="membersUploadModal" style="display:none;">
-    <div class="sp-header">
-      <div>
-        <div class="sp-title">رفع / تحديث بيانات الأعضاء</div>
-        <div class="sp-sub">ملف Excel — شيت لكل قسم (بدون الأعضاء الخارجيين)</div>
-      </div>
-      <button class="sp-close-btn" id="muCloseBtn" aria-label="إغلاق">
-        <i class="ti ti-x"></i>
-      </button>
-    </div>
-
-    <div class="sp-body">
-      <div class="sp-detail-card" style="padding:16px;">
-
-        <div id="muCurrentFileWrap" style="margin-bottom:12px;display:none;"></div>
-
-        <div id="muDropZone" class="cu-drop-zone">
-          <i class="ti ti-file-upload" style="font-size:28px;"></i>
-          <div style="margin-top:8px;">اضغط لاختيار ملف Excel (.xlsx / .xls)</div>
-          <div style="font-size:12px;color:#888;margin-top:4px;">
-            كل شيت باسم القسم (مثل: قسم الأحياء، قسم الإحصاء وبحوث العمليات...)،
-            وبه أعمدة: الاسم، الرقم الوظيفي، المقر. الأعضاء بـ"المقر الرئيسي" فقط يظهرون لتسجيل الحضور.
-          </div>
-          <input type="file" id="muFileInput" accept=".xlsx,.xls" style="display:none;">
-        </div>
-
-        <div id="muFileName" style="margin-top:10px;font-size:14px;color:#1a3a6b;display:none;"></div>
-
-        <div id="muPreviewWrap" style="margin-top:14px;display:none;">
-          <div class="sp-detail-label" style="margin-bottom:6px;">معاينة الملف</div>
-          <div id="muPreviewSummary" style="font-size:14px;margin-bottom:8px;"></div>
-          <div style="max-height:220px;overflow:auto;border:1px solid #eee;border-radius:8px;">
-            <table class="admin-table" id="muPreviewTable" style="width:100%;font-size:13px;"></table>
-          </div>
-          <div id="muSkippedNote" style="font-size:12px;color:#b00;margin-top:6px;display:none;"></div>
-        </div>
-
-        <div id="muProgressWrap" style="margin-top:14px;display:none;">
-          <div class="admin-loading"><i class="ti ti-loader-2 spin"></i> <span id="muProgressText">جاري الرفع...</span></div>
-        </div>
-
-        <div id="muResultNote" style="margin-top:12px;font-size:14px;display:none;"></div>
-
-      </div>
-    </div>
-
-    <div class="sp-footer" style="display:flex;gap:10px;">
-      <button class="sp-print-btn" id="muConfirmBtn" type="button" style="flex:1;background:#1a3a6b;" disabled>
-        <i class="ti ti-check"></i> تأكيد الرفع
-      </button>
-      <button class="sp-close-btn" id="muCancelBtn" type="button" style="flex:0 0 auto;">
-        إلغاء
-      </button>
-    </div>
-
-    <div class="sp-overlay" id="membersUploadOverlay" style="display:none;"></div>
-  </div>
-
   <style>
     .cu-drop-zone {
       border: 2px dashed #c9d3e0;
@@ -741,10 +686,6 @@
       padding:6px 8px; text-align:right; border-bottom:1px solid #f0f0f0; white-space:nowrap;
     }
     #cuPreviewTable th { background:#f5f7fa; position:sticky; top:0; }
-    #muPreviewTable th, #muPreviewTable td {
-      padding:6px 8px; text-align:right; border-bottom:1px solid #f0f0f0; white-space:nowrap;
-    }
-    #muPreviewTable th { background:#f5f7fa; position:sticky; top:0; }
   </style>
 
   <!-- ===== Modal: نقل صلاحية الأدمن ===== -->
@@ -836,4 +777,4 @@
   <script type="module" src="attendanceAdmin.js"></script>
   <script type="module" src="Admindashboard.js"></script>
 </body>
-</html>
+</h

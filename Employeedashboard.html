@@ -266,11 +266,30 @@
 
 
       <!-- ==================== متابعة الحضور ==================== -->
+      <style>
+        /* تنسيق مبسّط لأزرار سبب الغياب وتنبيه الأيام الناقصة —
+           أضيفي هذه القواعد إلى attendanceStyle.css لو حبيتي توحيد التنسيق مع بقية الأزرار */
+        .att-reason-group { display:flex; gap:8px; margin-top:6px; flex-wrap:wrap; }
+        .att-reason-btn {
+          padding:8px 14px; border-radius:8px; border:1px solid #cbd5e1;
+          background:#fff; color:#334155; font-size:13px; cursor:pointer;
+        }
+        .att-reason-btn.active { color:#fff; border-color:transparent; }
+        .att-reason-btn[data-reason="اضطراري"].active { background:#f59e0b; }
+        .att-reason-btn[data-reason="بعذر"].active { background:#3b82f6; }
+        .att-reason-btn[data-reason="بدون عذر"].active { background:#ef4444; }
+        .att-missing-banner i { font-size:16px; }
+      </style>
       <section class="attendance-section" id="attendanceSectionEmp" style="display:none;">
         <div class="attendance-header">
           <h2>متابعة حضور أعضاء هيئة التدريس</h2>
           <div class="att-date" id="attEmpDate"></div>
           <div style="font-size:14px;color:#64748b;margin-top:4px;">القسم: <span id="attEmpDept"></span></div>
+          <div style="margin-top:10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+            <label for="attDatePicker" style="font-size:14px;color:#334155;">تاريخ يوم التحضير:</label>
+            <input type="date" id="attDatePicker" />
+          </div>
+          <div class="att-missing-banner" id="attMissingBanner" style="display:none;align-items:center;gap:8px;margin-top:10px;padding:10px 14px;border-radius:8px;background:#fef3c7;color:#92400e;font-size:13px;"></div>
         </div>
 
         <div class="att-status att-status-pending" id="attEmpStatus">لم يتم تسجيل التحضير بعد</div>
@@ -310,6 +329,18 @@
                   <input type="text" id="attAbsEmpNum" placeholder="مثال: 41211" autocomplete="off" />
                 </div>
               </div>
+              <!-- سبب الغياب -->
+              <div class="att-field-row">
+                <div class="att-field" style="width:100%;">
+                  <label>سبب الغياب <span class="att-required">*</span></label>
+                  <div class="att-reason-group" id="attReasonGroup">
+                    <button type="button" class="att-reason-btn" data-reason="اضطراري">اضطراري</button>
+                    <button type="button" class="att-reason-btn" data-reason="بعذر">بعذر</button>
+                    <button type="button" class="att-reason-btn" data-reason="بدون عذر">بدون عذر</button>
+                  </div>
+                </div>
+              </div>
+
               <!-- chips المقررات المضافة مؤقتاً لهذا الموظف -->
               <div class="att-pending-chips-wrap" id="attPendingWrap" style="display:none;">
                 <div id="attPendingList"></div>

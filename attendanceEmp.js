@@ -18,15 +18,25 @@ import {
    • يظهر فقط إذا كان الموظف لديه صلاحية تحضير (attendancePermissions)
    • بدون فلترة أقسام — كل موظف مسؤول عن قسم محدد فقط
    • زرّان: "الكل حاضر" / "الكل حاضر ما عدا"
-   • يمكن التعديل طول اليوم
+   • تاريخ يوم التحضير قابل للاختيار (وليس اليوم الحالي دائمًا)
+   • لو فيه أيام أسبوع سابقة (الأحد–الخميس) بعد بداية الفصل الدراسي
+     بدون تحضير مسجّل، يُجبر الموظف على تسجيلها بالترتيب أولًا
+   • عند تسجيل غياب موظف يجب اختيار سبب الغياب: اضطراري / بعذر / بدون عذر
 ============================================================ */
 
 let attPermission = null;   // { trackingDepartment, employeeName, employeeNumber }
-let attRecordId   = null;   // معرّف سجل اليوم (لو موجود)
-let attAbsentees  = [];     // [{ name, employeeNumber, courses: [{course, section}] }] — القائمة الرسمية بالجدول
+let attRecordId   = null;   // معرّف سجل يوم التحضير المحدد (لو موجود)
+let attAbsentees  = [];     // [{ name, employeeNumber, reason, courses: [{course, section}] }] — القائمة الرسمية بالجدول
 let attPending    = [];     // نفس الشكل — قائمة مؤقتة لما يتم إضافته قبل الضغط على "حفظ التحضير"
 let attAllPresent = false;
 let attEditingIdx = -1;  // index of absentee being edited (-1 = not editing)
+let attCurrentReason = null; // سبب الغياب المختار حاليًا بالفورم قبل الإضافة
+
+let attSemesterStart = ""; // تاريخ بداية الفصل الدراسي (يحدده الأدمن) — YYYY-MM-DD
+let attSelectedDate  = ""; // تاريخ يوم التحضير المحدد حاليًا — YYYY-MM-DD
+let attMissingDates  = []; // أيام الأسبوع (أحد–خميس) الناقصة قبل attSelectedDate والتي يجب تسجيلها أولًا
+
+const REASONS = ["اضطراري", "بعذر", "بدون عذر"];
 
 // أعضاء القسم الفعّالون (بالمقر الرئيسي) — من بيانات الأعضاء التي يرفعها الأدمن (Excel)
 // لو ما فيه بيانات مرفوعة للقسم بعد، تبقى القائمة فاضية ويُترك حقل الاسم حقل كتابة حرة كما كان
@@ -43,10 +53,33 @@ function getTodayStr() {
   return `${y}-${m}-${dd}`;
 }
 
-function formatTodayArabic() {
-  const d = new Date();
+function formatDateArabic(dateStr) {
+  if (!dateStr) return "-";
+  const [y, m, dd] = dateStr.split("-").map(Number);
+  const d = new Date(y, m - 1, dd);
   const days = ["الأحد","الإثنين","الثلاثاء","الأربعاء","الخميس","الجمعة","السبت"];
   return `${days[d.getDay()]}، ${d.toLocaleDateString("ar-SA-u-ca-gregory")}`;
+}
+
+// أيام الأسبوع المطلوب تسجيل تحضيرها: الأحد–الخميس (بدون الجمعة=5 والسبت=6)
+function isRequiredWeekday(dateStr) {
+  const [y, m, dd] = dateStr.split("-").map(Number);
+  const day = new Date(y, m - 1, dd).getDay();
+  return day !== 5 && day !== 6;
+}
+
+function addDaysStr(dateStr, days) {
+  const [y, m, dd] = dateStr.split("-").map(Number);
+  const dt = new Date(y, m - 1, dd);
+  dt.setDate(dt.getDate() + days);
+  const yy = dt.getFullYear();
+  const mm = String(dt.getMonth() + 1).padStart(2, "0");
+  const ddd = String(dt.getDate()).padStart(2, "0");
+  return `${yy}-${mm}-${ddd}`;
+}
+
+function getYesterdayStr() {
+  return addDaysStr(getTodayStr(), -1);
 }
 
 // ==================== التحقق من الصلاحية ====================
@@ -88,6 +121,51 @@ async function loadDepartmentMembers() {
   }
 }
 
+// ==================== بداية الفصل الدراسي (يحدده الأدمن) ====================
+async function loadSemesterStart() {
+  try {
+    const snap = await getDoc(doc(db, "attendanceSettings", "global"));
+    attSemesterStart = snap.exists() ? (snap.data().semesterStartDate || "") : "";
+  } catch (err) {
+    console.error("خطأ تحميل بداية الفصل الدراسي:", err);
+    attSemesterStart = "";
+  }
+}
+
+// ==================== حساب أيام الأسبوع الناقصة قبل اليوم المحدد ====================
+// يبحث عن كل يوم أسبوعي (أحد–خميس) بين بداية الفصل والأمس لهذا القسم
+// وليس له سجل محفوظ في attendanceRecords — هذه الأيام يجب تسجيلها أولًا
+async function computeMissingDates() {
+  attMissingDates = [];
+  if (!attPermission || !attSemesterStart) return;
+
+  const yesterday = getYesterdayStr();
+  if (attSemesterStart > yesterday) return; // لم يبدأ أي يوم أسبوعي بعد بداية الفصل
+
+  let existingDates = new Set();
+  try {
+    const q = query(
+      collection(db, "attendanceRecords"),
+      where("department", "==", attPermission.trackingDepartment),
+      where("date", ">=", attSemesterStart),
+      where("date", "<=", yesterday)
+    );
+    const snap = await getDocs(q);
+    snap.docs.forEach(d => existingDates.add(d.data().date));
+  } catch (err) {
+    console.error("خطأ فحص الأيام الناقصة:", err);
+    return;
+  }
+
+  let cursor = attSemesterStart;
+  while (cursor <= yesterday) {
+    if (isRequiredWeekday(cursor) && !existingDates.has(cursor)) {
+      attMissingDates.push(cursor);
+    }
+    cursor = addDaysStr(cursor, 1);
+  }
+}
+
 // ==================== إظهار/إخفاء التبويب ====================
 export async function initAttendanceEmp(userUid, empData) {
   attPermission = await checkAttPermission(userUid);
@@ -117,35 +195,85 @@ export async function openAttendanceTab() {
   const section = document.getElementById("attendanceSectionEmp");
   if (!section) return;
 
-  // إخفاء قسم المتغيبين افتراضيًا (يظهر عند الضغط على "الكل حاضر ما عدا")
-  const absSec = document.getElementById("attAbsentSection");
-  if (absSec) absSec.style.display = "none";
-
-  // عرض التاريخ
-  const dateEl = document.getElementById("attEmpDate");
-  if (dateEl) dateEl.textContent = formatTodayArabic();
-
   // تفريغ أي مقررات كانت قيد الإضافة ولم تُحفظ
   attPending = [];
+  attCurrentReason = null;
 
   // تحديث قائمة أعضاء القسم الفعّالين (في حال حدّث الأدمن الملف بعد آخر دخول)
   await loadDepartmentMembers();
 
-  // تحميل سجل اليوم
-  await loadTodayRecord();
+  // تحميل بداية الفصل الدراسي، وحساب أي أيام أسبوعية سابقة ناقصة
+  await loadSemesterStart();
+  await computeMissingDates();
+
+  const today = getTodayStr();
+  // لو فيه يوم ناقص، نجبر الموظف يبدأ منه؛ وإلا نفتح على اليوم الحالي
+  attSelectedDate = attMissingDates.length > 0 ? attMissingDates[0] : today;
+
+  applyDatePickerConstraints();
+
+  const dateEl = document.getElementById("attEmpDate");
+  if (dateEl) dateEl.textContent = formatDateArabic(attSelectedDate);
+
+  renderMissingBanner();
+
+  // تحميل سجل اليوم المحدد
+  await loadRecordForDate(attSelectedDate);
 
   renderAttState();
 }
 
-// ==================== تحميل سجل اليوم ====================
-async function loadTodayRecord() {
-  if (!attPermission) return;
+// يحدث حقل اختيار التاريخ (min/max/value) حسب بداية الفصل والأيام الناقصة
+function applyDatePickerConstraints() {
+  const dateInput = document.getElementById("attDatePicker");
+  if (!dateInput) return;
   const today = getTodayStr();
+  dateInput.min = attSemesterStart || "";
+  dateInput.max = attMissingDates.length > 0 ? attMissingDates[0] : today;
+  dateInput.value = attSelectedDate;
+}
+
+// يعرض/يخفي تنبيه الأيام الناقصة
+function renderMissingBanner() {
+  const banner = document.getElementById("attMissingBanner");
+  if (!banner) return;
+  if (attMissingDates.length === 0) {
+    banner.style.display = "none";
+    banner.innerHTML = "";
+    return;
+  }
+  banner.style.display = "flex";
+  banner.innerHTML = `
+    <i class="ti ti-alert-triangle"></i>
+    <span>لديك ${attMissingDates.length} يوم عمل بدون تحضير مسجّل. يجب تسجيل تحضير يوم
+      <strong>${esc(formatDateArabic(attMissingDates[0]))}</strong> أولًا قبل الانتقال لأي يوم لاحق.</span>
+  `;
+}
+
+// يُستدعى بعد أي حفظ ناجح — يعيد فحص الأيام الناقصة ويحدّث الفورم للانتقال التلقائي
+async function afterSuccessfulSave() {
+  await computeMissingDates();
+  const today = getTodayStr();
+  attSelectedDate = attMissingDates.length > 0 ? attMissingDates[0] : attSelectedDate;
+  if (attMissingDates.length === 0 && attSelectedDate > today) attSelectedDate = today;
+
+  applyDatePickerConstraints();
+  renderMissingBanner();
+
+  const dateEl = document.getElementById("attEmpDate");
+  if (dateEl) dateEl.textContent = formatDateArabic(attSelectedDate);
+
+  await loadRecordForDate(attSelectedDate);
+}
+
+// ==================== تحميل سجل يوم التحضير المحدد ====================
+async function loadRecordForDate(dateStr) {
+  if (!attPermission || !dateStr) return;
 
   try {
     const q = query(
       collection(db, "attendanceRecords"),
-      where("date", "==", today),
+      where("date", "==", dateStr),
       where("department", "==", attPermission.trackingDepartment)
     );
     const snap = await getDocs(q);
@@ -162,17 +290,36 @@ async function loadTodayRecord() {
       attAbsentees  = [];
     }
   } catch (err) {
-    console.error("خطأ تحميل سجل اليوم:", err);
+    console.error("خطأ تحميل سجل التاريخ المحدد:", err);
+  }
+}
+
+// يُظهر قسم المتغيبين تلقائيًا لو فيه متغيبون محفوظون لليوم المحدد
+function syncAbsentSectionVisibility() {
+  const absSec    = document.getElementById("attAbsentSection");
+  const allBtn    = document.getElementById("attBtnAllPresent");
+  const exceptBtn = document.getElementById("attBtnExcept");
+  if (!absSec) return;
+
+  if (attAbsentees.length > 0 && !attAllPresent) {
+    absSec.style.setProperty("display", "block", "important");
+    if (exceptBtn) exceptBtn.classList.add("done");
+    if (allBtn) allBtn.classList.remove("done");
+  } else {
+    absSec.style.display = "none";
   }
 }
 
 // ==================== حفظ السجل ====================
 async function saveRecord() {
   if (!attPermission) return false;
-  const today = getTodayStr();
+  if (!attSelectedDate) {
+    alert("الرجاء تحديد تاريخ يوم التحضير قبل الحفظ");
+    return false;
+  }
 
   const recordData = {
-    date:              today,
+    date:              attSelectedDate,
     department:        attPermission.trackingDepartment,
     recordedBy:        auth.currentUser.uid,
     recordedByName:   attPermission.employeeName,
@@ -229,6 +376,7 @@ function renderAttState() {
     exceptBtn.classList.remove("done");
   }
 
+  syncAbsentSectionVisibility();
   renderAbsenteesTable();
   renderPendingPreview();
 }
@@ -254,6 +402,7 @@ function renderAbsenteesTable() {
         <div class="att-card-identity">
           <span class="att-card-name">${esc(a.name)}</span>
           <span class="att-card-num">${esc(a.employeeNumber)}</span>
+          ${a.reason ? reasonBadge(a.reason) : ""}
         </div>
         <div class="att-card-actions">
           <button class="att-edit-btn" data-idx="${i}" title="تعديل"><i class="ti ti-edit"></i></button>
@@ -293,12 +442,20 @@ function renderAbsenteesTable() {
       if (!a) return;
 
       attEditingIdx = idx;
+      attCurrentReason = a.reason || null;
       stageCurrentFormEntry(false);
 
       const nameEl = document.getElementById("attAbsName");
       const numEl  = document.getElementById("attAbsEmpNum");
       const crsEl  = document.getElementById("attAbsCourse");
       const secEl  = document.getElementById("attAbsSection");
+
+      const reasonGroup = document.getElementById("attReasonGroup");
+      if (reasonGroup) {
+        reasonGroup.querySelectorAll(".att-reason-btn").forEach(b =>
+          b.classList.toggle("active", b.dataset.reason === attCurrentReason)
+        );
+      }
 
       if (nameEl) nameEl.value = a.name;
       if (numEl)  numEl.value  = a.employeeNumber;
@@ -402,6 +559,13 @@ function esc(str) {
   }[c]));
 }
 
+// شارة صغيرة تعرض سبب الغياب بلون مميز (ألوان inline لأن ملف التنسيق غير متوفر هنا)
+function reasonBadge(reason) {
+  const colors = { "اضطراري": "#f59e0b", "بعذر": "#3b82f6", "بدون عذر": "#ef4444" };
+  const color = colors[reason] || "#64748b";
+  return `<span style="display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;color:#fff;background:${color};margin-inline-start:6px;">${esc(reason)}</span>`;
+}
+
 // يقرأ حقول النموذج الحالية ويضيفها للقائمة المؤقتة (attPending)
 // showAlerts=true تظهر رسائل تنبيه لو الحقول ناقصة؛ لو الحقول فاضية تمامًا يتجاهل بصمت
 function stageCurrentFormEntry(showAlerts) {
@@ -416,10 +580,14 @@ function stageCurrentFormEntry(showAlerts) {
   const section= secEl?.value.trim();
 
   // ما فيه شي مكتوب بالحقول — عادي، ما نسوي شي
-  if (!name && !empNum && !course && !section) return false;
+  if (!name && !empNum && !course && !section && !attCurrentReason) return false;
 
   if (!name || !empNum) {
     if (showAlerts) alert("الاسم والرقم الوظيفي مطلوبان");
+    return false;
+  }
+  if (!attCurrentReason) {
+    if (showAlerts) alert("الرجاء اختيار سبب الغياب (اضطراري / بعذر / بدون عذر)");
     return false;
   }
   if (!course) {
@@ -431,13 +599,14 @@ function stageCurrentFormEntry(showAlerts) {
   const idx = attPending.findIndex(a => a.employeeNumber === empNum && a.name === name);
 
   if (idx !== -1) {
+    attPending[idx].reason = attCurrentReason; // تحديث السبب لو تغيّر
     // تفادي تكرار نفس المقرر والشعبة لنفس العضو
     const isDup = attPending[idx].courses.some(c => c.course === course && c.section === section);
     if (!isDup) {
       attPending[idx].courses.push({ course, section });
     }
   } else {
-    attPending.push({ name, employeeNumber: empNum, courses: [{ course, section }] });
+    attPending.push({ name, employeeNumber: empNum, reason: attCurrentReason, courses: [{ course, section }] });
   }
 
   // تفريغ حقلي المقرر والشعبة فقط — إبقاء الاسم والرقم الوظيفي لإضافة مقرر آخر بسهولة
@@ -515,6 +684,54 @@ function bindMemberAutocomplete() {
   nameEl.addEventListener("blur", () => setTimeout(hideList, 120));
 }
 
+// ==================== أزرار سبب الغياب ====================
+function bindReasonButtons() {
+  const group = document.getElementById("attReasonGroup");
+  if (!group) return;
+  group.addEventListener("click", (e) => {
+    const btn = e.target.closest(".att-reason-btn");
+    if (!btn) return;
+    attCurrentReason = btn.dataset.reason;
+    group.querySelectorAll(".att-reason-btn").forEach(b => b.classList.toggle("active", b === btn));
+  });
+}
+
+// ==================== تغيير تاريخ يوم التحضير ====================
+function bindDatePicker() {
+  const dateInput = document.getElementById("attDatePicker");
+  if (!dateInput) return;
+
+  dateInput.addEventListener("change", async () => {
+    let val = dateInput.value;
+    if (!val) { dateInput.value = attSelectedDate; return; }
+
+    // امنع اختيار يوم لاحق طالما فيه يوم أسبوعي سابق لم يُسجَّل بعد
+    if (attMissingDates.length > 0 && val > attMissingDates[0]) {
+      alert(`يجب تسجيل تحضير يوم ${formatDateArabic(attMissingDates[0])} أولًا قبل الانتقال لأي يوم لاحق.`);
+      val = attMissingDates[0];
+    }
+    // امنع اختيار تاريخ قبل بداية الفصل الدراسي
+    if (attSemesterStart && val < attSemesterStart) {
+      alert("لا يمكن اختيار تاريخ قبل بداية الفصل الدراسي");
+      val = attSemesterStart;
+    }
+
+    attSelectedDate = val;
+    dateInput.value = val;
+
+    const dateEl = document.getElementById("attEmpDate");
+    if (dateEl) dateEl.textContent = formatDateArabic(attSelectedDate);
+
+    attPending = [];
+    attCurrentReason = null;
+    const grp = document.getElementById("attReasonGroup");
+    if (grp) grp.querySelectorAll(".att-reason-btn").forEach(b => b.classList.remove("active"));
+
+    await loadRecordForDate(attSelectedDate);
+    renderAttState();
+  });
+}
+
 // ==================== ربط الأحداث ====================
 // flag لمنع الربط المكرر
 let attEventsBound = false;
@@ -524,6 +741,8 @@ export function bindAttendanceEvents() {
   attEventsBound = true;
 
   bindMemberAutocomplete();
+  bindReasonButtons();
+  bindDatePicker();
 
   // الكل حاضر
   const allBtn = document.getElementById("attBtnAllPresent");
@@ -533,7 +752,10 @@ export function bindAttendanceEvents() {
       attAbsentees = [];
       attPending = [];
       const ok = await saveRecord();
-      if (ok) renderAttState();
+      if (ok) {
+        await afterSuccessfulSave();
+        renderAttState();
+      }
     });
   }
 
@@ -575,12 +797,13 @@ export function bindAttendanceEvents() {
     attPending.forEach(p => {
       const idx = attAbsentees.findIndex(a => a.employeeNumber === p.employeeNumber && a.name === p.name);
       if (idx !== -1) {
+        attAbsentees[idx].reason = p.reason || attAbsentees[idx].reason;
         p.courses.forEach(c => {
           const isDup = attAbsentees[idx].courses.some(ec => ec.course === c.course && ec.section === c.section);
           if (!isDup) attAbsentees[idx].courses.push(c);
         });
       } else {
-        attAbsentees.push({ name: p.name, employeeNumber: p.employeeNumber, courses: [...p.courses] });
+        attAbsentees.push({ name: p.name, employeeNumber: p.employeeNumber, reason: p.reason, courses: [...p.courses] });
       }
     });
     attPending = [];
@@ -596,6 +819,12 @@ export function bindAttendanceEvents() {
       if (elNum)  { elNum.value  = ""; elNum.removeAttribute("readonly"); }
       if (elCrs)  elCrs.value  = "";
       if (elSec)  elSec.value  = "";
+
+      attCurrentReason = null;
+      const grp = document.getElementById("attReasonGroup");
+      if (grp) grp.querySelectorAll(".att-reason-btn").forEach(b => b.classList.remove("active"));
+
+      await afterSuccessfulSave();
       renderAttState();
     }
     return ok;
